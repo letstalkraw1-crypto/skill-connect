@@ -1,0 +1,990 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Collabro Admin</title>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap"
+    rel="stylesheet" />
+  <script>function togglePw(btn) { var i = btn.previousElementSibling; var on = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>'; var off = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>'; if (i.type === 'password') { i.type = 'text'; btn.innerHTML = off; } else { i.type = 'password'; btn.innerHTML = on; } }</script>
+  <style>
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      --bg: #F8FAFC;
+      --bg2: #FFFFFF;
+      --surface: #F1F5F9;
+      --surface2: #FFFFFF;
+      --border: #E2E8F0;
+      --text: #0F172A;
+      --text2: #64748B;
+      --purple: #6366F1;
+      --pink: #EC4899;
+      --cyan: #06B6D4;
+      --green: #10B981;
+      --red: #EF4444;
+      --grad2: linear-gradient(135deg, #6366F1, #8B5CF6);
+      --radius: 12px;
+    }
+
+    body {
+      font-family: 'Space Grotesk', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    #login-screen {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+    }
+
+    .login-card {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 40px;
+      width: 360px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+    }
+
+    .login-card h1 {
+      font-size: 1.4rem;
+      margin-bottom: 6px;
+    }
+
+    .login-card p {
+      color: var(--text2);
+      font-size: 0.85rem;
+      margin-bottom: 28px;
+    }
+
+    #admin-app {
+      display: none;
+    }
+
+    .sidebar {
+      width: 220px;
+      background: var(--bg2);
+      border-right: 1px solid var(--border);
+      height: 100vh;
+      position: fixed;
+      top: 0;
+      left: 0;
+      display: flex;
+      flex-direction: column;
+      padding: 24px 16px;
+      gap: 4px;
+    }
+
+    .sidebar .logo {
+      font-size: 1.1rem;
+      font-weight: 700;
+      background: var(--grad2);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 24px;
+      padding: 0 8px;
+    }
+
+    .nav-item {
+      padding: 10px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      color: var(--text2);
+      transition: all 0.15s;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: none;
+      border: none;
+      font-family: inherit;
+      width: 100%;
+      text-align: left;
+    }
+
+    .nav-item:hover {
+      background: var(--surface);
+      color: var(--text);
+    }
+
+    .nav-item.active {
+      background: rgba(139, 92, 246, 0.15);
+      color: var(--purple);
+    }
+
+    .main {
+      margin-left: 220px;
+      padding: 32px;
+      min-height: 100vh;
+    }
+
+    .card {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.02);
+    }
+
+    .stat-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 16px;
+      margin-bottom: 28px;
+    }
+
+    .stat-card {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.02);
+    }
+
+    .stat-val {
+      font-size: 2rem;
+      font-weight: 700;
+    }
+
+    .stat-label {
+      font-size: 0.8rem;
+      color: var(--text2);
+      margin-top: 4px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.9rem;
+    }
+
+    th {
+      text-align: left;
+      padding: 10px 12px;
+      color: var(--text2);
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      border-bottom: 1px solid var(--border);
+    }
+
+    td {
+      padding: 12px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: middle;
+    }
+
+    tr:hover td {
+      background: var(--surface);
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+
+    .badge-purple {
+      background: rgba(139, 92, 246, 0.2);
+      color: var(--purple);
+    }
+
+    .badge-green {
+      background: rgba(16, 185, 129, 0.2);
+      color: var(--green);
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+
+    .input-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .input-group label {
+      font-size: 0.8rem;
+      color: var(--text2);
+      font-weight: 500;
+    }
+
+    .input-group input,
+    .input-group textarea {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-family: inherit;
+      font-size: 0.9rem;
+      padding: 10px 12px;
+      outline: none;
+    }
+
+    .input-group input:focus {
+      border-color: var(--purple);
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 9px 18px;
+      border-radius: 8px;
+      font-family: inherit;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      transition: all 0.2s;
+    }
+
+    .btn-primary {
+      background: var(--grad2);
+      color: white;
+    }
+
+    .btn-primary:hover {
+      opacity: 0.9;
+    }
+
+    .btn-danger {
+      background: rgba(239, 68, 68, 0.15);
+      color: #f87171;
+      border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+
+    .btn-danger:hover {
+      background: rgba(239, 68, 68, 0.25);
+    }
+
+    .btn-ghost {
+      background: var(--surface);
+      color: var(--text2);
+    }
+
+    .btn-ghost:hover {
+      color: var(--text);
+    }
+
+    .btn-success {
+      background: rgba(16, 185, 129, 0.15);
+      color: #34d399;
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+
+    .btn-sm {
+      padding: 6px 12px;
+      font-size: 0.8rem;
+    }
+
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.7);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal-overlay.open {
+      display: flex;
+    }
+
+    .modal {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 28px;
+      width: 100%;
+      max-width: 580px;
+      max-height: 90vh;
+      overflow-y: auto;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+    }
+
+    .modal h2 {
+      font-size: 1.1rem;
+      margin-bottom: 20px;
+    }
+
+    #toast {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .toast-item {
+      padding: 10px 18px;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      font-weight: 500;
+      animation: slideIn 0.3s ease;
+    }
+
+    .toast-item.success {
+      background: rgba(16, 185, 129, 0.9);
+      color: white;
+    }
+
+    .toast-item.error {
+      background: rgba(239, 68, 68, 0.9);
+      color: white;
+    }
+
+    .toast-item.info {
+      background: rgba(139, 92, 246, 0.9);
+      color: white;
+    }
+
+    @keyframes slideIn {
+      from {
+        transform: translateX(100%);
+        opacity: 0
+      }
+
+      to {
+        transform: translateX(0);
+        opacity: 1
+      }
+    }
+
+    .spinner {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      border: 2px solid rgba(255, 255, 255, 0.2);
+      border-top-color: white;
+      animation: spin 0.6s linear infinite;
+      display: inline-block;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg)
+      }
+    }
+
+    .section {
+      display: none;
+    }
+
+    .section.active {
+      display: block;
+    }
+
+    h2.section-title {
+      font-size: 1.3rem;
+      font-weight: 700;
+      margin-bottom: 20px;
+    }
+
+    .avatar-sm {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: var(--grad2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: white;
+      flex-shrink: 0;
+      overflow: hidden;
+    }
+
+    .avatar-sm img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .skill-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 12px;
+      border-radius: 999px;
+      background: rgba(139, 92, 246, 0.15);
+      border: 1px solid rgba(139, 92, 246, 0.3);
+      font-size: 0.8rem;
+      color: var(--purple);
+      margin: 3px;
+    }
+
+    .skill-chip .remove {
+      cursor: pointer;
+      opacity: 0.6;
+      font-size: 1rem;
+    }
+
+    .skill-chip .remove:hover {
+      opacity: 1;
+      color: #f87171;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="toast"></div>
+
+  <!-- LOGIN -->
+  <div id="login-screen">
+    <div class="login-card">
+      <h1><img src="logo.png"
+          style="width:36px; height:36px; border-radius:50%; vertical-align:middle; margin-right:8px;" /> Admin Panel
+      </h1>
+      <p>Collabro — Admin Access Only</p>
+      <div class="input-group" style="margin-bottom:16px;">
+        <label>Admin Password</label>
+        <div style="position:relative;display:flex;align-items:center;">
+          <input type="password" id="admin-pw" placeholder="Enter admin password"
+            onkeydown="if(event.key==='Enter')adminLogin()" style="width:100%;padding-right:44px;" />
+          <button type="button" onclick="togglePw(this)"
+            style="position:absolute;right:8px;background:none;border:none;color:var(--text2);cursor:pointer;padding:4px;display:flex;align-items:center;justify-content:center;"><svg
+              width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+              <circle cx="12" cy="12" r="3"></circle>
+            </svg></button>
+        </div>
+      </div>
+      <button class="btn btn-primary" style="width:100%;" onclick="adminLogin()" id="btn-admin-login">Login</button>
+    </div>
+  </div>
+
+  <!-- ADMIN APP -->
+  <div id="admin-app">
+    <div class="sidebar">
+      <div class="logo">⚡ Admin</div>
+      <button class="nav-item active" onclick="showSection('dashboard',this)">📊 Dashboard</button>
+      <button class="nav-item" onclick="showSection('users',this)">👥 Users</button>
+      <button class="nav-item" onclick="showSection('skills',this)">🏅 Skills</button>
+      <button class="nav-item" onclick="showSection('events',this)">📅 Events</button>
+      <div style="margin-top:auto;">
+        <button class="nav-item" onclick="adminLogout()" style="color:#f87171;">🚪 Logout</button>
+      </div>
+    </div>
+
+    <div class="main">
+
+      <!-- DASHBOARD -->
+      <div id="section-dashboard" class="section active">
+        <h2 class="section-title">Dashboard</h2>
+        <div class="stat-grid">
+          <div class="stat-card">
+            <div class="stat-val" id="stat-users">—</div>
+            <div class="stat-label">Total Users</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-val" id="stat-connections">—</div>
+            <div class="stat-label">Connections</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-val" id="stat-messages">—</div>
+            <div class="stat-label">Messages</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-val" id="stat-conversations">—</div>
+            <div class="stat-label">Conversations</div>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+          <div class="card">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+              <div style="font-weight:600;">🏅 Skills Popularity</div>
+              <button class="btn btn-ghost btn-sm" onclick="exportSkillsExcel()">⬇️ Export Excel</button>
+            </div>
+            <div id="skill-breakdown"></div>
+          </div>
+          <div class="card">
+            <div style="font-weight:600;margin-bottom:16px;">🆕 Recent Signups</div>
+            <div id="recent-users"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- USERS -->
+      <div id="section-users" class="section">
+        <div
+          style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px;">
+          <h2 class="section-title" style="margin:0;">Users</h2>
+          <input type="text" id="user-search" placeholder="Search name, email, phone..." oninput="filterUsers()"
+            style="background:var(--surface);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:inherit;font-size:0.9rem;padding:9px 14px;outline:none;width:260px;" />
+        </div>
+        <div class="card" style="overflow-x:auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>User</th>
+                <th>Contact</th>
+                <th>Location</th>
+                <th>Social</th>
+                <th>Skills</th>
+                <th>Connections</th>
+                <th>Joined</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="users-table-body"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- SKILLS -->
+      <div id="section-skills" class="section">
+        <h2 class="section-title">Skills Management</h2>
+        <div class="card" style="margin-bottom:20px;">
+          <div style="font-weight:600;margin-bottom:16px;">➕ Add New Skill</div>
+          <div style="display:flex;gap:10px;">
+            <input type="text" id="new-skill-name" placeholder="e.g. tennis, boxing..."
+              style="background:var(--surface);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:inherit;font-size:0.9rem;padding:10px 14px;outline:none;flex:1;" />
+            <button class="btn btn-primary" onclick="addSkill()">Add Skill</button>
+          </div>
+        </div>
+        <div class="card">
+          <div style="font-weight:600;margin-bottom:16px;">All Skills</div>
+          <div id="skills-list"></div>
+        </div>
+      </div>
+
+      <!-- EVENTS -->
+      <div id="section-events" class="section">
+        <h2 class="section-title">Events Management</h2>
+        <div id="admin-events-list"></div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- EDIT EVENT MODAL -->
+  <div class="modal-overlay" id="edit-event-modal">
+    <div class="modal">
+      <h2>✏️ Edit Event Notice</h2>
+      <input type="hidden" id="edit-ev-id" />
+      <div class="form-grid" style="margin-bottom:16px;">
+        <div class="input-group"><label>Title</label><input type="text" id="edit-ev-title" /></div>
+        <div class="input-group"><label>Date & Time</label><input type="text" id="edit-ev-datetime" /></div>
+        <div class="input-group"><label>Venue</label><input type="text" id="edit-ev-venue" /></div>
+        <div class="input-group" style="grid-column:1/-1;"><label>Guidelines</label><textarea id="edit-ev-guidelines"
+            style="min-height:80px;"></textarea></div>
+      </div>
+      <div style="display:flex;gap:10px;justify-content:flex-end;">
+        <button class="btn btn-ghost" onclick="closeEventModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="saveEvent()" id="btn-save-event">Save changes</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- EDIT USER MODAL -->
+  <div class="modal-overlay" id="edit-modal">
+    <div class="modal">
+      <h2>✏️ Edit User</h2>
+      <input type="hidden" id="edit-user-id" />
+      <div class="form-grid" style="margin-bottom:16px;">
+        <div class="input-group"><label>Name</label><input type="text" id="edit-name" /></div>
+        <div class="input-group"><label>Email</label><input type="email" id="edit-email" /></div>
+        <div class="input-group"><label>Phone</label><input type="tel" id="edit-phone" /></div>
+        <div class="input-group"><label>Location</label><input type="text" id="edit-location" /></div>
+        <div class="input-group" style="grid-column:1/-1;"><label>Bio</label><input type="text" id="edit-bio" /></div>
+        <div class="input-group"><label>Strava ID</label><input type="text" id="edit-strava"
+            placeholder="strava.com/athletes/..." /></div>
+        <div class="input-group"><label>Garmin ID</label><input type="text" id="edit-garmin"
+            placeholder="connect.garmin.com/..." /></div>
+        <div class="input-group"><label>Instagram</label><input type="text" id="edit-instagram"
+            placeholder="@username" /></div>
+        <div class="input-group" style="grid-column:1/-1;"><label>Reset Password <span
+              style="color:var(--text2);font-weight:400;">(leave blank to keep)</span></label>
+          <div style="position:relative;display:flex;align-items:center;">
+            <input type="password" id="edit-password" style="width:100%;padding-right:44px;" />
+            <button type="button" onclick="togglePw(this)"
+              style="position:absolute;right:8px;background:none;border:none;color:var(--text2);cursor:pointer;padding:4px;display:flex;align-items:center;justify-content:center;"><svg
+                width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                <circle cx="12" cy="12" r="3"></circle>
+              </svg></button>
+          </div>
+        </div>
+      </div>
+      <div style="display:flex;gap:10px;justify-content:flex-end;">
+        <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="saveUser()" id="btn-save-user">Save changes</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- DELETE MODAL -->
+  <div class="modal-overlay" id="delete-modal">
+    <div class="modal" style="max-width:380px;">
+      <h2>🗑️ Delete User</h2>
+      <p style="color:var(--text2);margin-bottom:20px;font-size:0.9rem;">This permanently deletes the user and all their
+        data.</p>
+      <input type="hidden" id="delete-user-id" />
+      <div style="display:flex;gap:10px;justify-content:flex-end;">
+        <button class="btn btn-ghost" onclick="closeDeleteModal()">Cancel</button>
+        <button class="btn btn-danger" onclick="confirmDelete()" id="btn-confirm-delete">Delete user</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SKILL USERS MODAL -->
+  <div class="modal-overlay" id="skill-users-modal">
+    <div class="modal" style="max-width:600px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+        <h2 style="margin:0;">👥 Users with <span id="skill-modal-name" style="color:var(--purple);"></span></h2>
+        <button class="btn btn-ghost btn-sm" onclick="exportSkillUsersExcel()">⬇️ Export</button>
+      </div>
+      <div id="skill-users-list"></div>
+      <div style="margin-top:16px;text-align:right;">
+        <button class="btn btn-ghost"
+          onclick="document.getElementById('skill-users-modal').classList.remove('open')">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API = window.location.origin;
+    let adminToken = localStorage.getItem('sc_admin_token') || '';
+    let allUsers = [];
+    let allSkills = [];
+    let allEvents = [];
+    let currentSkillId = null;
+    let currentSkillUsers = [];
+
+    const esc = t => String(t || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+    function toast(msg, type = 'success') {
+      const el = document.createElement('div');
+      el.className = `toast-item ${type}`;
+      el.textContent = msg;
+      document.getElementById('toast').appendChild(el);
+      setTimeout(() => el.remove(), 3000);
+    }
+
+    function adminHeaders() { return { 'Content-Type': 'application/json', 'x-admin-token': adminToken }; }
+
+    async function adminLogin() {
+      const pw = document.getElementById('admin-pw').value;
+      const btn = document.getElementById('btn-admin-login');
+      btn.innerHTML = '<span class="spinner"></span>'; btn.disabled = true;
+      try {
+        const res = await fetch(`${API}/admin/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: pw }) });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error);
+        adminToken = data.token;
+        localStorage.setItem('sc_admin_token', adminToken);
+        showApp();
+      } catch (err) { toast(err.message, 'error'); }
+      finally { btn.innerHTML = 'Login'; btn.disabled = false; }
+    }
+
+    function adminLogout() {
+      localStorage.removeItem('sc_admin_token');
+      adminToken = '';
+      document.getElementById('admin-app').style.display = 'none';
+      document.getElementById('login-screen').style.display = 'flex';
+    }
+
+    function showApp() {
+      document.getElementById('login-screen').style.display = 'none';
+      document.getElementById('admin-app').style.display = 'block';
+      loadStats(); loadUsers(); loadSkills(); loadEvents();
+    }
+
+    function showSection(name, btn) {
+      document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+      document.getElementById(`section-${name}`).classList.add('active');
+      document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+      if (btn) btn.classList.add('active');
+    }
+
+    // ── STATS ────────────────────────────────────────────────────────────────────
+    async function loadStats() {
+      const res = await fetch(`${API}/admin/stats`, { headers: adminHeaders() });
+      const data = await res.json();
+      document.getElementById('stat-users').textContent = data.totalUsers;
+      document.getElementById('stat-connections').textContent = data.totalConnections;
+      document.getElementById('stat-messages').textContent = data.totalMessages;
+      document.getElementById('stat-conversations').textContent = data.totalConversations;
+
+      const ICONS = { running: '🏃', cycling: '🚴', swimming: '🏊', gym: '💪', yoga: '🧘', hiking: '🥾' };
+      const maxCount = Math.max(...data.skillBreakdown.map(s => s.count), 1);
+      document.getElementById('skill-breakdown').innerHTML = data.skillBreakdown.map(s => `
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;cursor:pointer;" onclick="openSkillUsers(${s.id},'${s.name}')">
+      <span style="width:28px;text-align:center;font-size:1.1rem;">${ICONS[s.name] || '🏅'}</span>
+      <span style="width:70px;font-size:0.85rem;text-transform:capitalize;">${s.name}</span>
+      <div style="flex:1;background:var(--surface);border-radius:999px;height:8px;overflow:hidden;">
+        <div style="height:100%;background:var(--grad2);border-radius:999px;width:${Math.round((s.count / maxCount) * 100)}%;transition:width 0.5s;"></div>
+      </div>
+      <span style="font-size:0.8rem;color:var(--purple);font-weight:600;width:28px;text-align:right;">${s.count}</span>
+    </div>`).join('');
+
+      document.getElementById('recent-users').innerHTML = data.recentUsers.map(u => `
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+      <div class="avatar-sm">${u.avatar_url ? `<img src="${u.avatar_url.startsWith('/') ? API + u.avatar_url : u.avatar_url}" />` : (u.name || '?').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()}</div>
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:0.9rem;font-weight:600;">${u.name}</div>
+        <div style="font-size:0.75rem;color:var(--text2);">${u.email || '—'}</div>
+      </div>
+      <div style="font-size:0.75rem;color:var(--text2);">${new Date(u.created_at).toLocaleDateString()}</div>
+    </div>`).join('');
+    }
+
+    // ── SKILL USERS MODAL ────────────────────────────────────────────────────────
+    async function openSkillUsers(skillId, skillName) {
+      currentSkillId = skillId;
+      document.getElementById('skill-modal-name').textContent = skillName;
+      document.getElementById('skill-users-modal').classList.add('open');
+      document.getElementById('skill-users-list').innerHTML = '<span class="spinner"></span>';
+      const res = await fetch(`${API}/admin/skills/${skillId}/users`, { headers: adminHeaders() });
+      currentSkillUsers = await res.json();
+      document.getElementById('skill-users-list').innerHTML = currentSkillUsers.length ? `
+    <table><thead><tr><th>User</th><th>Email</th><th>Location</th><th>Level</th><th>Experience</th></tr></thead>
+    <tbody>${currentSkillUsers.map(u => `
+      <tr>
+        <td><div style="display:flex;align-items:center;gap:8px;">
+          <div class="avatar-sm">${u.avatar_url ? `<img src="${u.avatar_url.startsWith('/') ? API + u.avatar_url : u.avatar_url}"/>` : (u.name || '?').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()}</div>
+          <span style="font-weight:600;">${u.name}</span></div></td>
+        <td style="color:var(--text2);font-size:0.85rem;">${u.email || '—'}</td>
+        <td style="color:var(--text2);font-size:0.85rem;">${u.location || '—'}</td>
+        <td><span class="badge badge-purple">${u.level || '—'}</span></td>
+        <td style="color:var(--text2);font-size:0.85rem;">${u.years_exp ? u.years_exp + ' yrs' : '—'}</td>
+      </tr>`).join('')}
+    </tbody></table>` : '<div style="color:var(--text2);padding:20px;text-align:center;">No users with this skill yet</div>';
+    }
+
+    function exportSkillUsersExcel() {
+      if (!currentSkillUsers.length) return;
+      const rows = [['Name', 'Email', 'Location', 'Level', 'Years Experience'], ...currentSkillUsers.map(u => [u.name, u.email || '', u.location || '', u.level || '', u.years_exp || ''])];
+      downloadCSV(rows, `skill-users-${currentSkillId}.csv`);
+    }
+
+    function exportSkillsExcel() {
+      fetch(`${API}/admin/stats`, { headers: adminHeaders() }).then(r => r.json()).then(data => {
+        const rows = [['Skill', 'User Count'], ...data.skillBreakdown.map(s => [s.name, s.count])];
+        downloadCSV(rows, 'skills-popularity.csv');
+      });
+    }
+
+    function downloadCSV(rows, filename) {
+      const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = filename;
+      a.click();
+      toast('Exported! ✅');
+    }
+
+    // ── USERS ────────────────────────────────────────────────────────────────────
+    async function loadUsers() {
+      const res = await fetch(`${API}/admin/users`, { headers: adminHeaders() });
+      allUsers = await res.json();
+      renderUsers(allUsers);
+    }
+
+    function filterUsers() {
+      const q = document.getElementById('user-search').value.toLowerCase();
+      renderUsers(allUsers.filter(u => (u.name || '').toLowerCase().includes(q) || (u.email || '').toLowerCase().includes(q) || (u.phone || '').toLowerCase().includes(q)));
+    }
+
+    function renderUsers(users) {
+      document.getElementById('users-table-body').innerHTML = users.map(u => `
+    <tr>
+      <td><div style="display:flex;align-items:center;gap:8px;">
+        <div class="avatar-sm">${u.avatar_url ? `<img src="${u.avatar_url.startsWith('/') ? API + u.avatar_url : u.avatar_url}"/>` : (u.name || '?').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()}</div>
+        <div><div style="font-weight:600;">${u.name}</div><div style="font-size:0.75rem;color:var(--text2);">ID: ${u.short_id || '—'}</div></div>
+      </div></td>
+      <td style="font-size:0.85rem;color:var(--text2);">${u.email || u.phone || '—'}</td>
+      <td style="font-size:0.85rem;color:var(--text2);">${u.location || '—'}</td>
+      <td style="font-size:0.8rem;">
+        ${u.strava_id ? `<div>🟠 Strava</div>` : ''}
+        ${u.garmin_id ? `<div>🔵 Garmin</div>` : ''}
+        ${u.instagram_id ? `<div>📸 @${u.instagram_id}</div>` : ''}
+        ${!u.strava_id && !u.garmin_id && !u.instagram_id ? '<span style="color:var(--text2);">—</span>' : ''}
+      </td>
+      <td><span class="badge badge-purple">${u.skill_count}</span></td>
+      <td><span class="badge" style="background:rgba(16,185,129,0.15);color:var(--green);">${u.connection_count}</span></td>
+      <td style="font-size:0.8rem;color:var(--text2);">${new Date(u.created_at).toLocaleDateString()}</td>
+      <td><div style="display:flex;gap:6px;">
+        <button class="btn btn-ghost btn-sm" onclick="openEditModal('${u.id}')">✏️</button>
+        <button class="btn btn-danger btn-sm" onclick="openDeleteModal('${u.id}')">🗑️</button>
+      </div></td>
+    </tr>`).join('');
+    }
+
+    async function openEditModal(userId) {
+      const res = await fetch(`${API}/admin/users/${userId}`, { headers: adminHeaders() });
+      const user = await res.json();
+      document.getElementById('edit-user-id').value = user.id;
+      document.getElementById('edit-name').value = user.name || '';
+      document.getElementById('edit-email').value = user.email || '';
+      document.getElementById('edit-phone').value = user.phone || '';
+      document.getElementById('edit-location').value = user.location || '';
+      document.getElementById('edit-bio').value = user.bio || '';
+      document.getElementById('edit-strava').value = user.strava_id || '';
+      document.getElementById('edit-garmin').value = user.garmin_id || '';
+      document.getElementById('edit-instagram').value = user.instagram_id || '';
+      document.getElementById('edit-password').value = '';
+      document.getElementById('edit-modal').classList.add('open');
+    }
+
+    function closeModal() { document.getElementById('edit-modal').classList.remove('open'); }
+
+    async function saveUser() {
+      const id = document.getElementById('edit-user-id').value;
+      const btn = document.getElementById('btn-save-user');
+      btn.innerHTML = '<span class="spinner"></span>'; btn.disabled = true;
+      const body = {
+        name: document.getElementById('edit-name').value,
+        email: document.getElementById('edit-email').value,
+        phone: document.getElementById('edit-phone').value,
+        location: document.getElementById('edit-location').value,
+        bio: document.getElementById('edit-bio').value,
+        strava_id: document.getElementById('edit-strava').value,
+        garmin_id: document.getElementById('edit-garmin').value,
+        instagram_id: document.getElementById('edit-instagram').value,
+      };
+      const pw = document.getElementById('edit-password').value;
+      if (pw) body.password = pw;
+      try {
+        const res = await fetch(`${API}/admin/users/${id}`, { method: 'PUT', headers: adminHeaders(), body: JSON.stringify(body) });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error);
+        closeModal(); toast('User updated ✅'); loadUsers(); loadStats();
+      } catch (err) { toast(err.message, 'error'); }
+      finally { btn.innerHTML = 'Save changes'; btn.disabled = false; }
+    }
+
+    function openDeleteModal(userId) { document.getElementById('delete-user-id').value = userId; document.getElementById('delete-modal').classList.add('open'); }
+    function closeDeleteModal() { document.getElementById('delete-modal').classList.remove('open'); }
+
+    async function confirmDelete() {
+      const id = document.getElementById('delete-user-id').value;
+      const btn = document.getElementById('btn-confirm-delete');
+      btn.innerHTML = '<span class="spinner"></span>'; btn.disabled = true;
+      try {
+        await fetch(`${API}/admin/users/${id}`, { method: 'DELETE', headers: adminHeaders() });
+        closeDeleteModal(); toast('User deleted'); loadUsers(); loadStats();
+      } catch (err) { toast(err.message, 'error'); }
+      finally { btn.innerHTML = 'Delete user'; btn.disabled = false; }
+    }
+
+    // ── SKILLS MANAGEMENT ────────────────────────────────────────────────────────
+    async function loadSkills() {
+      const res = await fetch(`${API}/admin/stats`, { headers: adminHeaders() });
+      const data = await res.json();
+      allSkills = data.skillBreakdown;
+      renderSkills();
+    }
+
+    function renderSkills() {
+      const ICONS = { running: '🏃', cycling: '🚴', swimming: '🏊', gym: '💪', yoga: '🧘', hiking: '🥾' };
+      document.getElementById('skills-list').innerHTML = allSkills.map(s => `
+    <div style="display:flex;align-items:center;gap:12px;padding:12px;border-bottom:1px solid var(--border);">
+      <span style="font-size:1.3rem;">${ICONS[s.name] || '🏅'}</span>
+      <span style="flex:1;font-weight:600;text-transform:capitalize;">${s.name}</span>
+      <span class="badge badge-purple">${s.count} users</span>
+      <button class="btn btn-ghost btn-sm" onclick="openSkillUsers(${s.id},'${s.name}')">👥 View users</button>
+      <button class="btn btn-danger btn-sm" onclick="removeSkill(${s.id},'${s.name}')">🗑️ Remove</button>
+    </div>`).join('');
+    }
+
+    async function addSkill() {
+      const name = document.getElementById('new-skill-name').value.trim();
+      if (!name) return;
+      try {
+        const res = await fetch(`${API}/admin/skills`, { method: 'POST', headers: adminHeaders(), body: JSON.stringify({ name }) });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error);
+        document.getElementById('new-skill-name').value = '';
+        toast(`Skill "${name}" added! ✅`);
+        loadSkills(); loadStats();
+      } catch (err) { toast(err.message, 'error'); }
+    }
+
+    async function removeSkill(id, name) {
+      if (!confirm(`Remove skill "${name}"? This will also remove it from all user profiles.`)) return;
+      await fetch(`${API}/admin/skills/${id}`, { method: 'DELETE', headers: adminHeaders() });
+      toast(`Skill "${name}" removed`, 'info');
+      loadSkills(); loadStats();
+    }
+
+    // ── EVENTS MANAGEMENT ────────────────────────────────────────────────────────
+    async function loadEvents() {
+      try {
+        const res = await fetch(`${API}/admin/events`, { headers: adminHeaders() });
+        allEvents = await res.json();
+        renderEvents();
+      } catch (err) { toast('Failed to load events: ' + err.message, 'error'); }
+    }
+    function renderEvents() {
+      document.getElementById('admin-events-list').innerHTML = allEvents.map(e => `
+        <div class="card" style="margin-bottom:12px;">
+          <div style="font-weight:700;">${esc(e.title)} <span style="font-weight:normal;color:var(--text2);font-size:0.8rem;">by ${esc(e.creator_name)}</span></div>
+          <div style="font-size:0.85rem;color:var(--text2);margin-bottom:12px;">${esc(e.datetime)} • ${esc(e.venue_name) || 'No venue'}</div>
+          <div style="font-size:0.85rem;color:var(--text2);white-space:pre-wrap;margin-bottom:14px;background:var(--surface);padding:10px;border-radius:6px;">${esc(e.guidelines) || 'No guidelines specified'}</div>
+          <div style="display:flex;gap:8px;">
+            <button class="btn btn-ghost btn-sm" onclick="openEventEdit('${e.id}')">✏️ Edit</button>
+            <button class="btn btn-danger btn-sm" onclick="deleteEvent('${e.id}')">🗑️ Delete</button>
+          </div>
+        </div>
+      `).join('');
+    }
+    function openEventEdit(id) {
+      const ev = allEvents.find(e => e.id === id);
+      if (!ev) return;
+      document.getElementById('edit-ev-id').value = ev.id;
+      document.getElementById('edit-ev-title').value = ev.title || '';
+      document.getElementById('edit-ev-datetime').value = ev.datetime || '';
+      document.getElementById('edit-ev-venue').value = ev.venue_name || '';
+      document.getElementById('edit-ev-guidelines').value = ev.guidelines || '';
+      document.getElementById('edit-event-modal').classList.add('open');
+    }
+    function closeEventModal() { document.getElementById('edit-event-modal').classList.remove('open'); }
+    async function saveEvent() {
+      const id = document.getElementById('edit-ev-id').value;
+      const body = { title: document.getElementById('edit-ev-title').value, datetime: document.getElementById('edit-ev-datetime').value, venue_name: document.getElementById('edit-ev-venue').value, guidelines: document.getElementById('edit-ev-guidelines').value };
+      var b = document.getElementById('btn-save-event'); b.innerHTML = '<span class="spinner"></span>'; b.disabled = true;
+      try {
+        await fetch(`${API}/admin/events/${id}`, { method: 'PUT', headers: adminHeaders(), body: JSON.stringify(body) });
+        closeEventModal(); toast('Event updated!', 'success'); loadEvents();
+      } catch (err) { toast(err.message, 'error'); } finally { b.innerHTML = 'Save changes'; b.disabled = false; }
+    }
+    async function deleteEvent(id) {
+      if (!confirm('Permanently delete this event notice?')) return;
+      try {
+        await fetch(`${API}/admin/events/${id}`, { method: 'DELETE', headers: adminHeaders() });
+        toast('Event deleted'); loadEvents();
+      } catch (err) { toast(err.message, 'error'); }
+    }
+
+    if (adminToken) showApp();
+  </script>
+</body>
+
+</html>
