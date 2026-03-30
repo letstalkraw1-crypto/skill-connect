@@ -26,10 +26,12 @@ require('./db/index');
 // Middleware: Ensure DB is ready for non-health requests
 app.use((req, res, next) => {
   if (req.path === '/health') return next(); // Health check doesn't need DB
+  if (req.path === '/' || req.path.includes('.')) return next(); // Frontend files don't need DB
   
   if (mongoose.connection.readyState !== 1) {
+    console.warn(`⏳ DB not ready (state: ${mongoose.connection.readyState}), delaying request to ${req.path}`);
     return res.status(503).json({ 
-      error: 'Database not ready',
+      error: 'Database connection initializing',
       status: 'waiting'
     });
   }
@@ -39,10 +41,13 @@ app.use((req, res, next) => {
 // Health check with MongoDB status
 app.get('/health', (req, res) => {
   const dbConnected = mongoose.connection.readyState === 1;
-  res.status(dbConnected ? 200 : 503).json({ 
+  const status = {
     status: dbConnected ? 'ok' : 'waiting',
-    db: dbConnected ? 'connected' : 'connecting'
-  });
+    db: dbConnected ? 'connected' : 'connecting',
+    timestamp: new Date().toISOString()
+  };
+  console.log('Health check:', status);
+  res.status(dbConnected ? 200 : 503).json(status);
 });
 
 // Routes
@@ -65,10 +70,16 @@ app.use('/documents', require('./routes/documents'));
 const { initSocket } = require('./socket/index');
 initSocket(server);
 
-// Global error handler
+// Global error handler — always return JSON
 app.use((err, req, res, next) => {
-  console.error('Server error:', err.message);
-  res.status(err.status || 500).json({ error: err.message });
+  console.error('❌ Error on', req.method, req.path, ':', err.message);
+  console.error(err.stack);
+  // Ensure we always return JSON, never HTML
+  res.setHeader('Content-Type', 'application/json');
+  res.status(err.status || 500).json({ 
+    error: err.message || 'Internal server error',
+    path: req.path
+  });
 });
 
 // Serve frontend — no cache so mobile always gets latest

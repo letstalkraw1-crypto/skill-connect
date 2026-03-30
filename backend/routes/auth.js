@@ -10,8 +10,7 @@ router.post('/signup', async (req, res) => {
   try {
     // Phone-only signup (no email/password)
     if (phone && !email) {
-      const { signupPhone } = require('../services/auth');
-      const result = signupPhone(name, phone, location);
+      const result = await signupPhone(name, phone, location);
       return res.status(201).json(result);
     }
     const result = await signup(name, email, password, location);
@@ -33,12 +32,12 @@ router.post('/login', async (req, res) => {
 });
 
 // POST /auth/send-otp — send OTP to phone number
-router.post('/send-otp', (req, res) => {
+router.post('/send-otp', async (req, res) => {
   const { phone } = req.body;
   if (!phone) return res.status(400).json({ error: 'Phone number required' });
 
   try {
-    const code = generateOtp(phone);
+    const code = await generateOtp(phone);
 
     // If Twilio is configured, send SMS — otherwise log to console (dev mode)
     if (process.env.TWILIO_SID && process.env.TWILIO_TOKEN && process.env.TWILIO_FROM) {
@@ -60,12 +59,12 @@ router.post('/send-otp', (req, res) => {
 });
 
 // POST /auth/verify-otp — verify OTP and get JWT
-router.post('/verify-otp', (req, res) => {
+router.post('/verify-otp', async (req, res) => {
   const { phone, code } = req.body;
   if (!phone || !code) return res.status(400).json({ error: 'Phone and OTP code required' });
 
   try {
-    const result = verifyOtp(phone, code);
+    const result = await verifyOtp(phone, code);
     return res.status(200).json(result);
   } catch (err) {
     return res.status(err.status || 500).json({ error: err.message });
@@ -73,10 +72,10 @@ router.post('/verify-otp', (req, res) => {
 });
 
 // POST /auth/signup-phone — register with phone + name
-router.post('/signup-phone', (req, res) => {
+router.post('/signup-phone', async (req, res) => {
   const { name, phone, location } = req.body;
   try {
-    const result = signupPhone(name, phone, location);
+    const result = await signupPhone(name, phone, location);
     return res.status(201).json(result);
   } catch (err) {
     return res.status(err.status || 500).json({ error: err.message });
