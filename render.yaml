@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: skill-connect-backend
+    runtime: node
+    region: oregon
+    plan: free
+    buildCommand: cd backend && rm -rf node_modules package-lock.json && npm install
+    startCommand: cd backend && npm start
+    healthCheckPath: /health
+    healthCheckInterval: 30
+    healthCheckTimeout: 10
+    envVars:
+      - key: NODE_ENV
+        value: production

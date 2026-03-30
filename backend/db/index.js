@@ -12,6 +12,8 @@ async function connectDB() {
     await mongoose.connect(mongoUri, {
       useNewUrlParser: true,
       useUnifiedTopology: true,
+      serverSelectionTimeoutMS: 10000,
+      socketTimeoutMS: 45000,
     });
 
     console.log('✅ Connected to MongoDB Atlas');
@@ -21,6 +23,7 @@ async function connectDB() {
 
   } catch (err) {
     console.error('❌ Failed to connect to MongoDB:', err.message);
+    // Exit gracefully - Render will restart the service
     process.exit(1);
   }
 }

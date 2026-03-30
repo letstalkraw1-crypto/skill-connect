@@ -2,6 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const http = require('http');
+const mongoose = require('mongoose');
 
 const app = express();
 const server = http.createServer(app);
@@ -22,8 +23,14 @@ app.use((req, res, next) => {
 // Initialize DB (creates file + schema + seeds on first run)
 require('./db/index');
 
-// Health check
-app.get('/health', (req, res) => res.json({ status: 'ok' }));
+// Health check with MongoDB status
+app.get('/health', (req, res) => {
+  const dbConnected = mongoose.connection.readyState === 1;
+  res.status(dbConnected ? 200 : 503).json({ 
+    status: dbConnected ? 'ok' : 'waiting',
+    db: dbConnected ? 'connected' : 'connecting'
+  });
+});
 
 // Routes
 app.use('/auth', require('./routes/auth'));
