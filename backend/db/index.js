@@ -55,7 +55,11 @@ async function seedInitialData() {
 }
 
 // Initialize DB connection on app start
-connectDB();
+console.log('📡 Attempting to connect to MongoDB...');
+connectDB().catch(err => {
+  console.error('❌ Failed to initialize database:', err.message);
+  process.exit(1);
+});
 
 // Export models and database utilities
 module.exports = {

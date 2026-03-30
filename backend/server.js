@@ -23,6 +23,19 @@ app.use((req, res, next) => {
 // Initialize DB (creates file + schema + seeds on first run)
 require('./db/index');
 
+// Middleware: Ensure DB is ready for non-health requests
+app.use((req, res, next) => {
+  if (req.path === '/health') return next(); // Health check doesn't need DB
+  
+  if (mongoose.connection.readyState !== 1) {
+    return res.status(503).json({ 
+      error: 'Database not ready',
+      status: 'waiting'
+    });
+  }
+  next();
+});
+
 // Health check with MongoDB status
 app.get('/health', (req, res) => {
   const dbConnected = mongoose.connection.readyState === 1;
