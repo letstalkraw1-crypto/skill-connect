@@ -1,11 +1,42 @@
 const express = require('express');
 const { v4: uuidv4 } = require('uuid');
 const { verifyToken } = require('../services/auth');
-const Event = require('../models/Event');
-const EventRsvp = require('../models/EventRsvp');
-const User = require('../models/User');
+const { Event, EventRsvp, User } = require('../db/index');
 
 const router = express.Router();
+
+// GET /events/venues/search?q=venueName — MUST be before /:id
+router.get('/venues/search', verifyToken, async (req, res) => {
+  try {
+    const { q } = req.query;
+    if (!q || q.trim().length < 1) return res.json([]);
+
+    const searchTerm = q.trim();
+    const distinctVenueNames = await Event.distinct('venueName', {
+      venueName: { $regex: searchTerm, $options: 'i' },
+      status: 'active'
+    });
+
+    const venues = await Event.find({ venueName: { $in: distinctVenueNames } })
+      .select('venueName venueCoords')
+      .limit(20)
+      .lean();
+
+    const uniqueVenues = [];
+    const seen = new Set();
+    venues.forEach(v => {
+      if (v.venueName && !seen.has(v.venueName)) {
+        seen.add(v.venueName);
+        uniqueVenues.push({ name: v.venueName, coords: v.venueCoords });
+      }
+    });
+
+    res.json(uniqueVenues);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
 
 // GET /events - List all upcoming events
 router.get('/', verifyToken, async (req, res) => {
@@ -36,6 +67,7 @@ router.get('/', verifyToken, async (req, res) => {
           ...event,
           creatorName: event.creatorId.name,
           creatorAvatar: event.creatorId.avatarUrl,
+          isCreator: event.creatorId._id === userId,
           attendeeCount,
           myRsvpStatus: myRsvp?.status || null
         };
@@ -92,6 +124,7 @@ router.get('/:id', verifyToken, async (req, res) => {
       creatorName: event.creatorId.name,
       creatorAvatar: event.creatorId.avatarUrl,
       creatorShortId: event.creatorId.shortId,
+      isCreator: event.creatorId._id === userId,
       myRsvpStatus: myRsvp?.status || null,
       attendees
     };
@@ -232,52 +265,6 @@ router.put('/:id/rsvp/:targetUserId', verifyToken, async (req, res) => {
     
     await EventRsvp.findByIdAndUpdate(rsvp._id, { status });
     res.json({ success: true, status });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// GET /events/venues/search?q=venueName
-router.get('/venues/search', verifyToken, async (req, res) => {
-  try {
-    const { q } = req.query;
-    if (!q || q.trim().length < 1) {
-      return res.json([]); // Return empty if no query
-    }
-
-    // Get unique venues from events that match search
-    const searchTerm = q.trim();
-    const events = await Event.find({ 
-      venueName: { $regex: searchTerm, $options: 'i' },
-      status: 'active'
-    })
-      .select('venueName venueCoords')
-      .distinct('venueName')
-      .lean();
-
-    // Format response - include coordinates if available
-    const venues = await Event.find({
-      venueName: { $in: events }
-    })
-      .select('venueName venueCoords')
-      .limit(20)
-      .lean();
-
-    // Remove duplicates while keeping coordinates
-    const uniqueVenues = [];
-    const seen = new Set();
-    venues.forEach(v => {
-      if (!seen.has(v.venueName)) {
-        seen.add(v.venueName);
-        uniqueVenues.push({
-          name: v.venueName,
-          coords: v.venueCoords
-        });
-      }
-    });
-
-    res.json(uniqueVenues);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Internal server error' });

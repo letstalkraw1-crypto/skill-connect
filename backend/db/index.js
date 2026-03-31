@@ -37,16 +37,18 @@ async function seedInitialData() {
     // Seed skills if empty
     const skillCount = await Skill.countDocuments();
     if (skillCount === 0) {
+      const mongoose = require('mongoose');
       const skills = ['running', 'cycling', 'swimming', 'gym', 'yoga', 'hiking'];
-      await Skill.insertMany(skills.map(name => ({ name })));
+      await Skill.insertMany(skills.map(name => ({ _id: new mongoose.Types.ObjectId(), name })));
       console.log('✅ Skills seeded');
     }
 
     // Seed proficiency levels if empty
     const profCount = await ProficiencyLevel.countDocuments();
     if (profCount === 0) {
+      const mongoose = require('mongoose');
       const levels = ['Beginner', 'Intermediate', 'Expert'];
-      await ProficiencyLevel.insertMany(levels.map(name => ({ name })));
+      await ProficiencyLevel.insertMany(levels.map(name => ({ _id: new mongoose.Types.ObjectId(), name })));
       console.log('✅ Proficiency levels seeded');
     }
   } catch (err) {

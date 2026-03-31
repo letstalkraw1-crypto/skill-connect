@@ -10,4 +10,6 @@ const messageSchema = new mongoose.Schema({
   readAt: Date
 });
 
+messageSchema.index({ conversationId: 1, sentAt: -1 });
+
 module.exports = mongoose.model('Message', messageSchema);

@@ -1,10 +1,7 @@
 const express = require('express');
 const { v4: uuidv4 } = require('uuid');
 const { verifyToken } = require('../services/auth');
-const QARoom = require('../models/QARoom');
-const QAQuestion = require('../models/QAQuestion');
-const User = require('../models/User');
-const Skill = require('../models/Skill');
+const { QARoom, QAQuestion, User, Skill } = require('../db/index');
 
 const router = express.Router();
 

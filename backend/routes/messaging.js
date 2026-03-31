@@ -17,7 +17,9 @@ router.post('/', verifyToken, async (req, res) => {
 // GET /conversations/:conversationId/messages — MUST be before /:userId
 router.get('/:conversationId/messages', verifyToken, async (req, res) => {
   try {
-    const messages = await getMessages(req.params.conversationId, req.user.userId);
+    const result = await getMessages(req.params.conversationId, req.user.userId);
+    // Support both array response and { messages, wallpaper } response
+    const messages = Array.isArray(result) ? result : (result.messages || []);
     return res.status(200).json(messages);
   } catch (err) {
     return res.status(err.status || 500).json({ error: err.message });

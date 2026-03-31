@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 
 const userSkillSchema = new mongoose.Schema({
+  _id: { type: String, default: () => require('uuid').v4() },
   userId: { type: String, required: true, ref: 'User' },
   skillId: { type: mongoose.Schema.Types.ObjectId, required: true, ref: 'Skill' },
   level: String,

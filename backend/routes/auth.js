@@ -1,11 +1,33 @@
 const express = require('express');
 const { signup, login, signupPhone, generateOtp, verifyOtp } = require('../services/auth');
-const db = require('../db/index');
+const rateLimit = require('express-rate-limit');
+const { body, validationResult } = require('express-validator');
 
 const router = express.Router();
 
+// Strict Auth Rate Limiter to prevent brute-forcing
+const authLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  limit: 20, // Limit each IP to 20 auth requests per window
+  message: { error: 'Too many authentication attempts, please try again later.' }
+});
+
+router.use(authLimiter);
+
+// Validation Middleware Helper
+const validateInput = (req, res, next) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) return res.status(400).json({ error: errors.array()[0].msg });
+  next();
+};
+
 // POST /auth/signup — email + password OR phone-only
-router.post('/signup', async (req, res) => {
+router.post('/signup',
+  body('name').notEmpty().withMessage('Name is required'),
+  body('email').if(body('phone').not().exists()).isEmail().withMessage('Invalid email format'),
+  body('password').if(body('phone').not().exists()).isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
+  validateInput,
+  async (req, res) => {
   const { name, email, password, location, phone } = req.body;
   try {
     // Phone-only signup (no email/password)
@@ -21,7 +43,11 @@ router.post('/signup', async (req, res) => {
 });
 
 // POST /auth/login — email + password
-router.post('/login', async (req, res) => {
+router.post('/login',
+  body('email').isEmail().withMessage('Invalid email format'),
+  body('password').notEmpty().withMessage('Password is required'),
+  validateInput,
+  async (req, res) => {
   const { email, password } = req.body;
   try {
     const result = await login(email, password);

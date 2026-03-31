@@ -1,13 +1,13 @@
 const express = require('express');
 const { v4: uuidv4 } = require('uuid');
 const { verifyToken } = require('../services/auth');
+const { Community, CommunityMember, User } = require('../db/index');
 
 const router = express.Router();
 
 // GET /communities - List all communities the user is a part of, plus public discovery
 router.get('/', verifyToken, async (req, res) => {
   try {
-    const { Community, CommunityMember, User } = require('../db/index');
     const userId = req.user.userId;
 
     const communities = await Community.aggregate([
@@ -51,7 +51,6 @@ router.get('/', verifyToken, async (req, res) => {
 // GET /communities/:id - Get specific community details
 router.get('/:id', verifyToken, async (req, res) => {
   try {
-    const { Community, CommunityMember, User } = require('../db/index');
     const userId = req.user.userId;
 
     const community = await Community.findById(req.params.id)
@@ -77,7 +76,6 @@ router.get('/:id', verifyToken, async (req, res) => {
 // POST /communities - Create a new community
 router.post('/', verifyToken, async (req, res) => {
   try {
-    const { Community, CommunityMember } = require('../db/index');
     const { name, description, type, maxMembers } = req.body;
     if (!name || !name.trim()) return res.status(400).json({ error: 'Community name required' });
 
@@ -108,7 +106,6 @@ router.post('/', verifyToken, async (req, res) => {
 // POST /communities/:id/join - Join a community
 router.post('/:id/join', verifyToken, async (req, res) => {
   try {
-    const { Community, CommunityMember } = require('../db/index');
     const communityId = req.params.id;
     const userId = req.user.userId;
 

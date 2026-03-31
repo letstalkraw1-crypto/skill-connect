@@ -1,5 +1,6 @@
 const express = require('express');
 const { verifyToken, optionalVerifyToken } = require('../services/auth');
+const { User } = require('../db/index');
 const {
   sendRequest,
   acceptConnection,
@@ -69,7 +70,6 @@ router.delete('/:id', verifyToken, async (req, res) => {
  */
 router.get('/:userId', optionalVerifyToken, async (req, res) => {
   try {
-    const { User } = require('../db/index');
     const targetUserId = req.params.userId;
     const reqUserId = req.user ? req.user.userId : null;
     

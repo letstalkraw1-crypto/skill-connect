@@ -7,6 +7,26 @@ const mongoose = require('mongoose');
 const app = express();
 const server = http.createServer(app);
 
+// Security Middleware
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
+
+// Use Helmet
+app.use(helmet({
+  contentSecurityPolicy: false, // Turn off for API
+  crossOriginEmbedderPolicy: false
+}));
+
+// Global Rate Limiting
+const globalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  limit: 500, // Limit each IP to 500 requests per windowMs
+  message: { error: 'Too many requests, please try again later.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+app.use(globalLimiter);
+
 app.use(cors({
   origin: '*', // Allow all origins (standard for public APIs accessed by mobile apps)
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
