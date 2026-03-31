@@ -69,6 +69,7 @@ module.exports = {
   UserSkill: require('../models/UserSkill'),
   Connection: require('../models/Connection'),
   Conversation: require('../models/Conversation'),
+  ConversationParticipant: require('../models/ConversationParticipant'),
   Message: require('../models/Message'),
   OTP: require('../models/OTP'),
   ProficiencyLevel: require('../models/ProficiencyLevel'),
@@ -83,6 +84,12 @@ module.exports = {
   QAQuestion: require('../models/QAQuestion'),
   Feedback: require('../models/Feedback'),
   PostLike: require('../models/PostLike'),
+  PostComment: require('../models/PostComment'),
+  PostInteraction: require('../models/PostInteraction'),
+  Community: require('../models/Community'),
+  CommunityMember: require('../models/CommunityMember'),
+  Event: require('../models/Event'),
+  EventRsvp: require('../models/EventRsvp'),
   mongoose,
   connectDB
 };

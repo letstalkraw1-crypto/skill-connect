@@ -4,7 +4,12 @@ const path = require('path');
 const fs = require('fs');
 const { v4: uuidv4 } = require('uuid');
 const { verifyToken } = require('../services/auth');
-const db = require('../db/index');
+const Post = require('../models/Post');
+const PostLike = require('../models/PostLike');
+const PostComment = require('../models/PostComment');
+const PostInteraction = require('../models/PostInteraction');
+const User = require('../models/User');
+const Connection = require('../models/Connection');
 
 const router = express.Router();
 
@@ -27,150 +32,307 @@ const upload = multer({
   },
 });
 
+// Helper function to get user's connected user IDs
+async function getConnectedUserIds(userId) {
+  const connections = await Connection.find({
+    status: 'accepted',
+    $or: [
+      { requesterId: userId },
+      { addresseeId: userId }
+    ]
+  }).select('requesterId addresseeId');
+  
+  return connections.reduce((ids, conn) => {
+    if (conn.requesterId === userId) ids.push(conn.addresseeId);
+    if (conn.addresseeId === userId) ids.push(conn.requesterId);
+    return ids;
+  }, []);
+}
+
 // GET /posts — feed (all posts from connections + self)
-router.get('/', verifyToken, (req, res) => {
-  const cId = req.user.userId;
-  const posts = db.prepare(`
-    SELECT p.*, u.name as author_name, u.avatar_url as author_avatar, u.short_id as author_short_id,
-           (SELECT COUNT(*) FROM post_likes WHERE post_id = p.id) as like_count,
-           (SELECT COUNT(*) FROM post_comments WHERE post_id = p.id) as comment_count,
-           EXISTS(SELECT 1 FROM post_likes WHERE post_id = p.id AND user_id = ?) as is_liked
-    FROM posts p JOIN users u ON u.id = p.user_id
-    WHERE (p.visibility = 'everyone'
-       OR p.user_id = ?
-       OR (p.visibility = 'connections' AND p.user_id IN (
-           SELECT addressee_id FROM connections WHERE requester_id = ? AND status = 'accepted'
-           UNION
-           SELECT requester_id FROM connections WHERE addressee_id = ? AND status = 'accepted'
-       )))
-       AND p.id NOT IN (
-           SELECT post_id FROM post_interactions 
-           WHERE user_id = ? AND interaction_type IN ('hide', 'not_interested')
-       )
-    ORDER BY p.created_at DESC LIMIT 50
-  `).all(cId, cId, cId, cId, cId);
-  res.json(posts);
+router.get('/', verifyToken, async (req, res) => {
+  try {
+    const cId = req.user.userId;
+    
+    // Get connected user IDs
+    const connectedIds = await getConnectedUserIds(cId);
+    
+    // Get hidden/not interested post IDs
+    const hiddenInteractions = await PostInteraction.find({
+      userId: cId,
+      interactionType: { $in: ['hide', 'not_interested'] }
+    }).select('postId');
+    const hiddenPostIds = hiddenInteractions.map(i => i.postId);
+    
+    // Query posts with visibility rules
+    const posts = await Post.find({
+      $and: [
+        { _id: { $nin: hiddenPostIds } },
+        {
+          $or: [
+            { visibility: 'everyone' },
+            { userId: cId },
+            { visibility: 'connections', userId: { $in: connectedIds } }
+          ]
+        }
+      ]
+    })
+      .populate({
+        path: 'userId',
+        select: 'name avatarUrl shortId',
+        model: User
+      })
+      .sort({ createdAt: -1 })
+      .limit(50)
+      .lean();
+    
+    // Add like counts and comment counts
+    const postsWithCounts = await Promise.all(
+      posts.map(async (post) => {
+        const likeCount = await PostLike.countDocuments({ postId: post._id });
+        const commentCount = await PostComment.countDocuments({ postId: post._id });
+        const isLiked = await PostLike.findOne({ postId: post._id, userId: cId });
+        
+        return {
+          ...post,
+          authorName: post.userId.name,
+          authorAvatar: post.userId.avatarUrl,
+          authorShortId: post.userId.shortId,
+          likeCount,
+          commentCount,
+          isLiked: !!isLiked
+        };
+      })
+    );
+    
+    res.json(postsWithCounts);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
 // POST /posts — create post
-router.post('/', verifyToken, upload.array('images', 10), (req, res) => {
-  const { caption, visibility, verification_link, note } = req.body;
-  const imageUrl = (req.files && req.files.length > 0) ? `/uploads/${req.files[0].filename}` : null;
-  const imageUrls = req.files ? JSON.stringify(req.files.map(f => `/uploads/${f.filename}`)) : '[]';
-  if (!caption && !imageUrl && !note) return res.status(400).json({ error: 'Post needs a caption, note, or image' });
+router.post('/', verifyToken, upload.array('images', 10), async (req, res) => {
+  try {
+    const { caption, visibility, verificationLink, note } = req.body;
+    const imageUrl = (req.files && req.files.length > 0) ? `/uploads/${req.files[0].filename}` : null;
+    const imageUrls = req.files ? req.files.map(f => `/uploads/${f.filename}`) : [];
+    
+    if (!caption && !imageUrl && !note) {
+      return res.status(400).json({ error: 'Post needs a caption, note, or image' });
+    }
 
-  if (caption) {
-    const mentionRegex = /@\[.*?\]\((\d{8})\)|@(\d{8})/g;
-    const matches = [...caption.matchAll(mentionRegex)];
-    const taggedShortIds = [...new Set(matches.map(m => m[1] || m[2]))];
+    if (caption) {
+      const mentionRegex = /@\[.*?\]\((\d{8})\)|@(\d{8})/g;
+      const matches = [...caption.matchAll(mentionRegex)];
+      const taggedShortIds = [...new Set(matches.map(m => m[1] || m[2]))];
 
-    for (const shortId of taggedShortIds) {
-      const targetUser = db.prepare('SELECT id, name, allow_tagging FROM users WHERE short_id = ?').get(shortId);
-      if (targetUser) {
-        if (targetUser.allow_tagging === 'none') {
-          return res.status(403).json({ error: `${targetUser.name} does not allow tagging.` });
-        } else if (targetUser.allow_tagging === 'connections') {
-          const isConnected = db.prepare(`SELECT 1 FROM connections WHERE status = 'accepted' AND 
-            ((requester_id = ? AND addressee_id = ?) OR (requester_id = ? AND addressee_id = ?))`).get(
-            req.user.userId, targetUser.id, targetUser.id, req.user.userId
-          );
-          if (!isConnected) {
-            return res.status(403).json({ error: `${targetUser.name} only allows connections to tag them.` });
+      for (const shortId of taggedShortIds) {
+        const targetUser = await User.findOne({ shortId }).select('name allowTagging');
+        if (targetUser) {
+          if (targetUser.allowTagging === 'none') {
+            return res.status(403).json({ error: `${targetUser.name} does not allow tagging.` });
+          } else if (targetUser.allowTagging === 'connections') {
+            const isConnected = await Connection.findOne({
+              status: 'accepted',
+              $or: [
+                { requesterId: req.user.userId, addresseeId: targetUser._id },
+                { requesterId: targetUser._id, addresseeId: req.user.userId }
+              ]
+            });
+            if (!isConnected) {
+              return res.status(403).json({ error: `${targetUser.name} only allows connections to tag them.` });
+            }
           }
         }
       }
     }
-  }
 
-  const id = uuidv4();
-  db.prepare('INSERT INTO posts (id, user_id, caption, note, image_url, visibility, image_urls, verification_link) VALUES (?, ?, ?, ?, ?, ?, ?, ?)').run(id, req.user.userId, caption || null, note || null, imageUrl, visibility || 'everyone', imageUrls, verification_link || null);
-  const post = db.prepare('SELECT p.*, u.name as author_name, u.avatar_url as author_avatar FROM posts p JOIN users u ON u.id = p.user_id WHERE p.id = ?').get(id);
-  res.status(201).json(post);
+    const newPost = new Post({
+      _id: uuidv4(),
+      userId: req.user.userId,
+      caption: caption || null,
+      note: note || null,
+      imageUrl,
+      imageUrls,
+      visibility: visibility || 'everyone',
+      verificationLink: verificationLink || null
+    });
+    
+    await newPost.save();
+    
+    const post = await Post.findById(newPost._id)
+      .populate({
+        path: 'userId',
+        select: 'name avatarUrl',
+        model: User
+      })
+      .lean();
+    
+    res.status(201).json({
+      ...post,
+      authorName: post.userId.name,
+      authorAvatar: post.userId.avatarUrl
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
 // DELETE /posts/:id
-router.delete('/:id', verifyToken, (req, res) => {
-  const post = db.prepare('SELECT * FROM posts WHERE id = ?').get(req.params.id);
-  if (!post) return res.status(404).json({ error: 'Post not found' });
-  if (post.user_id !== req.user.userId) return res.status(403).json({ error: 'Forbidden' });
-  
-  if (post.image_urls && post.image_urls !== '[]') {
-    try {
-      const urls = JSON.parse(post.image_urls);
-      urls.forEach(url => {
+router.delete('/:id', verifyToken, async (req, res) => {
+  try {
+    const post = await Post.findById(req.params.id);
+    if (!post) return res.status(404).json({ error: 'Post not found' });
+    if (post.userId !== req.user.userId) return res.status(403).json({ error: 'Forbidden' });
+    
+    // Delete image files
+    if (post.imageUrls && post.imageUrls.length > 0) {
+      post.imageUrls.forEach(url => {
         const filePath = path.join(__dirname, '..', '..', 'frontend', url);
         if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
       });
-    } catch(e) {}
-  } else if (post.image_url) {
-    const filePath = path.join(__dirname, '..', '..', 'frontend', post.image_url);
-    if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+    } else if (post.imageUrl) {
+      const filePath = path.join(__dirname, '..', '..', 'frontend', post.imageUrl);
+      if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+    }
+    
+    // Delete post and related data
+    await Post.deleteOne({ _id: req.params.id });
+    await PostLike.deleteMany({ postId: req.params.id });
+    await PostComment.deleteMany({ postId: req.params.id });
+    await PostInteraction.deleteMany({ postId: req.params.id });
+    
+    res.json({ ok: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
   }
-  
-  db.prepare('DELETE FROM posts WHERE id = ?').run(req.params.id);
-  res.json({ ok: true });
 });
 
 // POST /posts/:id/interact
-router.post('/:id/interact', verifyToken, (req, res) => {
-  const { type } = req.body;
-  if (!['interested', 'not_interested', 'hide'].includes(type)) return res.status(400).json({ error: 'Invalid interaction type' });
-  
-  const postId = req.params.id;
-  const userId = req.user.userId;
-  
-  const post = db.prepare('SELECT id FROM posts WHERE id = ?').get(postId);
-  if (!post) return res.status(404).json({ error: 'Post not found' });
-  
-  db.prepare('INSERT OR IGNORE INTO post_interactions (id, user_id, post_id, interaction_type) VALUES (?, ?, ?, ?)').run(uuidv4(), userId, postId, type);
-  res.json({ success: true, type });
+router.post('/:id/interact', verifyToken, async (req, res) => {
+  try {
+    const { type } = req.body;
+    if (!['interested', 'not_interested', 'hide'].includes(type)) {
+      return res.status(400).json({ error: 'Invalid interaction type' });
+    }
+    
+    const postId = req.params.id;
+    const userId = req.user.userId;
+    
+    const post = await Post.findById(postId);
+    if (!post) return res.status(404).json({ error: 'Post not found' });
+    
+    // Use upsert to handle duplicate attempts gracefully
+    await PostInteraction.findOneAndUpdate(
+      { userId, postId, interactionType: type },
+      { _id: uuidv4(), userId, postId, interactionType: type },
+      { upsert: true, new: true }
+    );
+    
+    res.json({ success: true, type });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
-module.exports = router;
-
 // POST /posts/:id/like
-router.post('/:id/like', verifyToken, (req, res) => {
-  const postId = req.params.id;
-  const userId = req.user.userId;
-  const post = db.prepare('SELECT id FROM posts WHERE id = ?').get(postId);
-  if (!post) return res.status(404).json({ error: 'Post not found' });
+router.post('/:id/like', verifyToken, async (req, res) => {
+  try {
+    const postId = req.params.id;
+    const userId = req.user.userId;
+    
+    const post = await Post.findById(postId);
+    if (!post) return res.status(404).json({ error: 'Post not found' });
 
-  const existing = db.prepare('SELECT id FROM post_likes WHERE post_id = ? AND user_id = ?').get(postId, userId);
-  if (existing) {
-    db.prepare('DELETE FROM post_likes WHERE id = ?').run(existing.id);
-  } else {
-    db.prepare('INSERT INTO post_likes (id, post_id, user_id) VALUES (?, ?, ?)').run(uuidv4(), postId, userId);
+    const existing = await PostLike.findOne({ postId, userId });
+    
+    if (existing) {
+      await PostLike.deleteOne({ _id: existing._id });
+    } else {
+      const newLike = new PostLike({
+        _id: uuidv4(),
+        postId,
+        userId
+      });
+      await newLike.save();
+    }
+    
+    const likeCount = await PostLike.countDocuments({ postId });
+    res.json({ liked: !existing, likeCount });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
   }
-  const likeCount = db.prepare('SELECT COUNT(*) as count FROM post_likes WHERE post_id = ?').get(postId).count;
-  res.json({ liked: !existing, like_count: likeCount });
 });
 
 // GET /posts/:id/comments
-router.get('/:id/comments', verifyToken, (req, res) => {
-  const postId = req.params.id;
-  const comments = db.prepare(`
-    SELECT c.*, u.name as author_name, u.avatar_url as author_avatar
-    FROM post_comments c JOIN users u ON u.id = c.user_id
-    WHERE c.post_id = ? ORDER BY c.created_at ASC
-  `).all(postId);
-  res.json(comments);
+router.get('/:id/comments', verifyToken, async (req, res) => {
+  try {
+    const postId = req.params.id;
+    const comments = await PostComment.find({ postId })
+      .populate({
+        path: 'userId',
+        select: 'name avatarUrl',
+        model: User
+      })
+      .sort({ createdAt: 1 })
+      .lean();
+    
+    const formattedComments = comments.map(c => ({
+      ...c,
+      authorName: c.userId.name,
+      authorAvatar: c.userId.avatarUrl
+    }));
+    
+    res.json(formattedComments);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
 // POST /posts/:id/comments
-router.post('/:id/comments', verifyToken, (req, res) => {
-  const { text } = req.body;
-  if (!text || !text.trim()) return res.status(400).json({ error: 'Comment text is required' });
-  
-  const postId = req.params.id;
-  const userId = req.user.userId;
-  const id = uuidv4();
-  db.prepare('INSERT INTO post_comments (id, post_id, user_id, text) VALUES (?, ?, ?, ?)').run(id, postId, userId, text);
-  
-  const comment = db.prepare(`
-    SELECT c.*, u.name as author_name, u.avatar_url as author_avatar
-    FROM post_comments c JOIN users u ON u.id = c.user_id
-    WHERE c.id = ?
-  `).get(id);
-  
-  res.status(201).json(comment);
+router.post('/:id/comments', verifyToken, async (req, res) => {
+  try {
+    const { text } = req.body;
+    if (!text || !text.trim()) {
+      return res.status(400).json({ error: 'Comment text is required' });
+    }
+    
+    const postId = req.params.id;
+    const userId = req.user.userId;
+    
+    const newComment = new PostComment({
+      _id: uuidv4(),
+      postId,
+      userId,
+      text
+    });
+    
+    await newComment.save();
+    
+    const comment = await PostComment.findById(newComment._id)
+      .populate({
+        path: 'userId',
+        select: 'name avatarUrl',
+        model: User
+      })
+      .lean();
+    
+    res.status(201).json({
+      ...comment,
+      authorName: comment.userId.name,
+      authorAvatar: comment.userId.avatarUrl
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
 });
+
+module.exports = router;

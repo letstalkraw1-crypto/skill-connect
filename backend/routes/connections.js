@@ -69,16 +69,17 @@ router.delete('/:id', verifyToken, async (req, res) => {
  */
 router.get('/:userId', optionalVerifyToken, async (req, res) => {
   try {
+    const { User } = require('../db/index');
     const targetUserId = req.params.userId;
     const reqUserId = req.user ? req.user.userId : null;
     
     // Check target user's privacy settings
-    const targetUser = require('../db/index').prepare('SELECT account_type FROM users WHERE id = ?').get(targetUserId);
+    const targetUser = await User.findById(targetUserId).select('accountType').lean();
     if (!targetUser) return res.status(404).json({ error: 'User not found' });
     
     const connectionsData = await listConnections(targetUserId);
     
-    if (targetUser.account_type === 'private') {
+    if (targetUser.accountType === 'private') {
       // Allow if viewing own profile
       if (reqUserId === targetUserId) {
         return res.status(200).json(connectionsData);

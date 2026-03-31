@@ -1,50 +1,81 @@
 const express = require('express');
 const { v4: uuidv4 } = require('uuid');
 const { verifyToken } = require('../services/auth');
-const db = require('../db/index');
 
 const router = express.Router();
 
 // GET /documents - List documents, optional skill filter
-router.get('/', (req, res) => {
-  const { skill } = req.query;
-  let query = 'SELECT d.*, u.name as author_name, s.name as skill_name FROM documents d JOIN users u ON u.id = d.author_id LEFT JOIN skills s ON s.id = d.skill_id WHERE 1=1';
-  const params = [];
-  if (skill) {
-    query += ' AND d.skill_id = (SELECT id FROM skills WHERE name = ?)';
-    params.push(skill);
+router.get('/', async (req, res) => {
+  try {
+    const { Document, Skill } = require('../db/index');
+    const { skill } = req.query;
+    let query = {};
+    
+    if (skill) {
+      const skillDoc = await Skill.findOne({ name: skill });
+      if (skillDoc) query.skillId = skillDoc._id;
+    }
+
+    const documents = await Document.find(query)
+      .populate('authorId', 'name')
+      .populate('skillId', 'name')
+      .sort({ updatedAt: -1 })
+      .lean();
+    res.json(documents);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
-  query += ' ORDER BY d.updated_at DESC';
-  const documents = db.prepare(query).all(...params);
-  res.json(documents);
 });
 
 // POST /documents - Create a document (auth required)
-router.post('/', verifyToken, (req, res) => {
-  const { skillId, title, content } = req.body;
-  if (!title || !content) return res.status(400).json({ error: 'title and content required' });
-  
-  const id = uuidv4();
-  db.prepare('INSERT INTO documents (id, skill_id, title, content, author_id) VALUES (?, ?, ?, ?, ?)').run(id, skillId, title, content, req.user.userId);
-  res.json({ id });
+router.post('/', verifyToken, async (req, res) => {
+  try {
+    const { Document } = require('../db/index');
+    const { skillId, title, content } = req.body;
+    if (!title || !content) return res.status(400).json({ error: 'title and content required' });
+    
+    const document = new Document({
+      _id: uuidv4(),
+      skillId,
+      title,
+      content,
+      authorId: req.user.userId
+    });
+    await document.save();
+    res.json({ id: document._id });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // GET /documents/:id - Get specific document
-router.get('/:id', (req, res) => {
-  const document = db.prepare('SELECT d.*, u.name as author_name FROM documents d JOIN users u ON u.id = d.author_id WHERE d.id = ?').get(req.params.id);
-  if (!document) return res.status(404).json({ error: 'Document not found' });
-  res.json(document);
+router.get('/:id', async (req, res) => {
+  try {
+    const { Document } = require('../db/index');
+    const document = await Document.findById(req.params.id)
+      .populate('authorId', 'name')
+      .lean();
+    if (!document) return res.status(404).json({ error: 'Document not found' });
+    res.json(document);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // PUT /documents/:id - Update document (author only)
-router.put('/:id', verifyToken, (req, res) => {
-  const { content } = req.body;
-  const document = db.prepare('SELECT author_id FROM documents WHERE id = ?').get(req.params.id);
-  if (!document) return res.status(404).json({ error: 'Document not found' });
-  if (document.author_id !== req.user.userId) return res.status(403).json({ error: 'Only author can edit' });
-  
-  db.prepare('UPDATE documents SET content = ?, updated_at = datetime("now") WHERE id = ?').run(content, req.params.id);
-  res.json({ ok: true });
+router.put('/:id', verifyToken, async (req, res) => {
+  try {
+    const { Document } = require('../db/index');
+    const { content } = req.body;
+    const document = await Document.findById(req.params.id).select('authorId').lean();
+    if (!document) return res.status(404).json({ error: 'Document not found' });
+    if (document.authorId.toString() !== req.user.userId) return res.status(403).json({ error: 'Only author can edit' });
+    
+    await Document.findByIdAndUpdate(req.params.id, { content, updatedAt: new Date() });
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 module.exports = router;

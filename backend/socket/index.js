@@ -1,16 +1,15 @@
 const { Server } = require('socket.io');
 const jwt = require('jsonwebtoken');
-const db = require('../db/index');
+const { ConversationParticipant, User } = require('../db/index');
 const { persistMessage } = require('../services/messaging');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'changeme';
 
 const onlineUsers = new Map();
 
-function getParticipants(conversationId) {
-  return db.prepare(
-    'SELECT user_id FROM conversation_participants WHERE conversation_id = ?'
-  ).all(conversationId).map(r => r.user_id);
+async function getParticipants(conversationId) {
+  const participants = await ConversationParticipant.find({ conversationId }).select('userId').lean();
+  return participants.map(p => p.userId.toString ? p.userId.toString() : p.userId);
 }
 
 /**
@@ -23,7 +22,7 @@ function initSocket(httpServer) {
     cors: { origin: '*' }
   });
 
-  io.on('connection', (socket) => {
+  io.on('connection', async (socket) => {
     // --- Authentication ---
     const token = socket.handshake.auth?.token;
 
@@ -36,7 +35,7 @@ function initSocket(httpServer) {
     let userId;
     try {
       const payload = jwt.verify(token, JWT_SECRET);
-      const user = db.prepare('SELECT id FROM users WHERE id = ?').get(payload.userId);
+      const user = await User.findById(payload.userId);
       if (!user) throw new Error('User not found');
       userId = payload.userId;
     } catch {
@@ -53,7 +52,7 @@ function initSocket(httpServer) {
       const messageText = text || content;
       try {
         const message = await persistMessage(conversationId, socket.userId, messageText, replyToMessageId);
-        const participants = getParticipants(conversationId);
+        const participants = await getParticipants(conversationId);
 
         const payload = {
           conversationId,
@@ -62,9 +61,9 @@ function initSocket(httpServer) {
           content: messageText,
           senderId: socket.userId,
           sender_id: socket.userId,
-          timestamp: message.sent_at,
-          messageId: message.id,
-          replyToMessageId: message.reply_to_message_id
+          timestamp: message.sentAt,
+          messageId: message._id,
+          replyToMessageId: message.replyToMessageId
         };
 
         for (const participantId of participants) {
@@ -79,9 +78,9 @@ function initSocket(httpServer) {
     });
 
     // --- typing ---
-    socket.on('typing', ({ conversationId }) => {
+    socket.on('typing', async ({ conversationId }) => {
       try {
-        const participants = getParticipants(conversationId);
+        const participants = await getParticipants(conversationId);
         for (const participantId of participants) {
           if (participantId !== socket.userId) {
             const recipientSocketId = onlineUsers.get(participantId);
@@ -99,9 +98,9 @@ function initSocket(httpServer) {
     });
 
     // --- wallpaper update ---
-    socket.on('update_wallpaper', ({ conversationId, wallpaper }) => {
+    socket.on('update_wallpaper', async ({ conversationId, wallpaper }) => {
       try {
-        const participants = getParticipants(conversationId);
+        const participants = await getParticipants(conversationId);
         for (const participantId of participants) {
           if (participantId !== socket.userId) {
             const recipientSocketId = onlineUsers.get(participantId);

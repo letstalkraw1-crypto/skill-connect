@@ -90,15 +90,15 @@ router.post('/change-password', require('../services/auth').verifyToken, async (
   }
   try {
     const bcrypt = require('bcrypt');
-    const db = require('../db/index');
-    const user = db.prepare('SELECT password FROM users WHERE id = ?').get(req.user.userId);
+    const { User } = require('../db/index');
+    const user = await User.findById(req.user.userId).select('password').lean();
     if (!user) return res.status(404).json({ error: 'User not found' });
     if (user.password) {
       const match = await bcrypt.compare(currentPassword || '', user.password);
       if (!match) return res.status(401).json({ error: 'Current password is incorrect' });
     }
     const hashed = await bcrypt.hash(newPassword, 10);
-    db.prepare('UPDATE users SET password = ? WHERE id = ?').run(hashed, req.user.userId);
+    await User.findByIdAndUpdate(req.user.userId, { password: hashed });
     return res.json({ ok: true });
   } catch (err) {
     return res.status(500).json({ error: err.message });

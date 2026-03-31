@@ -1,81 +1,135 @@
 const express = require('express');
 const { v4: uuidv4 } = require('uuid');
 const { verifyToken } = require('../services/auth');
-const db = require('../db/index');
 
 const router = express.Router();
 
 // GET /communities - List all communities the user is a part of, plus public discovery
-router.get('/', verifyToken, (req, res) => {
-  const userId = req.user.userId;
-  // Get all communities, with an indicator if the user is a member
-  const communities = db.prepare(`
-    SELECT c.*, 
-      u.name as admin_name,
-      (SELECT COUNT(*) FROM community_members WHERE community_id = c.id) as member_count,
-      EXISTS(SELECT 1 FROM community_members WHERE community_id = c.id AND user_id = ?) as is_member
-    FROM communities c
-    JOIN users u ON u.id = c.creator_id
-    ORDER BY created_at DESC
-  `).all(userId);
-  res.json(communities);
+router.get('/', verifyToken, async (req, res) => {
+  try {
+    const { Community, CommunityMember, User } = require('../db/index');
+    const userId = req.user.userId;
+
+    const communities = await Community.aggregate([
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'creatorId',
+          foreignField: '_id',
+          as: 'creator'
+        }
+      },
+      {
+        $lookup: {
+          from: 'communitymembers',
+          localField: '_id',
+          foreignField: 'communityId',
+          as: 'members'
+        }
+      },
+      {
+        $addFields: {
+          memberCount: { $size: '$members' },
+          isMember: {
+            $cond: [
+              { $in: [userId, '$members.userId'] },
+              true,
+              false
+            ]
+          }
+        }
+      },
+      { $sort: { createdAt: -1 } }
+    ]);
+
+    res.json(communities);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // GET /communities/:id - Get specific community details
-router.get('/:id', verifyToken, (req, res) => {
-  const userId = req.user.userId;
-  const community = db.prepare(`
-    SELECT c.*, 
-      u.name as admin_name,
-      (SELECT COUNT(*) FROM community_members WHERE community_id = c.id) as member_count,
-      EXISTS(SELECT 1 FROM community_members WHERE community_id = c.id AND user_id = ?) as is_member
-    FROM communities c 
-    JOIN users u ON u.id = c.creator_id
-    WHERE c.id = ?
-  `).get(userId, req.params.id);
-  
-  if (!community) return res.status(404).json({ error: 'Community not found' });
-  
-  // Also get members
-  community.members = db.prepare(`
-    SELECT u.id, u.name, u.avatar_url, u.short_id, cm.role 
-    FROM community_members cm JOIN users u ON u.id = cm.user_id 
-    WHERE cm.community_id = ?
-  `).all(community.id);
-  
-  res.json(community);
+router.get('/:id', verifyToken, async (req, res) => {
+  try {
+    const { Community, CommunityMember, User } = require('../db/index');
+    const userId = req.user.userId;
+
+    const community = await Community.findById(req.params.id)
+      .populate('creatorId', 'name')
+      .lean();
+
+    if (!community) return res.status(404).json({ error: 'Community not found' });
+
+    const members = await CommunityMember.find({ communityId: req.params.id })
+      .populate('userId', 'id name avatarUrl shortId')
+      .lean();
+
+    community.memberCount = members.length;
+    community.isMember = members.some(m => m.userId._id.toString() === userId);
+    community.members = members.map(m => ({ ...m.userId, role: m.role }));
+
+    res.json(community);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // POST /communities - Create a new community
-router.post('/', verifyToken, (req, res) => {
-  const { name, description, type, maxMembers } = req.body;
-  if (!name || !name.trim()) return res.status(400).json({ error: 'Community name required' });
+router.post('/', verifyToken, async (req, res) => {
+  try {
+    const { Community, CommunityMember } = require('../db/index');
+    const { name, description, type, maxMembers } = req.body;
+    if (!name || !name.trim()) return res.status(400).json({ error: 'Community name required' });
 
-  const id = uuidv4();
-  db.prepare('INSERT INTO communities (id, creator_id, name, description, type, max_members) VALUES (?, ?, ?, ?, ?, ?)').run(id, req.user.userId, name.trim(), description || null, type || 'community', maxMembers || 100);
-  
-  // Add creator as admin member
-  db.prepare('INSERT INTO community_members (community_id, user_id, role) VALUES (?, ?, ?)').run(id, req.user.userId, 'admin');
+    const community = new Community({
+      _id: uuidv4(),
+      creatorId: req.user.userId,
+      name: name.trim(),
+      description: description || null,
+      type: type || 'community',
+      maxMembers: maxMembers || 100
+    });
+    await community.save();
 
-  const newlyCreated = db.prepare('SELECT * FROM communities WHERE id = ?').get(id);
-  res.status(201).json(newlyCreated);
+    // Add creator as admin member
+    const member = new CommunityMember({
+      communityId: community._id,
+      userId: req.user.userId,
+      role: 'admin'
+    });
+    await member.save();
+
+    res.status(201).json(community);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // POST /communities/:id/join - Join a community
-router.post('/:id/join', verifyToken, (req, res) => {
-  const communityId = req.params.id;
-  const userId = req.user.userId;
-  
-  const community = db.prepare('SELECT id FROM communities WHERE id = ?').get(communityId);
-  if (!community) return res.status(404).json({ error: 'Community not found' });
+router.post('/:id/join', verifyToken, async (req, res) => {
+  try {
+    const { Community, CommunityMember } = require('../db/index');
+    const communityId = req.params.id;
+    const userId = req.user.userId;
 
-  const isMember = db.prepare('SELECT 1 FROM community_members WHERE community_id = ? AND user_id = ?').get(communityId, userId);
-  if (isMember) {
-    db.prepare('DELETE FROM community_members WHERE community_id = ? AND user_id = ?').run(communityId, userId);
-    return res.json({ joined: false });
-  } else {
-    db.prepare('INSERT INTO community_members (community_id, user_id, role) VALUES (?, ?, ?)').run(communityId, userId, 'member');
-    return res.json({ joined: true });
+    const community = await Community.findById(communityId);
+    if (!community) return res.status(404).json({ error: 'Community not found' });
+
+    const isMember = await CommunityMember.findOne({ communityId, userId });
+    if (isMember) {
+      await CommunityMember.deleteOne({ _id: isMember._id });
+      return res.json({ joined: false });
+    } else {
+      const member = new CommunityMember({
+        communityId,
+        userId,
+        role: 'member'
+      });
+      await member.save();
+      return res.json({ joined: true });
+    }
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 

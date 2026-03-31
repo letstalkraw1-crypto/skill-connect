@@ -9,7 +9,10 @@ const postSchema = new mongoose.Schema({
   visibility: { type: String, default: 'everyone' },
   verificationLink: String,
   note: String,
-  createdAt: { type: Date, default: Date.now }
+  createdAt: { type: Date, default: Date.now },
+  updatedAt: { type: Date, default: Date.now }
 });
+
+postSchema.index({ userId: 1, createdAt: -1 });
 
 module.exports = mongoose.model('Post', postSchema);

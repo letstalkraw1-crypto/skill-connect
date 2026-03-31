@@ -1,7 +1,6 @@
 const express = require('express');
 const bcrypt = require('bcrypt');
-const { v4: uuidv4 } = require('uuid');
-const db = require('../db/index');
+const { User, UserSkill, Connection, Message, Conversation, Skill, Event } = require('../db/index');
 
 const router = express.Router();
 
@@ -21,103 +20,126 @@ router.post('/login', (req, res) => {
 });
 
 // GET /admin/users
-router.get('/users', adminAuth, (req, res) => {
-  const users = db.prepare(`
-    SELECT u.id, u.short_id, u.name, u.email, u.phone, u.location, u.bio,
-           u.avatar_url, u.strava_id, u.garmin_id, u.instagram_id, u.created_at,
-           COUNT(DISTINCT us.skill_id) as skill_count,
-           COUNT(DISTINCT c.id) as connection_count
-    FROM users u
-    LEFT JOIN user_skills us ON us.user_id = u.id
-    LEFT JOIN connections c ON (c.requester_id = u.id OR c.addressee_id = u.id) AND c.status = 'accepted'
-    GROUP BY u.id ORDER BY u.created_at DESC
-  `).all();
-  res.json(users);
+router.get('/users', adminAuth, async (req, res) => {
+  try {
+    const users = await User.find().select('_id shortId name email phone location bio avatarUrl stravaId garminId instagramId createdAt').lean();
+    
+    const enriched = await Promise.all(users.map(async (u) => {
+      const skillCount = await UserSkill.countDocuments({ userId: u._id });
+      const connectionCount = await Connection.countDocuments({
+        $or: [{ requesterId: u._id }, { addresseeId: u._id }],
+        status: 'accepted'
+      });
+      return { ...u, skillCount, connectionCount };
+    }));
+
+    res.json(enriched);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // GET /admin/users/:id
-router.get('/users/:id', adminAuth, (req, res) => {
-  const user = db.prepare(
-    'SELECT id, short_id, name, email, phone, location, bio, avatar_url, strava_id, garmin_id, instagram_id, created_at FROM users WHERE id = ?'
-  ).get(req.params.id);
-  if (!user) return res.status(404).json({ error: 'User not found' });
+router.get('/users/:id', adminAuth, async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id).lean();
+    if (!user) return res.status(404).json({ error: 'User not found' });
 
-  const skills = db.prepare(
-    `SELECT s.id, s.name, us.level, us.years_exp FROM user_skills us
-     JOIN skills s ON s.id = us.skill_id WHERE us.user_id = ?`
-  ).all(req.params.id);
+    const skills = await UserSkill.find({ userId: req.params.id }).populate('skillId', 'name').lean();
+    const connections = await Connection.find({
+      $or: [{ requesterId: req.params.id }, { addresseeId: req.params.id }]
+    }).populate('requesterId addresseeId', 'name').lean();
 
-  const connections = db.prepare(
-    `SELECT c.*, r.name as requester_name, a.name as addressee_name
-     FROM connections c
-     JOIN users r ON r.id = c.requester_id
-     JOIN users a ON a.id = c.addressee_id
-     WHERE c.requester_id = ? OR c.addressee_id = ?`
-  ).all(req.params.id, req.params.id);
-
-  res.json({ ...user, skills, connections });
+    res.json({ ...user, skills, connections });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // PUT /admin/users/:id
 router.put('/users/:id', adminAuth, async (req, res) => {
-  const { name, email, phone, location, bio, password, strava_id, garmin_id, instagram_id } = req.body;
-  const updates = []; const values = [];
+  try {
+    const { name, email, phone, location, bio, password, stravaId, garminId, instagramId } = req.body;
+    const update = {};
 
-  if (name) { updates.push('name = ?'); values.push(name); }
-  if (email) { updates.push('email = ?'); values.push(email); }
-  if (phone !== undefined) { updates.push('phone = ?'); values.push(phone); }
-  if (location !== undefined) { updates.push('location = ?'); values.push(location); }
-  if (bio !== undefined) { updates.push('bio = ?'); values.push(bio); }
-  if (strava_id !== undefined) { updates.push('strava_id = ?'); values.push(strava_id); }
-  if (garmin_id !== undefined) { updates.push('garmin_id = ?'); values.push(garmin_id); }
-  if (instagram_id !== undefined) { updates.push('instagram_id = ?'); values.push(instagram_id); }
-  if (password) { updates.push('password = ?'); values.push(await bcrypt.hash(password, 10)); }
+    if (name) update.name = name;
+    if (email) update.email = email;
+    if (phone !== undefined) update.phone = phone;
+    if (location !== undefined) update.location = location;
+    if (bio !== undefined) update.bio = bio;
+    if (stravaId !== undefined) update.stravaId = stravaId;
+    if (garminId !== undefined) update.garminId = garminId;
+    if (instagramId !== undefined) update.instagramId = instagramId;
+    if (password) update.password = await bcrypt.hash(password, 10);
 
-  if (!updates.length) return res.status(400).json({ error: 'No fields to update' });
-  values.push(req.params.id);
-  db.prepare(`UPDATE users SET ${updates.join(', ')} WHERE id = ?`).run(...values);
-  const updated = db.prepare('SELECT id, name, email, phone, location, bio, strava_id, garmin_id, instagram_id FROM users WHERE id = ?').get(req.params.id);
-  res.json(updated);
+    if (Object.keys(update).length === 0) return res.status(400).json({ error: 'No fields to update' });
+
+    const updated = await User.findByIdAndUpdate(req.params.id, update, { new: true }).select('id name email phone location bio stravaId garminId instagramId').lean();
+    res.json(updated);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // DELETE /admin/users/:id
-router.delete('/users/:id', adminAuth, (req, res) => {
-  db.prepare('DELETE FROM users WHERE id = ?').run(req.params.id);
-  res.json({ ok: true });
+router.delete('/users/:id', adminAuth, async (req, res) => {
+  try {
+    await User.findByIdAndDelete(req.params.id);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // GET /admin/stats
-router.get('/stats', adminAuth, (req, res) => {
-  res.json({
-    totalUsers: db.prepare('SELECT COUNT(*) as c FROM users').get().c,
-    totalConnections: db.prepare("SELECT COUNT(*) as c FROM connections WHERE status='accepted'").get().c,
-    totalMessages: db.prepare('SELECT COUNT(*) as c FROM messages').get().c,
-    totalConversations: db.prepare('SELECT COUNT(*) as c FROM conversations').get().c,
-    skillBreakdown: db.prepare(
-      `SELECT s.id, s.name, COUNT(us.user_id) as count FROM skills s
-       LEFT JOIN user_skills us ON us.skill_id = s.id
-       GROUP BY s.id ORDER BY count DESC`
-    ).all(),
-    recentUsers: db.prepare('SELECT id, name, email, avatar_url, created_at FROM users ORDER BY created_at DESC LIMIT 5').all(),
-  });
+router.get('/stats', adminAuth, async (req, res) => {
+  try {
+    const totalUsers = await User.countDocuments();
+    const totalConnections = await Connection.countDocuments({ status: 'accepted' });
+    const totalMessages = await Message.countDocuments();
+    const totalConversations = await Conversation.countDocuments();
+    
+    const skillBreakdown = await UserSkill.aggregate([
+      { $group: { _id: '$skillId', count: { $sum: 1 } } },
+      { $sort: { count: -1 } }
+    ]);
+
+    const recentUsers = await User.find().select('id name email avatarUrl createdAt').sort({ createdAt: -1 }).limit(5).lean();
+
+    res.json({
+      totalUsers,
+      totalConnections,
+      totalMessages,
+      totalConversations,
+      skillBreakdown,
+      recentUsers,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // GET /admin/skills/:skillId/users — who chose this skill
-router.get('/skills/:skillId/users', adminAuth, (req, res) => {
-  const users = db.prepare(`
-    SELECT u.id, u.name, u.email, u.avatar_url, u.location, us.level, us.years_exp
-    FROM user_skills us JOIN users u ON u.id = us.user_id
-    WHERE us.skill_id = ?
-  `).all(req.params.skillId);
-  res.json(users);
+router.get('/skills/:skillId/users', adminAuth, async (req, res) => {
+  try {
+    const users = await UserSkill.find({ skillId: req.params.skillId })
+      .populate('userId', 'id name email avatarUrl location')
+      .select('userId level yearsExp')
+      .lean();
+    res.json(users);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // POST /admin/skills — add new skill
-router.post('/skills', adminAuth, (req, res) => {
-  const { name } = req.body;
-  if (!name) return res.status(400).json({ error: 'Skill name required' });
+router.post('/skills', adminAuth, async (req, res) => {
   try {
-    db.prepare('INSERT INTO skills (name) VALUES (?)').run(name.toLowerCase().trim());
+    const { name } = req.body;
+    if (!name) return res.status(400).json({ error: 'Skill name required' });
+    
+    const skill = new Skill({ name: name.toLowerCase().trim() });
+    await skill.save();
     res.json({ ok: true, name: name.toLowerCase().trim() });
   } catch (e) {
     res.status(409).json({ error: 'Skill already exists' });
@@ -125,41 +147,54 @@ router.post('/skills', adminAuth, (req, res) => {
 });
 
 // DELETE /admin/skills/:id — remove skill
-router.delete('/skills/:id', adminAuth, (req, res) => {
-  db.prepare('DELETE FROM skills WHERE id = ?').run(req.params.id);
-  res.json({ ok: true });
+router.delete('/skills/:id', adminAuth, async (req, res) => {
+  try {
+    await Skill.findByIdAndDelete(req.params.id);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // GET /admin/events
-router.get('/events', adminAuth, (req, res) => {
-  const events = db.prepare(`
-    SELECT e.*, c.name as community_name, u.name as creator_name
-    FROM events e
-    LEFT JOIN communities c ON c.id = e.community_id
-    JOIN users u ON u.id = e.creator_id
-    ORDER BY e.created_at DESC
-  `).all();
-  res.json(events);
+router.get('/events', adminAuth, async (req, res) => {
+  try {
+    const events = await Event.find()
+      .populate('communityId', 'name')
+      .populate('creatorId', 'name')
+      .sort({ createdAt: -1 })
+      .lean();
+    res.json(events);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // PUT /admin/events/:id
-router.put('/events/:id', adminAuth, (req, res) => {
-  const { title, datetime, guidelines, venue_name } = req.body;
-  db.prepare(`
-    UPDATE events 
-    SET title = COALESCE(?, title),
-        datetime = COALESCE(?, datetime),
-        guidelines = COALESCE(?, guidelines),
-        venue_name = COALESCE(?, venue_name)
-    WHERE id = ?
-  `).run(title, datetime, guidelines, venue_name, req.params.id);
-  res.json({ success: true });
+router.put('/events/:id', adminAuth, async (req, res) => {
+  try {
+    const { title, datetime, guidelines, venueName } = req.body;
+    const update = {};
+    if (title) update.title = title;
+    if (datetime) update.datetime = datetime;
+    if (guidelines) update.guidelines = guidelines;
+    if (venueName) update.venueName = venueName;
+
+    await Event.findByIdAndUpdate(req.params.id, update, { new: true });
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // DELETE /admin/events/:id
-router.delete('/events/:id', adminAuth, (req, res) => {
-  db.prepare('DELETE FROM events WHERE id = ?').run(req.params.id);
-  res.json({ success: true });
+router.delete('/events/:id', adminAuth, async (req, res) => {
+  try {
+    await Event.findByIdAndDelete(req.params.id);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 module.exports = router;

@@ -31,20 +31,25 @@ const upload = multer({
 });
 
 // POST /upload/avatar
-router.post('/avatar', verifyToken, upload.single('avatar'), (req, res) => {
-  if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+router.post('/avatar', verifyToken, upload.single('avatar'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
 
-  const avatarUrl = `/uploads/${req.file.filename}`;
+    const { User } = require('../db/index');
+    const avatarUrl = `/uploads/${req.file.filename}`;
 
-  // Delete old avatar file if it was a local upload
-  const user = db.prepare('SELECT avatar_url FROM users WHERE id = ?').get(req.user.userId);
-  if (user?.avatar_url?.startsWith('/uploads/')) {
-    const oldPath = path.join(__dirname, '..', '..', 'frontend', user.avatar_url);
-    if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
+    // Delete old avatar file if it was a local upload
+    const user = await User.findById(req.user.userId).select('avatarUrl').lean();
+    if (user?.avatarUrl?.startsWith('/uploads/')) {
+      const oldPath = path.join(__dirname, '..', '..', 'frontend', user.avatarUrl);
+      if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
+    }
+
+    await User.findByIdAndUpdate(req.user.userId, { avatarUrl });
+    res.json({ avatarUrl, avatar_url: avatarUrl, url: avatarUrl });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
-
-  db.prepare('UPDATE users SET avatar_url = ? WHERE id = ?').run(avatarUrl, req.user.userId);
-  res.json({ avatarUrl, avatar_url: avatarUrl, url: avatarUrl });
 });
 
 const chatStorage = multer.diskStorage({

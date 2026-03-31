@@ -1,123 +1,236 @@
 const express = require('express');
 const { v4: uuidv4 } = require('uuid');
 const { verifyToken } = require('../services/auth');
-const db = require('../db/index');
+const Event = require('../models/Event');
+const EventRsvp = require('../models/EventRsvp');
+const User = require('../models/User');
 
 const router = express.Router();
 
 // GET /events - List all upcoming events
-router.get('/', verifyToken, (req, res) => {
-  const userId = req.user.userId;
-  
-  // We list all active events. We also check if the current user has a pending/accepted RSVP
-  const events = db.prepare(`
-    SELECT e.*, u.name as creator_name, u.avatar_url as creator_avatar,
-      (SELECT COUNT(*) FROM event_rsvps WHERE event_id = e.id AND status = 'accepted') as attendee_count,
-      (SELECT status FROM event_rsvps WHERE event_id = e.id AND user_id = ?) as my_rsvp_status
-    FROM events e
-    JOIN users u ON u.id = e.creator_id
-    WHERE e.status = 'active'
-    ORDER BY e.datetime ASC
-  `).all(userId);
-  
-  res.json(events);
+router.get('/', verifyToken, async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    
+    const events = await Event.find({ status: 'active' })
+      .populate({
+        path: 'creatorId',
+        select: 'name avatarUrl',
+        model: User
+      })
+      .sort({ datetime: 1 })
+      .lean();
+    
+    const eventsWithRsvp = await Promise.all(
+      events.map(async (event) => {
+        const attendeeCount = await EventRsvp.countDocuments({ 
+          eventId: event._id, 
+          status: 'accepted' 
+        });
+        const myRsvp = await EventRsvp.findOne({ 
+          eventId: event._id, 
+          userId 
+        }).select('status');
+        
+        return {
+          ...event,
+          creatorName: event.creatorId.name,
+          creatorAvatar: event.creatorId.avatarUrl,
+          attendeeCount,
+          myRsvpStatus: myRsvp?.status || null
+        };
+      })
+    );
+    
+    res.json(eventsWithRsvp);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
 // GET /events/:id - Get specific event details (and pending RSVPs if creator)
-router.get('/:id', verifyToken, (req, res) => {
-  const userId = req.user.userId;
-  
-  const event = db.prepare(`
-    SELECT e.*, u.name as creator_name, u.avatar_url as creator_avatar, u.short_id as creator_short_id,
-      (SELECT status FROM event_rsvps WHERE event_id = e.id AND user_id = ?) as my_rsvp_status
-    FROM events e
-    JOIN users u ON u.id = e.creator_id
-    WHERE e.id = ?
-  `).get(userId, req.params.id);
-  
-  if (!event) return res.status(404).json({ error: 'Event not found' });
-  
-  // Get accepted attendees
-  event.attendees = db.prepare(`
-    SELECT u.id, u.name, u.avatar_url, u.short_id
-    FROM event_rsvps r JOIN users u ON u.id = r.user_id
-    WHERE r.event_id = ? AND r.status = 'accepted'
-  `).all(event.id);
-  
-  // If the requester is the EVENT CREATOR, also fetch pending requests
-  if (event.creator_id === userId) {
-    event.pending_requests = db.prepare(`
-      SELECT r.id as rsvp_id, u.id as user_id, u.name, u.avatar_url, r.created_at
-      FROM event_rsvps r JOIN users u ON u.id = r.user_id
-      WHERE r.event_id = ? AND r.status = 'pending'
-    `).all(event.id);
+router.get('/:id', verifyToken, async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    
+    const event = await Event.findById(req.params.id)
+      .populate({
+        path: 'creatorId',
+        select: 'name avatarUrl shortId',
+        model: User
+      })
+      .lean();
+    
+    if (!event) return res.status(404).json({ error: 'Event not found' });
+    
+    // Get event's RSVP status for current user
+    const myRsvp = await EventRsvp.findOne({ 
+      eventId: event._id, 
+      userId 
+    }).select('status');
+    
+    // Get accepted attendees
+    const attendeeRsvps = await EventRsvp.find({
+      eventId: event._id,
+      status: 'accepted'
+    }).populate({
+      path: 'userId',
+      select: 'id name avatarUrl shortId',
+      model: User
+    });
+    
+    const attendees = attendeeRsvps.map(r => ({
+      id: r.userId._id,
+      name: r.userId.name,
+      avatarUrl: r.userId.avatarUrl,
+      shortId: r.userId.shortId
+    }));
+    
+    const eventData = {
+      ...event,
+      creatorName: event.creatorId.name,
+      creatorAvatar: event.creatorId.avatarUrl,
+      creatorShortId: event.creatorId.shortId,
+      myRsvpStatus: myRsvp?.status || null,
+      attendees
+    };
+    
+    // If the requester is the EVENT CREATOR, also fetch pending requests
+    if (event.creatorId._id === userId) {
+      const pendingRsvps = await EventRsvp.find({
+        eventId: event._id,
+        status: 'pending'
+      }).populate({
+        path: 'userId',
+        select: 'id name avatarUrl',
+        model: User
+      });
+      
+      eventData.pendingRequests = pendingRsvps.map(r => ({
+        rsvpId: r._id,
+        userId: r.userId._id,
+        name: r.userId.name,
+        avatarUrl: r.userId.avatarUrl,
+        createdAt: r.createdAt
+      }));
+    }
+    
+    res.json(eventData);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
   }
-  
-  res.json(event);
 });
 
 // POST /events - Create a new event Form/Notice
-router.post('/', verifyToken, (req, res) => {
-  const { title, datetime, guidelines, route_points, venue_name, venue_coords, community_id } = req.body;
-  if (!title || !datetime) return res.status(400).json({ error: 'Title and Datetime are required' });
-
-  const id = uuidv4();
-  const routePointsStr = Array.isArray(route_points) ? JSON.stringify(route_points) : (route_points || '[]');
-  const venueCoordsStr = venue_coords ? JSON.stringify(venue_coords) : null;
-  
-  db.prepare('INSERT INTO events (id, community_id, creator_id, title, datetime, guidelines, route_points, venue_name, venue_coords) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
-    .run(id, community_id || null, req.user.userId, title, datetime, guidelines || null, routePointsStr, venue_name || null, venueCoordsStr);
-    
-  // Auto-accept the creator to their own event
-  db.prepare('INSERT INTO event_rsvps (id, event_id, user_id, status) VALUES (?, ?, ?, ?)').run(uuidv4(), id, req.user.userId, 'accepted');
-
-  const newEvent = db.prepare('SELECT * FROM events WHERE id = ?').get(id);
-  res.status(201).json(newEvent);
-});
-
-// POST /events/:id/rsvp - Request to join event
-router.post('/:id/rsvp', verifyToken, (req, res) => {
-  const eventId = req.params.id;
-  const userId = req.user.userId;
-  
-  const event = db.prepare('SELECT id, creator_id FROM events WHERE id = ?').get(eventId);
-  if (!event) return res.status(404).json({ error: 'Event not found' });
-  
-  // Check if RSVP exists
-  const existing = db.prepare('SELECT id, status FROM event_rsvps WHERE event_id = ? AND user_id = ?').get(eventId, userId);
-  
-  if (existing) {
-    if (existing.status === 'pending' || existing.status === 'accepted') {
-      // User cancelling their RSVP request
-      db.prepare('DELETE FROM event_rsvps WHERE id = ?').run(existing.id);
-      return res.json({ rsvp_status: null });
-    } else {
-      // Re-requesting after rejection
-      db.prepare('UPDATE event_rsvps SET status = ? WHERE id = ?').run('pending', existing.id);
-      return res.json({ rsvp_status: 'pending' });
+router.post('/', verifyToken, async (req, res) => {
+  try {
+    const { title, datetime, guidelines, routePoints, venueName, venueCoords, communityId } = req.body;
+    if (!title || !datetime) {
+      return res.status(400).json({ error: 'Title and Datetime are required' });
     }
-  } else {
-    db.prepare('INSERT INTO event_rsvps (id, event_id, user_id, status) VALUES (?, ?, ?, ?)').run(uuidv4(), eventId, userId, 'pending');
-    return res.json({ rsvp_status: 'pending' });
+
+    const eventId = uuidv4();
+    
+    const newEvent = new Event({
+      _id: eventId,
+      communityId: communityId || null,
+      creatorId: req.user.userId,
+      title,
+      datetime,
+      guidelines: guidelines || null,
+      routePoints: Array.isArray(routePoints) ? routePoints : (routePoints ? [routePoints] : []),
+      venueName: venueName || null,
+      venueCoords: venueCoords || null
+    });
+    
+    await newEvent.save();
+    
+    // Auto-accept the creator to their own event
+    const creatorRsvp = new EventRsvp({
+      _id: uuidv4(),
+      eventId: eventId,
+      userId: req.user.userId,
+      status: 'accepted'
+    });
+    
+    await creatorRsvp.save();
+
+    const savedEvent = await Event.findById(eventId).lean();
+    res.status(201).json(savedEvent);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
-// PUT /events/:id/rsvp/:userId - Approve/Reject RSVP
-router.put('/:id/rsvp/:targetUserId', verifyToken, (req, res) => {
-  const { status } = req.body; // 'accepted' or 'rejected'
-  if (!['accepted', 'rejected'].includes(status)) return res.status(400).json({ error: 'Invalid status' });
+// POST /events/:id/rsvp - Request to join event
+router.post('/:id/rsvp', verifyToken, async (req, res) => {
+  try {
+    const eventId = req.params.id;
+    const userId = req.user.userId;
+    
+    const event = await Event.findById(eventId);
+    if (!event) return res.status(404).json({ error: 'Event not found' });
+    
+    // Check if RSVP exists
+    const existing = await EventRsvp.findOne({ eventId, userId });
+    
+    if (existing) {
+      if (existing.status === 'pending' || existing.status === 'accepted') {
+        // User cancelling their RSVP request
+        await EventRsvp.deleteOne({ _id: existing._id });
+        return res.json({ rsvpStatus: null });
+      } else {
+        // Re-requesting after rejection
+        await EventRsvp.findByIdAndUpdate(existing._id, { status: 'pending' });
+        return res.json({ rsvpStatus: 'pending' });
+      }
+    } else {
+      const newRsvp = new EventRsvp({
+        _id: uuidv4(),
+        eventId,
+        userId,
+        status: 'pending'
+      });
+      await newRsvp.save();
+      return res.json({ rsvpStatus: 'pending' });
+    }
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
 
-  const eventId = req.params.id;
-  const event = db.prepare('SELECT creator_id FROM events WHERE id = ?').get(eventId);
-  
-  if (!event) return res.status(404).json({ error: 'Event not found' });
-  if (event.creator_id !== req.user.userId) return res.status(403).json({ error: 'Only host can manage RSVPs' });
-  
-  const rsvp = db.prepare('SELECT id FROM event_rsvps WHERE event_id = ? AND user_id = ?').get(eventId, req.params.targetUserId);
-  if (!rsvp) return res.status(404).json({ error: 'RSVP not found' });
-  
-  db.prepare('UPDATE event_rsvps SET status = ? WHERE id = ?').run(status, rsvp.id);
-  res.json({ success: true, status });
+// PUT /events/:id/rsvp/:targetUserId - Approve/Reject RSVP
+router.put('/:id/rsvp/:targetUserId', verifyToken, async (req, res) => {
+  try {
+    const { status } = req.body; // 'accepted' or 'rejected'
+    if (!['accepted', 'rejected'].includes(status)) {
+      return res.status(400).json({ error: 'Invalid status' });
+    }
+
+    const eventId = req.params.id;
+    const event = await Event.findById(eventId);
+    
+    if (!event) return res.status(404).json({ error: 'Event not found' });
+    if (event.creatorId !== req.user.userId) {
+      return res.status(403).json({ error: 'Only host can manage RSVPs' });
+    }
+    
+    const rsvp = await EventRsvp.findOne({ 
+      eventId, 
+      userId: req.params.targetUserId 
+    });
+    if (!rsvp) return res.status(404).json({ error: 'RSVP not found' });
+    
+    await EventRsvp.findByIdAndUpdate(rsvp._id, { status });
+    res.json({ success: true, status });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
 module.exports = router;

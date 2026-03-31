@@ -46,9 +46,14 @@ router.get('/', verifyToken, async (req, res) => {
 });
 
 // GET /discover/skills - list all available skill terms (including new admin skills)
-router.get('/skills', verifyToken, (req, res) => {
-  const skills = db.prepare('SELECT id, name FROM skills ORDER BY name COLLATE NOCASE').all();
-  res.json(skills);
+router.get('/skills', verifyToken, async (req, res) => {
+  try {
+    const { Skill } = require('../db/index');
+    const skills = await Skill.find().select('id name').sort({ name: 1 }).lean();
+    res.json(skills);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 module.exports = router;
