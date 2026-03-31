@@ -165,7 +165,7 @@ router.post('/', verifyToken, upload.array('images', 10), async (req, res) => {
     const post = await Post.findById(newPost._id)
       .populate({
         path: 'userId',
-        select: 'name avatarUrl',
+        select: 'name avatarUrl shortId',
         model: User
       })
       .lean();
@@ -173,11 +173,15 @@ router.post('/', verifyToken, upload.array('images', 10), async (req, res) => {
     res.status(201).json({
       ...post,
       authorName: post.userId.name,
-      authorAvatar: post.userId.avatarUrl
+      authorAvatar: post.userId.avatarUrl,
+      authorShortId: post.userId.shortId,
+      likeCount: 0,
+      commentCount: 0,
+      isLiked: false
     });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error('Post creation error:', err);
+    res.status(500).json({ error: err.message || 'Failed to create post' });
   }
 });
 

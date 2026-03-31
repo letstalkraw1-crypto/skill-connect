@@ -174,6 +174,11 @@ router.post('/:id/rsvp', verifyToken, async (req, res) => {
     const event = await Event.findById(eventId);
     if (!event) return res.status(404).json({ error: 'Event not found' });
     
+    // Creator cannot cancel their own event RSVP
+    if (event.creatorId === userId) {
+      return res.status(403).json({ error: 'Event creator cannot cancel their RSVP' });
+    }
+    
     // Check if RSVP exists
     const existing = await EventRsvp.findOne({ eventId, userId });
     
@@ -227,6 +232,52 @@ router.put('/:id/rsvp/:targetUserId', verifyToken, async (req, res) => {
     
     await EventRsvp.findByIdAndUpdate(rsvp._id, { status });
     res.json({ success: true, status });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// GET /events/venues/search?q=venueName
+router.get('/venues/search', verifyToken, async (req, res) => {
+  try {
+    const { q } = req.query;
+    if (!q || q.trim().length < 1) {
+      return res.json([]); // Return empty if no query
+    }
+
+    // Get unique venues from events that match search
+    const searchTerm = q.trim();
+    const events = await Event.find({ 
+      venueName: { $regex: searchTerm, $options: 'i' },
+      status: 'active'
+    })
+      .select('venueName venueCoords')
+      .distinct('venueName')
+      .lean();
+
+    // Format response - include coordinates if available
+    const venues = await Event.find({
+      venueName: { $in: events }
+    })
+      .select('venueName venueCoords')
+      .limit(20)
+      .lean();
+
+    // Remove duplicates while keeping coordinates
+    const uniqueVenues = [];
+    const seen = new Set();
+    venues.forEach(v => {
+      if (!seen.has(v.venueName)) {
+        seen.add(v.venueName);
+        uniqueVenues.push({
+          name: v.venueName,
+          coords: v.venueCoords
+        });
+      }
+    });
+
+    res.json(uniqueVenues);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Internal server error' });

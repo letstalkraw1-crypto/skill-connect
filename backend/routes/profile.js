@@ -185,5 +185,32 @@ router.get('/feedback', verifyToken, async (req, res) => {
   }
 });
 
+// GET /profile/:userId/share — Generate sharing credentials including QR code
+router.get('/:userId/share', async (req, res) => {
+  try {
+    const user = await User.findById(req.params.userId).select('shortId name avatarUrl');
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    // Generate sharing data
+    const shareData = {
+      userId: user._id,
+      shortId: user.shortId,
+      name: user.name,
+      avatarUrl: user.avatarUrl,
+      shareLink: `${process.env.BASE_URL || 'https://skill-connect.onrender.com'}/profile?id=${user.shortId}`,
+      qrCode: {
+        // QR code generation would require qrcode library
+        // For now, provide data for frontend to generate QR
+        type: 'profile',
+        value: `${process.env.BASE_URL || 'https://skill-connect.onrender.com'}/profile?id=${user.shortId}`
+      }
+    };
+
+    res.json(shareData);
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
+});
+
 module.exports = router;
 

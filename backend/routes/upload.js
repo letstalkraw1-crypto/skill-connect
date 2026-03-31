@@ -42,12 +42,19 @@ router.post('/avatar', verifyToken, upload.single('avatar'), async (req, res) =>
     const user = await User.findById(req.user.userId).select('avatarUrl').lean();
     if (user?.avatarUrl?.startsWith('/uploads/')) {
       const oldPath = path.join(__dirname, '..', '..', 'frontend', user.avatarUrl);
-      if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
+      if (fs.existsSync(oldPath)) {
+        try {
+          fs.unlinkSync(oldPath);
+        } catch (e) {
+          console.error('Failed to delete old avatar:', e);
+        }
+      }
     }
 
-    await User.findByIdAndUpdate(req.user.userId, { avatarUrl });
-    res.json({ avatarUrl, avatar_url: avatarUrl, url: avatarUrl });
+    const updatedUser = await User.findByIdAndUpdate(req.user.userId, { avatarUrl }, { new: true }).select('avatarUrl');
+    res.json({ avatarUrl: updatedUser.avatarUrl, avatar_url: updatedUser.avatarUrl, url: updatedUser.avatarUrl });
   } catch (err) {
+    console.error('Avatar upload error:', err);
     res.status(500).json({ error: err.message });
   }
 });

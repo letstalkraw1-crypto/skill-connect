@@ -1,9 +1,9 @@
 const mongoose = require('mongoose');
 
 const CommunitySchema = new mongoose.Schema({
-  _id: String,
+  _id: { type: String, default: () => require('uuid').v4() },
   creatorId: {
-    type: mongoose.Schema.Types.ObjectId,
+    type: String,
     ref: 'User',
     required: true
   },

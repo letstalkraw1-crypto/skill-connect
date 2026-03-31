@@ -6,6 +6,38 @@ const db = require('../db/index');
 const router = express.Router();
 
 /**
+ * GET /discover/search?q=name
+ * Search users by name or short ID
+ */
+router.get('/search', verifyToken, async (req, res) => {
+  try {
+    const { q } = req.query;
+    if (!q || q.trim().length < 2) {
+      return res.status(400).json({ error: 'Search query must be at least 2 characters' });
+    }
+
+    const { User } = require('../db/index');
+    const searchTerm = q.trim();
+    
+    // Search by name or shortId
+    const users = await User.find({
+      $or: [
+        { name: { $regex: searchTerm, $options: 'i' } },
+        { shortId: searchTerm }
+      ],
+      _id: { $ne: req.user.userId } // Exclude self
+    })
+      .select('_id name shortId avatarUrl bio location')
+      .limit(20)
+      .lean();
+
+    res.json(users);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
  * GET /discover/suggestions
  * Returns suggested users ranked by mutual connections + shared skills (default feed)
  */
