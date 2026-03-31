@@ -5,7 +5,7 @@ const { User, OTP } = require('../db/index');
 
 const SALT_ROUNDS = 10;
 const JWT_SECRET = process.env.JWT_SECRET || 'changeme';
-const JWT_EXPIRES_IN = '7d';
+const JWT_EXPIRES_IN = '30d';
 const OTP_EXPIRY_MINUTES = 10;
 
 // ── Generate unique 8-digit short ID ────────────────────────────────────────
@@ -145,10 +145,6 @@ async function verifyToken(req, res, next) {
   const token = authHeader.slice(7);
   try {
     const payload = jwt.verify(token, JWT_SECRET);
-    const user = await User.findById(payload.userId);
-    if (!user) {
-      return res.status(401).json({ error: 'User no longer exists' });
-    }
     req.user = { userId: payload.userId };
     next();
   } catch {
