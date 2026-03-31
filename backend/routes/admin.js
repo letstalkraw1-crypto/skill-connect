@@ -99,10 +99,16 @@ router.get('/stats', adminAuth, async (req, res) => {
     const totalMessages = await Message.countDocuments();
     const totalConversations = await Conversation.countDocuments();
     
-    const skillBreakdown = await UserSkill.aggregate([
+    const skillBreakdownRaw = await UserSkill.aggregate([
       { $group: { _id: '$skillId', count: { $sum: 1 } } },
       { $sort: { count: -1 } }
     ]);
+
+    // Populate skill names
+    const skillBreakdown = await Promise.all(skillBreakdownRaw.map(async (item) => {
+      const skill = await Skill.findById(item._id).select('name').lean();
+      return { id: item._id, name: skill?.name || 'Unknown', count: item.count };
+    }));
 
     const recentUsers = await User.find().select('id name email avatarUrl createdAt').sort({ createdAt: -1 }).limit(5).lean();
 

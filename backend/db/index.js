@@ -71,7 +71,6 @@ module.exports = {
   UserSkill: require('../models/UserSkill'),
   Connection: require('../models/Connection'),
   Conversation: require('../models/Conversation'),
-  ConversationParticipant: require('../models/ConversationParticipant'),
   Message: require('../models/Message'),
   OTP: require('../models/OTP'),
   ProficiencyLevel: require('../models/ProficiencyLevel'),

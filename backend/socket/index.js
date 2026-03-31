@@ -1,6 +1,6 @@
 const { Server } = require('socket.io');
 const jwt = require('jsonwebtoken');
-const { ConversationParticipant, User } = require('../db/index');
+const { Conversation, User } = require('../db/index');
 const { persistMessage } = require('../services/messaging');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'changeme';
@@ -8,8 +8,8 @@ const JWT_SECRET = process.env.JWT_SECRET || 'changeme';
 const onlineUsers = new Map();
 
 async function getParticipants(conversationId) {
-  const participants = await ConversationParticipant.find({ conversationId }).select('userId').lean();
-  return participants.map(p => p.userId.toString ? p.userId.toString() : p.userId);
+  const conv = await Conversation.findById(conversationId).select('participants').lean();
+  return conv ? conv.participants : [];
 }
 
 /**

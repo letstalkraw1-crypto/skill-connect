@@ -41,9 +41,9 @@ router.get('/search', verifyToken, async (req, res) => {
  * GET /discover/suggestions
  * Returns suggested users ranked by mutual connections + shared skills (default feed)
  */
-router.get('/suggestions', verifyToken, (req, res) => {
+router.get('/suggestions', verifyToken, async (req, res) => {
   try {
-    const results = getSuggestions(req.user.userId);
+    const results = await getSuggestions(req.user.userId);
     return res.status(200).json(results);
   } catch (err) {
     return res.status(err.status || 500).json({ error: err.message });
@@ -62,7 +62,7 @@ router.get('/', verifyToken, async (req, res) => {
   // If no valid coordinates, fall back to suggestions
   if (isNaN(latNum) || isNaN(lngNum)) {
     try {
-      const results = getSuggestions(req.user.userId);
+      const results = await getSuggestions(req.user.userId);
       return res.status(200).json(results);
     } catch (err) {
       return res.status(err.status || 500).json({ error: err.message });
