@@ -2599,8 +2599,8 @@ function timeAgo(ts) { if (!ts) return ''; if (typeof ts === 'string' && !ts.end
             var html = urls.map(function (u) { var s = u.startsWith('/') ? API + u : u; return '<img src="' + s + '" style="flex:0 0 100%;width:100%;object-fit:cover;max-height:500px;display:block;scroll-snap-align:start;border-radius:12px;"/>'; }).join('');
             img = '<div style="display:flex; overflow-x:auto; scroll-snap-type:x mandatory; flex-wrap:nowrap; width:100%; -webkit-overflow-scrolling:touch; scrollbar-width:none; position:relative;">' + html + '</div>';
           }
-          var likeColor = p.is_liked ? 'var(--pink)' : 'var(--text2)';
-          var likeIcon = p.is_liked ? '<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>' : '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78v0z"/></svg>';
+          var likeColor = (p.isLiked || p.is_liked) ? 'var(--pink)' : 'var(--text2)';
+          var likeIcon = (p.isLiked || p.is_liked) ? '<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>' : '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78v0z"/></svg>';
           var commentIcon = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"/></svg>';
           var shareIcon = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>';
 
@@ -2614,17 +2614,17 @@ function timeAgo(ts) { if (!ts) return ''; if (typeof ts === 'string' && !ts.end
             '</div>' +
             '</div>';
 
-          var likesText = '<div style="font-weight:700; font-size:.9rem; margin-bottom: 6px;"><span class="like-count">' + (p.like_count || 0) + '</span> kudos</div>';
-          var captionText = p.caption ? '<div style="font-size:.9rem; line-height:1.4;"><span style="font-weight:700; margin-right:6px; cursor:pointer;" onclick="gotoProfile(\'' + (p.author_short_id || p.user_id) + '\')">' + esc(p.author_name) + '</span>' + esc(p.caption) + '</div>' : '';
+          var likesText = '<div style="font-weight:700; font-size:.9rem; margin-bottom: 6px;"><span class="like-count">' + ((p.likeCount || p.like_count || 0) || 0) + '</span> kudos</div>';
+          var captionText = p.caption ? '<div style="font-size:.9rem; line-height:1.4;"><span style="font-weight:700; margin-right:6px; cursor:pointer;" onclick="gotoProfile(\'' + ((p.authorShortId || p.author_short_id) || (p.userId || p.user_id)) + '\')">' + esc((p.authorName || p.author_name || 'Unknown')) + '</span>' + esc(p.caption) + '</div>' : '';
           var noteText = p.note ? '<div style="font-size:.85rem; margin:6px 0 8px; color:#0f172a; background:rgba(99,102,241,0.1); border:1px solid rgba(99,102,241,0.25); border-radius:8px; padding:8px;">' + esc(p.note) + '</div>' : '';
 
           return '<div class="card" id="post-' + p.id + '">' +
             '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">' +
-            '<div style="display:flex;align-items:center;gap:10px;cursor:pointer;" onclick="gotoProfile(\'' + (p.author_short_id || p.user_id) + '\')">' +
-            '<div class="avatar av-sm">' + avatarEl({ name: p.author_name, avatar_url: p.author_avatar }) + '</div>' +
-            '<div style="font-weight:700; font-size:.95rem;">' + esc(p.author_name) + '</div>' +
+            '<div style="display:flex;align-items:center;gap:10px;cursor:pointer;" onclick="gotoProfile(\'' + ((p.authorShortId || p.author_short_id) || (p.userId || p.user_id)) + '\')">' +
+            '<div class="avatar av-sm">' + avatarEl({ name: (p.authorName || p.author_name || 'Unknown'), avatar_url: (p.authorAvatar || p.author_avatar) }) + '</div>' +
+            '<div style="font-weight:700; font-size:.95rem;">' + esc((p.authorName || p.author_name || 'Unknown')) + '</div>' +
             '</div>' +
-            '<button style="background:none;border:none;color:var(--text2);font-size:1.4rem;cursor:pointer;padding:4px;font-weight:bold;" onclick="openPostOptions(\'' + p.id + '\', ' + (p.user_id === userId) + ')">&#8942;</button>' +
+            '<button style="background:none;border:none;color:var(--text2);font-size:1.4rem;cursor:pointer;padding:4px;font-weight:bold;" onclick="openPostOptions(\'' + p.id + '\', ' + ((p.userId || p.user_id) === userId) + ')">&#8942;</button>' +
             '</div>' +
             noteText +
             img + actions + likesText + captionText + '</div>';
@@ -2702,7 +2702,7 @@ function timeAgo(ts) { if (!ts) return ''; if (typeof ts === 'string' && !ts.end
         var r = await fetch(API + '/posts', { headers: authHeaders() });
         var d = await r.json();
         if (!r.ok) throw new Error(d.error);
-        var myPosts = d.filter(function (p) { return p.user_id === userId; });
+        var myPosts = d.filter(function (p) { return (p.userId || p.user_id) === userId; });
         if (!myPosts.length) {
           list.innerHTML = '<div style="color:var(--text2);text-align:center;padding:16px;">No activities posted yet.</div>';
           return;
@@ -3264,6 +3264,7 @@ function timeAgo(ts) { if (!ts) return ''; if (typeof ts === 'string' && !ts.end
 </body>
 
 </html>
+
 
 
 
