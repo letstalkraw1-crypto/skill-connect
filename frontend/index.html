@@ -1780,7 +1780,7 @@ function timeAgo(ts) { if (!ts) return ''; if (typeof ts === 'string' && !ts.end
         var mutual = u.mutual_connections ? '<span class="mutual-badge" style="margin-top:4px;">&#129309; ' + u.mutual_connections + ' mutual</span>' : '';
 
         var btnHtml = '<button class="btn btn-primary btn-sm" style="width:100%;" onclick="sendConnectionRequest(\'' + (u._id||u.id) + '\',\'' + esc(u.name || '') + '\', this)">Connect &#8594;</button>';
-        if ((u.connectionStatus || u.connection_status) === 'pending') btnHtml = '<button class="btn btn-secondary btn-sm" style="width:100%; opacity:0.7;" disabled>Requested Γ£ô</button>';
+        if ((u.connectionStatus || u.connection_status) === 'pending') btnHtml = '<button class="btn btn-secondary btn-sm" style="width:100%; opacity:0.7;" disabled>Requested ✓</button>';
         else if ((u.connectionStatus || u.connection_status) === 'accepted') btnHtml = '<button class="btn btn-secondary btn-sm" style="width:100%; opacity:0.7;" disabled>Connected Γ£ô</button>';
 
         return '<div class="card" style="margin-bottom:14px;"><div style="display:flex;align-items:center;gap:14px;margin-bottom:12px;cursor:pointer;" onclick="gotoProfile(\'' + (u.short_id || (u._id||u.id)) + '\')"><div class="avatar av-lg">' + avatarEl(u) + '</div><div style="flex:1;min-width:0;"><div style="font-weight:800;font-size:1.05rem;">' + esc(u.name || 'Unknown') + '</div><div style="color:var(--text2);font-size:.85rem;margin-top:2px;">' + esc(u.location || '') + '</div>' + mutual + '</div></div>' + skills + btnHtml + '</div>';
@@ -1831,7 +1831,7 @@ function timeAgo(ts) { if (!ts) return ''; if (typeof ts === 'string' && !ts.end
         var d = await r.json();
         if (!r.ok) throw new Error(d.error || 'Failed');
         toast('Request sent to ' + name + '!', 'success');
-        if (btn) { btn.innerHTML = 'Requested Γ£ô'; btn.className = 'btn btn-secondary btn-sm'; btn.style.opacity = '0.7'; btn.disabled = true; btn.style.width = '100%'; }
+        if (btn) { btn.innerHTML = 'Requested ✓'; btn.className = 'btn btn-secondary btn-sm'; btn.style.opacity = '0.7'; btn.disabled = true; btn.style.width = '100%'; }
       } catch (err) {
         toast(err.message, 'error');
         if (btn) { btn.innerHTML = 'Connect &#8594;'; btn.disabled = false; }
@@ -3264,6 +3264,7 @@ function timeAgo(ts) { if (!ts) return ''; if (typeof ts === 'string' && !ts.end
 </body>
 
 </html>
+
 
 
 
