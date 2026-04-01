@@ -2,6 +2,9 @@ const { v4: uuidv4 } = require('uuid');
 const { Connection, User } = require('../db/index');
 
 async function sendRequest(requesterId, addresseeId) {
+  if (!addresseeId || addresseeId === 'undefined') {
+    const err = new Error('Invalid target user ID'); err.status = 400; throw err;
+  }
   if (requesterId === addresseeId) {
     const err = new Error('Cannot connect with yourself');
     err.status = 400;
@@ -22,13 +25,6 @@ async function sendRequest(requesterId, addresseeId) {
     if (existing.status === 'accepted') {
       const err = new Error('Already connected'); err.status = 409; throw err;
     }
-  }
-
-  const addresseeExists = await User.findById(addresseeId);
-  if (!addresseeExists) {
-    const err = new Error('Target user not found');
-    err.status = 404;
-    throw err;
   }
 
   const connection = new Connection({
