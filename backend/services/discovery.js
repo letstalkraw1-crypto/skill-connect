@@ -91,7 +91,6 @@ async function discoverUsers(requestingUserId, skillName, lat, lng, radiusKm, pr
 }
 
 async function getSuggestions(userId, limit = 20) {
-  // Get connected users
   const connections = await Connection.find({
     $or: [{ requesterId: userId }, { addresseeId: userId }]
   }).lean();
@@ -102,61 +101,47 @@ async function getSuggestions(userId, limit = 20) {
 
   const excluded = [userId, ...connectedIds];
 
-  // Get all other users
   const candidates = await User.find({
     _id: { $nin: excluded }
-  }).select('_id name avatarUrl shortId location').lean();
+  }).select('_id name avatarUrl shortId location').limit(50).lean();
 
   if (!candidates.length) return [];
 
-  // Get current user's accepted connections
-  const myConnections = await Connection.find({
-    $or: [{ requesterId: userId }, { addresseeId: userId }],
-    status: 'accepted'
-  }).lean();
-
-  const myConnectionIds = myConnections.map(c =>
+  const myAcceptedConns = connections.filter(c => c.status === 'accepted');
+  const myConnectionIds = myAcceptedConns.map(c =>
     c.requesterId === userId ? c.addresseeId : c.requesterId
   );
 
-  // Get current user's skills
-  const myUserSkills = await UserSkill.find({ userId: userId }).lean();
+  const myUserSkills = await UserSkill.find({ userId }).lean();
   const mySkillIds = myUserSkills.map(us => us.skillId.toString());
 
-  const results = await Promise.all(candidates.map(async (candidate) => {
-    // Get their accepted connections
-    const theirConnections = await Connection.find({
-      $or: [{ requesterId: candidate._id }, { addresseeId: candidate._id }],
-      status: 'accepted'
-    }).lean();
+  const candidateIds = candidates.map(c => c._id);
 
-    const theirConnectionIds = theirConnections.map(c =>
+  // Batch fetch all their connections and skills at once
+  const [allTheirConns, allTheirSkills] = await Promise.all([
+    Connection.find({
+      $or: [{ requesterId: { $in: candidateIds } }, { addresseeId: { $in: candidateIds } }],
+      status: 'accepted'
+    }).lean(),
+    UserSkill.find({ userId: { $in: candidateIds } })
+      .populate({ path: 'skillId', select: 'name' }).lean()
+  ]);
+
+  const results = candidates.map(candidate => {
+    const theirConns = allTheirConns.filter(c =>
+      c.requesterId === candidate._id || c.addresseeId === candidate._id
+    );
+    const theirConnIds = theirConns.map(c =>
       c.requesterId === candidate._id ? c.addresseeId : c.requesterId
     );
 
-    const mutualIds = myConnectionIds.filter(id =>
-      theirConnectionIds.includes(id)
-    );
-
+    const mutualIds = myConnectionIds.filter(id => theirConnIds.includes(id));
     const mutualCount = mutualIds.length;
 
-    // Get their skills
-    const theirUserSkills = await UserSkill.find({ userId: candidate._id }).lean();
-    const theirSkillIds = theirUserSkills.map(us => us.skillId.toString());
-
-    const sharedSkillCount = theirSkillIds.filter(id =>
-      mySkillIds.includes(id)
+    const theirSkills = allTheirSkills.filter(s => s.userId === candidate._id);
+    const sharedSkillCount = theirSkills.filter(s =>
+      mySkillIds.includes(s.skillId?._id?.toString() || s.skillId?.toString())
     ).length;
-
-    const allTheirSkills = await UserSkill.find({ userId: candidate._id })
-      .populate({ path: 'skillId', select: 'name' }).lean();
-
-    // Get mutual connection names
-    const mutualNames = [];
-    for (const mutualId of mutualIds.slice(0, 3)) {
-      const mutualUser = await User.findById(mutualId).select('name').lean();
-      if (mutualUser) mutualNames.push(mutualUser.name);
-    }
 
     return {
       id: candidate._id,
@@ -165,17 +150,17 @@ async function getSuggestions(userId, limit = 20) {
       name: candidate.name,
       avatarUrl: candidate.avatarUrl,
       location: candidate.location,
-      skills: allTheirSkills.map(s => ({
-        id: s.skillId._id,
-        name: s.skillId.name,
+      skills: theirSkills.map(s => ({
+        id: s.skillId?._id,
+        name: s.skillId?.name,
         level: s.level
       })),
       mutualCount,
-      mutualNames,
+      mutualNames: [],
       sharedSkillCount,
       score: mutualCount * 3 + sharedSkillCount
     };
-  }));
+  });
 
   return results
     .sort((a, b) => b.score - a.score || a.name.localeCompare(b.name))

@@ -28,10 +28,15 @@ const globalLimiter = rateLimit({
 app.use(globalLimiter);
 
 app.use(cors({
-  origin: '*', // Allow all origins (standard for public APIs accessed by mobile apps)
+  origin: '*',
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
+
+// Enable gzip compression
+const compression = require('compression');
+app.use(compression());
+
 app.use(express.json());
 
 // Request logger
@@ -118,5 +123,18 @@ const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
   console.log(`✅ Production API Server running on port ${PORT}`);
 });
+
+// Keep-alive ping to prevent Render free tier spin-down
+if (process.env.NODE_ENV === 'production' && process.env.RENDER_EXTERNAL_URL) {
+  const keepAliveUrl = process.env.RENDER_EXTERNAL_URL + '/health';
+  setInterval(async () => {
+    try {
+      const http = require('http');
+      const https = require('https');
+      const client = keepAliveUrl.startsWith('https') ? https : http;
+      client.get(keepAliveUrl, () => {}).on('error', () => {});
+    } catch (e) {}
+  }, 14 * 60 * 1000); // ping every 14 minutes
+}
 
 module.exports = { app, server };
