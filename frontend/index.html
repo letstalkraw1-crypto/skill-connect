@@ -1779,11 +1779,11 @@ function timeAgo(ts) { if (!ts) return ''; if (typeof ts === 'string' && !ts.end
         var skills = u.skills && u.skills.length ? '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;">' + u.skills.map(function (s) { return '<span class="pill" style="font-size:.78rem;padding:5px 10px;">' + skillEmoji(s.name) + ' ' + esc(s.name) + '</span>'; }).join('') + '</div>' : '';
         var mutual = u.mutual_connections ? '<span class="mutual-badge" style="margin-top:4px;">&#129309; ' + u.mutual_connections + ' mutual</span>' : '';
 
-        var btnHtml = '<button class="btn btn-primary btn-sm" style="width:100%;" onclick="sendConnectionRequest(\'' + u.id + '\',\'' + esc(u.name || '') + '\', this)">Connect &#8594;</button>';
+        var btnHtml = '<button class="btn btn-primary btn-sm" style="width:100%;" onclick="sendConnectionRequest(\'' + (u._id||u.id) + '\',\'' + esc(u.name || '') + '\', this)">Connect &#8594;</button>';
         if ((u.connectionStatus || u.connection_status) === 'pending') btnHtml = '<button class="btn btn-secondary btn-sm" style="width:100%; opacity:0.7;" disabled>Requested Γ£ô</button>';
         else if ((u.connectionStatus || u.connection_status) === 'accepted') btnHtml = '<button class="btn btn-secondary btn-sm" style="width:100%; opacity:0.7;" disabled>Connected Γ£ô</button>';
 
-        return '<div class="card" style="margin-bottom:14px;"><div style="display:flex;align-items:center;gap:14px;margin-bottom:12px;cursor:pointer;" onclick="gotoProfile(\'' + (u.short_id || u.id) + '\')"><div class="avatar av-lg">' + avatarEl(u) + '</div><div style="flex:1;min-width:0;"><div style="font-weight:800;font-size:1.05rem;">' + esc(u.name || 'Unknown') + '</div><div style="color:var(--text2);font-size:.85rem;margin-top:2px;">' + esc(u.location || '') + '</div>' + mutual + '</div></div>' + skills + btnHtml + '</div>';
+        return '<div class="card" style="margin-bottom:14px;"><div style="display:flex;align-items:center;gap:14px;margin-bottom:12px;cursor:pointer;" onclick="gotoProfile(\'' + (u.short_id || (u._id||u.id)) + '\')"><div class="avatar av-lg">' + avatarEl(u) + '</div><div style="flex:1;min-width:0;"><div style="font-weight:800;font-size:1.05rem;">' + esc(u.name || 'Unknown') + '</div><div style="color:var(--text2);font-size:.85rem;margin-top:2px;">' + esc(u.location || '') + '</div>' + mutual + '</div></div>' + skills + btnHtml + '</div>';
       }).join('');
     }
 
@@ -1820,7 +1820,7 @@ function timeAgo(ts) { if (!ts) return ''; if (typeof ts === 'string' && !ts.end
         var r = await fetch(API + '/profile/by-short-id/' + shortId, { headers: authHeaders() });
         var d = await r.json();
         if (!r.ok) throw new Error(d.error || 'User not found');
-        el.innerHTML = '<div class="card" style="margin-top:12px;"><div style="display:flex;align-items:center;gap:14px;margin-bottom:12px;"><div class="avatar av-lg">' + avatarEl(d) + '</div><div class="user-info"><div class="user-name">' + esc(d.name || 'Unknown') + '</div><div class="user-sub">' + esc(d.location || '') + '</div></div></div><button class="btn btn-primary" onclick="sendConnectionRequest(\'' + d.id + '\',\'' + esc(d.name || '') + '\', this)">Send Connection Request</button></div>';
+        el.innerHTML = '<div class="card" style="margin-top:12px;"><div style="display:flex;align-items:center;gap:14px;margin-bottom:12px;"><div class="avatar av-lg">' + avatarEl(d) + '</div><div class="user-info"><div class="user-name">' + esc(d.name || 'Unknown') + '</div><div class="user-sub">' + esc(d.location || '') + '</div></div></div><button class="btn btn-primary" onclick="sendConnectionRequest(\'' + (d._id||d.id) + '\',\'' + esc(d.name || '') + '\', this)">Send Connection Request</button></div>';
       } catch (err) { el.innerHTML = '<div style="color:var(--red);padding:12px 0;">' + esc(err.message) + '</div>'; }
     }
 
@@ -1872,7 +1872,7 @@ function timeAgo(ts) { if (!ts) return ''; if (typeof ts === 'string' && !ts.end
         var r = await fetch(API + '/conversations', { method: 'POST', headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders()), body: JSON.stringify({ participantIds: [userId, otherUserId] }) });
         var d = await r.json();
         if (!r.ok) throw new Error(d.error || 'Failed');
-        openConversation(d.id || d.conversationId, name, otherUserId);
+        openConversation((d._id||d.id) || d.conversationId, name, otherUserId);
       } catch (err) { toast(err.message, 'error'); }
     }
 
@@ -2608,9 +2608,9 @@ function timeAgo(ts) { if (!ts) return ''; if (typeof ts === 'string' && !ts.end
 
           var actions = verificationHtml + '<div style="display:flex; padding: 16px 0 8px;">' +
             '<div style="display:flex; gap: 16px;">' +
-            '<button class="action-icon" onclick="toggleLike(\'' + p.id + '\', this)" style="background:none;border:none;color:' + likeColor + ';cursor:pointer;padding:0;display:flex;"><span class="like-icon" style="display:flex;">' + likeIcon + '</span></button>' +
-            '<button class="action-icon" onclick="openComments(\'' + p.id + '\')" style="background:none;border:none;color:var(--text2);cursor:pointer;padding:0;display:flex;">' + commentIcon + '</button>' +
-            '<button class="action-icon" onclick="openCustomShare(\'' + p.id + '\')" style="background:none;border:none;color:var(--text2);cursor:pointer;padding:0;display:flex;">' + shareIcon + '</button>' +
+            '<button class="action-icon" onclick="toggleLike(\\'' + (p._id || (p._id||p.id)) + '\\', this)" style="background:none;border:none;color:' + likeColor + ';cursor:pointer;padding:0;display:flex;"><span class="like-icon" style="display:flex;">' + likeIcon + '</span></button>' +
+            '<button class="action-icon" onclick="openComments(\\'' + (p._id || (p._id||p.id)) + '\\')" style="background:none;border:none;color:var(--text2);cursor:pointer;padding:0;display:flex;">' + commentIcon + '</button>' +
+            '<button class="action-icon" onclick="openCustomShare(\\'' + (p._id || (p._id||p.id)) + '\\')" style="background:none;border:none;color:var(--text2);cursor:pointer;padding:0;display:flex;">' + shareIcon + '</button>' +
             '</div>' +
             '</div>';
 
@@ -2618,13 +2618,13 @@ function timeAgo(ts) { if (!ts) return ''; if (typeof ts === 'string' && !ts.end
           var captionText = p.caption ? '<div style="font-size:.9rem; line-height:1.4;"><span style="font-weight:700; margin-right:6px; cursor:pointer;" onclick="gotoProfile(\'' + ((p.authorShortId || p.author_short_id) || (p.userId || p.user_id)) + '\')">' + esc((p.authorName || p.author_name || 'Unknown')) + '</span>' + esc(p.caption) + '</div>' : '';
           var noteText = p.note ? '<div style="font-size:.85rem; margin:6px 0 8px; color:#0f172a; background:rgba(99,102,241,0.1); border:1px solid rgba(99,102,241,0.25); border-radius:8px; padding:8px;">' + esc(p.note) + '</div>' : '';
 
-          return '<div class="card" id="post-' + p.id + '">' +
+          return '<div class="card" id="post-' + (p._id||p.id) + '">' +
             '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">' +
             '<div style="display:flex;align-items:center;gap:10px;cursor:pointer;" onclick="gotoProfile(\'' + ((p.authorShortId || p.author_short_id) || (p.userId || p.user_id)) + '\')">' +
             '<div class="avatar av-sm">' + avatarEl({ name: (p.authorName || p.author_name || 'Unknown'), avatar_url: (p.authorAvatar || p.author_avatar) }) + '</div>' +
             '<div style="font-weight:700; font-size:.95rem;">' + esc((p.authorName || p.author_name || 'Unknown')) + '</div>' +
             '</div>' +
-            '<button style="background:none;border:none;color:var(--text2);font-size:1.4rem;cursor:pointer;padding:4px;font-weight:bold;" onclick="openPostOptions(\'' + p.id + '\', ' + ((p.userId || p.user_id) === userId) + ')">&#8942;</button>' +
+            '<button style="background:none;border:none;color:var(--text2);font-size:1.4rem;cursor:pointer;padding:4px;font-weight:bold;" onclick="openPostOptions(\\'' + (p._id || (p._id||p.id)) + '\\', ' + ((p.userId || p.user_id) === userId) + ')">&#8942;</button>' +
             '</div>' +
             noteText +
             img + actions + likesText + captionText + '</div>';
@@ -2710,7 +2710,7 @@ function timeAgo(ts) { if (!ts) return ''; if (typeof ts === 'string' && !ts.end
         list.innerHTML = myPosts.map(function (p) {
           var img = p.image_url || ((p.image_urls && p.image_urls.length && p.image_urls !== '[]') ? JSON.parse(p.image_urls)[0] : '');
           var title = p.caption || 'My Activity';
-          return '<div class="user-row" style="cursor:pointer;" onclick="shareMyActivity(\'' + p.id + '\', \'' + esc(title.replace(/'/g, '')) + '\')">' +
+          return '<div class="user-row" style="cursor:pointer;" onclick="shareMyActivity(\\'' + (p._id || (p._id||p.id)) + '\\', \'' + esc(title.replace(/'/g, '')) + '\')">' +
             '<div style="width:48px;height:48px;background:var(--border);border-radius:8px;margin-right:12px;overflow:hidden;flex-shrink:0;">' +
             (img ? '<img src="' + (img.startsWith('/') ? API + img : img) + '" style="width:100%;height:100%;object-fit:cover;" />' : '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:var(--text2);font-size:1.5rem;">&#128196;</div>') +
             '</div>' +
@@ -2844,7 +2844,7 @@ function timeAgo(ts) { if (!ts) return ''; if (typeof ts === 'string' && !ts.end
         var r = await fetch(API + '/conversations', { method: 'POST', headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders()), body: JSON.stringify({ participantIds: [userId, targetId] }) });
         var d = await r.json();
         if (!r.ok) throw new Error(d.error || 'Failed');
-        if (socket) socket.emit('send_message', { conversationId: d.id || d.conversationId, content: url, senderId: userId });
+        if (socket) socket.emit('send_message', { conversationId: (d._id||d.id) || d.conversationId, content: url, senderId: userId });
         toast('Sent successfully!', 'success');
         closeShareSheet();
       } catch (err) { toast(err.message, 'error'); }
@@ -3264,6 +3264,8 @@ function timeAgo(ts) { if (!ts) return ''; if (typeof ts === 'string' && !ts.end
 </body>
 
 </html>
+
+
 
 
 
