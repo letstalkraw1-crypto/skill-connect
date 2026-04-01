@@ -1771,7 +1771,7 @@ function timeAgo(ts) { if (!ts) return ''; if (typeof ts === 'string' && !ts.end
       document.getElementById('signup-otp').value = '';
     }
 
-    async async function onLoginSuccess(d) {
+    async async async function onLoginSuccess(d) {
       token = d.token; userId = d.userId;
       localStorage.setItem('sc_token', token);
       localStorage.setItem('sc_userId', userId);
@@ -3588,6 +3588,7 @@ async function completeOnboarding(skip) {
 </script></body>
 
 </html>
+
 
 
 
