@@ -15,9 +15,14 @@ const userSchema = new mongoose.Schema({
   stravaId: String,
   garminId: String,
   instagramId: String,
+  githubId: String,
+  portfolioUrl: String,
   allowTagging: { type: String, default: 'everyone' },
   theme: { type: String, default: 'bright' },
   accountType: { type: String, default: 'public' },
+  // Onboarding fields
+  lookingFor: { type: String, enum: ['learn', 'collaborate', 'compete', ''], default: '' },
+  onboardingComplete: { type: Boolean, default: false },
   createdAt: { type: Date, default: Date.now }
 });
 

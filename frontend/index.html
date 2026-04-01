@@ -1113,6 +1113,79 @@
       </div>
     </div>
 
+
+    <!-- ONBOARDING OVERLAY -->
+    <div id="onboarding-overlay" style="display:none;position:fixed;inset:0;background:#fff;z-index:9000;overflow-y:auto;font-family:inherit;">
+      <div style="max-width:600px;margin:0 auto;padding:24px 20px 80px;">
+        <!-- Progress bar -->
+        <div style="display:flex;gap:6px;margin-bottom:28px;margin-top:12px;">
+          <div id="ob-step-1-bar" style="flex:1;height:4px;border-radius:2px;background:#6366f1;transition:all .3s;"></div>
+          <div id="ob-step-2-bar" style="flex:1;height:4px;border-radius:2px;background:#e5e7eb;transition:all .3s;"></div>
+          <div id="ob-step-3-bar" style="flex:1;height:4px;border-radius:2px;background:#e5e7eb;transition:all .3s;"></div>
+          <div id="ob-step-4-bar" style="flex:1;height:4px;border-radius:2px;background:#e5e7eb;transition:all .3s;"></div>
+        </div>
+
+        <!-- STEP 1: Select Skills -->
+        <div id="ob-step-1">
+          <h2 style="font-size:1.5rem;font-weight:800;margin-bottom:6px;">What are your skills?</h2>
+          <p style="color:#6b7280;margin-bottom:20px;">Select all that apply</p>
+          <div id="ob-skills-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;"></div>
+          <button onclick="obNextStep(2)" style="width:100%;margin-top:24px;padding:14px;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;border:none;border-radius:12px;font-size:1rem;font-weight:700;cursor:pointer;">Continue →</button>
+        </div>
+
+        <!-- STEP 2: Select Sub-Skills -->
+        <div id="ob-step-2" style="display:none;">
+          <button onclick="obGoBack(1)" style="background:none;border:none;color:#6b7280;font-size:.9rem;cursor:pointer;margin-bottom:16px;">← Back</button>
+          <h2 style="font-size:1.5rem;font-weight:800;margin-bottom:6px;">Select your specializations</h2>
+          <p style="color:#6b7280;margin-bottom:20px;">Choose sub-skills for each skill you selected</p>
+          <div id="ob-subskills-container"></div>
+          <button onclick="obNextStep(3)" style="width:100%;margin-top:24px;padding:14px;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;border:none;border-radius:12px;font-size:1rem;font-weight:700;cursor:pointer;">Continue →</button>
+        </div>
+
+        <!-- STEP 3: Skill Level + Looking For -->
+        <div id="ob-step-3" style="display:none;">
+          <button onclick="obGoBack(2)" style="background:none;border:none;color:#6b7280;font-size:.9rem;cursor:pointer;margin-bottom:16px;">← Back</button>
+          <h2 style="font-size:1.5rem;font-weight:800;margin-bottom:6px;">Your skill level</h2>
+          <p style="color:#6b7280;margin-bottom:20px;">How would you describe yourself overall?</p>
+          <div style="display:flex;gap:10px;margin-bottom:28px;">
+            <button class="ob-level-btn" data-level="Beginner" onclick="selectObLevel(this)" style="flex:1;padding:14px;border:2px solid #e5e7eb;border-radius:12px;background:#fff;font-size:.9rem;font-weight:600;cursor:pointer;">🌱 Beginner</button>
+            <button class="ob-level-btn" data-level="Intermediate" onclick="selectObLevel(this)" style="flex:1;padding:14px;border:2px solid #e5e7eb;border-radius:12px;background:#fff;font-size:.9rem;font-weight:600;cursor:pointer;">⚡ Intermediate</button>
+            <button class="ob-level-btn" data-level="Pro" onclick="selectObLevel(this)" style="flex:1;padding:14px;border:2px solid #e5e7eb;border-radius:12px;background:#fff;font-size:.9rem;font-weight:600;cursor:pointer;">🔥 Pro</button>
+          </div>
+          <h2 style="font-size:1.3rem;font-weight:800;margin-bottom:6px;">What are you looking for?</h2>
+          <p style="color:#6b7280;margin-bottom:16px;">This helps us match you better</p>
+          <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:24px;">
+            <button class="ob-intent-btn" data-intent="learn" onclick="selectObIntent(this)" style="padding:16px;border:2px solid #e5e7eb;border-radius:12px;background:#fff;text-align:left;cursor:pointer;font-size:.95rem;font-weight:600;">📚 Learn — Find mentors & people to learn from</button>
+            <button class="ob-intent-btn" data-intent="collaborate" onclick="selectObIntent(this)" style="padding:16px;border:2px solid #e5e7eb;border-radius:12px;background:#fff;text-align:left;cursor:pointer;font-size:.95rem;font-weight:600;">🤝 Collaborate — Work on projects together</button>
+            <button class="ob-intent-btn" data-intent="compete" onclick="selectObIntent(this)" style="padding:16px;border:2px solid #e5e7eb;border-radius:12px;background:#fff;text-align:left;cursor:pointer;font-size:.95rem;font-weight:600;">🏆 Compete — Find challengers & rivals</button>
+          </div>
+          <button onclick="obNextStep(4)" style="width:100%;padding:14px;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;border:none;border-radius:12px;font-size:1rem;font-weight:700;cursor:pointer;">Continue →</button>
+        </div>
+
+        <!-- STEP 4: Optional Verification -->
+        <div id="ob-step-4" style="display:none;">
+          <button onclick="obGoBack(3)" style="background:none;border:none;color:#6b7280;font-size:.9rem;cursor:pointer;margin-bottom:16px;">← Back</button>
+          <h2 style="font-size:1.5rem;font-weight:800;margin-bottom:6px;">Verify your skills <span style="font-size:1rem;color:#6b7280;font-weight:400;">(optional)</span></h2>
+          <p style="color:#6b7280;margin-bottom:20px;">Add links to prove your skills. You can skip this.</p>
+          <div style="display:flex;flex-direction:column;gap:14px;margin-bottom:24px;">
+            <div>
+              <label style="font-size:.8rem;font-weight:700;color:#374151;display:block;margin-bottom:6px;">🟠 Strava Profile URL</label>
+              <input type="url" id="ob-strava" placeholder="https://strava.com/athletes/..." style="width:100%;padding:12px 14px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:.95rem;outline:none;"/>
+            </div>
+            <div>
+              <label style="font-size:.8rem;font-weight:700;color:#374151;display:block;margin-bottom:6px;">🐙 GitHub Profile URL</label>
+              <input type="url" id="ob-github" placeholder="https://github.com/username" style="width:100%;padding:12px 14px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:.95rem;outline:none;"/>
+            </div>
+            <div>
+              <label style="font-size:.8rem;font-weight:700;color:#374151;display:block;margin-bottom:6px;">🌐 Portfolio / Website</label>
+              <input type="url" id="ob-portfolio" placeholder="https://yourportfolio.com" style="width:100%;padding:12px 14px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:.95rem;outline:none;"/>
+            </div>
+          </div>
+          <button onclick="completeOnboarding()" id="ob-finish-btn" style="width:100%;padding:14px;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;border:none;border-radius:12px;font-size:1rem;font-weight:700;cursor:pointer;">Complete Setup 🎉</button>
+          <button onclick="completeOnboarding()" style="width:100%;margin-top:10px;padding:12px;background:none;border:none;color:#6b7280;font-size:.9rem;cursor:pointer;">Skip for now</button>
+        </div>
+      </div>
+    </div>
     <!-- BOTTOM NAV -->
     <nav id="bottom-nav">
       <button class="nav-tab active" id="nav-home" onclick="switchTab2('home')"><span class="nav-icon"><svg width="24"
@@ -1698,12 +1771,17 @@ function timeAgo(ts) { if (!ts) return ''; if (typeof ts === 'string' && !ts.end
       document.getElementById('signup-otp').value = '';
     }
 
-    async function onLoginSuccess(d) {
+    async async function onLoginSuccess(d) {
       token = d.token; userId = d.userId;
       localStorage.setItem('sc_token', token);
       localStorage.setItem('sc_userId', userId);
       initSocket();
       await loadAvailableSkills();
+      try {
+        var profileRes = await fetch(API + '/profile/' + userId, { headers: authHeaders() });
+        var profileData = await profileRes.json();
+        if (!profileData.onboardingComplete) { showOnboarding(); return; }
+      } catch(e) {}
       switchTab2('home');
       toast('Welcome!', 'success');
     }
@@ -3261,9 +3339,258 @@ function timeAgo(ts) { if (!ts) return ''; if (typeof ts === 'string' && !ts.end
       }
     })();
   </script>
-</body>
+
+<!-- ONBOARDING OVERLAY -->
+<div id="onboarding-overlay" style="display:none;position:fixed;inset:0;z-index:9000;background:#0a0a0f;overflow-y:auto;">
+  <div style="max-width:520px;margin:0 auto;padding:24px 20px 80px;">
+    <!-- Progress bar -->
+    <div style="display:flex;gap:6px;margin-bottom:32px;padding-top:16px;">
+      <div id="ob-step-1-bar" style="flex:1;height:4px;border-radius:2px;background:#8b5cf6;transition:all .3s;"></div>
+      <div id="ob-step-2-bar" style="flex:1;height:4px;border-radius:2px;background:rgba(255,255,255,0.1);transition:all .3s;"></div>
+      <div id="ob-step-3-bar" style="flex:1;height:4px;border-radius:2px;background:rgba(255,255,255,0.1);transition:all .3s;"></div>
+      <div id="ob-step-4-bar" style="flex:1;height:4px;border-radius:2px;background:rgba(255,255,255,0.1);transition:all .3s;"></div>
+    </div>
+
+    <!-- STEP 1: Select Skills -->
+    <div id="ob-step-1">
+      <div style="font-size:1.6rem;font-weight:800;margin-bottom:8px;">What are your skills? 🎯</div>
+      <div style="color:#7878a0;margin-bottom:24px;font-size:.95rem;">Select all that apply</div>
+      <div id="ob-skills-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:32px;"></div>
+      <button class="btn btn-primary" onclick="obNextStep(2)" id="ob-btn-1" disabled>Continue →</button>
+    </div>
+
+    <!-- STEP 2: Select Sub-Skills -->
+    <div id="ob-step-2" style="display:none;">
+      <div style="font-size:1.6rem;font-weight:800;margin-bottom:8px;">Pick your focus areas 🎯</div>
+      <div style="color:#7878a0;margin-bottom:24px;font-size:.95rem;">Choose sub-skills for each selected skill</div>
+      <div id="ob-subskills-container" style="margin-bottom:32px;"></div>
+      <div style="display:flex;gap:10px;">
+        <button class="btn btn-secondary" style="flex:1;" onclick="obNextStep(1)">← Back</button>
+        <button class="btn btn-primary" style="flex:2;" onclick="obNextStep(3)">Continue →</button>
+      </div>
+    </div>
+
+    <!-- STEP 3: Skill Level + Looking For -->
+    <div id="ob-step-3" style="display:none;">
+      <div style="font-size:1.6rem;font-weight:800;margin-bottom:8px;">Your level & intent 💪</div>
+      <div style="color:#7878a0;margin-bottom:24px;font-size:.95rem;">Help us match you better</div>
+      <div style="margin-bottom:24px;">
+        <div style="font-weight:700;margin-bottom:12px;">Overall Skill Level</div>
+        <div style="display:flex;gap:10px;">
+          <button class="ob-level-btn" data-level="Beginner" onclick="selectLevel(this)" style="flex:1;padding:14px;border-radius:12px;border:1.5px solid rgba(255,255,255,0.1);background:transparent;color:#f0f0ff;font-family:inherit;font-size:.9rem;font-weight:600;cursor:pointer;transition:all .2s;">🌱 Beginner</button>
+          <button class="ob-level-btn" data-level="Intermediate" onclick="selectLevel(this)" style="flex:1;padding:14px;border-radius:12px;border:1.5px solid rgba(255,255,255,0.1);background:transparent;color:#f0f0ff;font-family:inherit;font-size:.9rem;font-weight:600;cursor:pointer;transition:all .2s;">⚡ Intermediate</button>
+          <button class="ob-level-btn" data-level="Pro" onclick="selectLevel(this)" style="flex:1;padding:14px;border-radius:12px;border:1.5px solid rgba(255,255,255,0.1);background:transparent;color:#f0f0ff;font-family:inherit;font-size:.9rem;font-weight:600;cursor:pointer;transition:all .2s;">🔥 Pro</button>
+        </div>
+      </div>
+      <div style="margin-bottom:32px;">
+        <div style="font-weight:700;margin-bottom:12px;">I am looking to...</div>
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          <button class="ob-intent-btn" data-intent="learn" onclick="selectIntent(this)" style="padding:16px;border-radius:12px;border:1.5px solid rgba(255,255,255,0.1);background:transparent;color:#f0f0ff;font-family:inherit;font-size:.95rem;font-weight:600;cursor:pointer;text-align:left;transition:all .2s;">📚 Learn — Find mentors & study partners</button>
+          <button class="ob-intent-btn" data-intent="collaborate" onclick="selectIntent(this)" style="padding:16px;border-radius:12px;border:1.5px solid rgba(255,255,255,0.1);background:transparent;color:#f0f0ff;font-family:inherit;font-size:.95rem;font-weight:600;cursor:pointer;text-align:left;transition:all .2s;">🤝 Collaborate — Work on projects together</button>
+          <button class="ob-intent-btn" data-intent="compete" onclick="selectIntent(this)" style="padding:16px;border-radius:12px;border:1.5px solid rgba(255,255,255,0.1);background:transparent;color:#f0f0ff;font-family:inherit;font-size:.95rem;font-weight:600;cursor:pointer;text-align:left;transition:all .2s;">🏆 Compete — Challenge & push each other</button>
+        </div>
+      </div>
+      <div style="display:flex;gap:10px;">
+        <button class="btn btn-secondary" style="flex:1;" onclick="obNextStep(2)">← Back</button>
+        <button class="btn btn-primary" style="flex:2;" onclick="obNextStep(4)" id="ob-btn-3" disabled>Continue →</button>
+      </div>
+    </div>
+
+    <!-- STEP 4: Optional Verification -->
+    <div id="ob-step-4" style="display:none;">
+      <div style="font-size:1.6rem;font-weight:800;margin-bottom:8px;">Verify your skills ✅</div>
+      <div style="color:#7878a0;margin-bottom:24px;font-size:.95rem;">Optional — adds credibility to your profile</div>
+      <div style="display:flex;flex-direction:column;gap:14px;margin-bottom:32px;">
+        <div>
+          <label style="font-size:.8rem;font-weight:700;color:#7878a0;text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:6px;">🟠 Strava Profile URL</label>
+          <input type="url" id="ob-strava" placeholder="https://strava.com/athletes/..." style="width:100%;background:#13131f;border:1.5px solid rgba(255,255,255,0.09);border-radius:12px;color:#f0f0ff;font-family:inherit;font-size:16px;padding:14px 16px;outline:none;"/>
+        </div>
+        <div>
+          <label style="font-size:.8rem;font-weight:700;color:#7878a0;text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:6px;">🐙 GitHub Profile URL</label>
+          <input type="url" id="ob-github" placeholder="https://github.com/username" style="width:100%;background:#13131f;border:1.5px solid rgba(255,255,255,0.09);border-radius:12px;color:#f0f0ff;font-family:inherit;font-size:16px;padding:14px 16px;outline:none;"/>
+        </div>
+        <div>
+          <label style="font-size:.8rem;font-weight:700;color:#7878a0;text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:6px;">🌐 Portfolio / Website</label>
+          <input type="url" id="ob-portfolio" placeholder="https://yourportfolio.com" style="width:100%;background:#13131f;border:1.5px solid rgba(255,255,255,0.09);border-radius:12px;color:#f0f0ff;font-family:inherit;font-size:16px;padding:14px 16px;outline:none;"/>
+        </div>
+      </div>
+      <div style="display:flex;gap:10px;">
+        <button class="btn btn-secondary" style="flex:1;" onclick="obNextStep(3)">← Back</button>
+        <button class="btn btn-primary" style="flex:2;" onclick="completeOnboarding()" id="ob-btn-finish">Finish Setup 🚀</button>
+      </div>
+      <button class="btn btn-ghost" style="margin-top:10px;width:100%;color:#7878a0;" onclick="completeOnboarding(true)">Skip for now</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── ONBOARDING ────────────────────────────────────────────────────────────────
+var SKILLS_DATA = {
+  'Running': { icon: '🏃', subs: ['Fitness Running', 'Marathon / Endurance', 'Sprinting'] },
+  'Cycling': { icon: '🚴', subs: ['Road Cycling', 'Mountain Biking', 'Fitness Cycling'] },
+  'Swimming': { icon: '🏊', subs: ['Fitness Swimming', 'Competitive Swimming', 'Coaching'] },
+  'Gym / Fitness': { icon: '💪', subs: ['Weight Training', 'Calisthenics', 'Personal Training'] },
+  'Content Creation': { icon: '🎬', subs: ['Short-form (Reels)', 'Long-form (YouTube)', 'Personal Branding'] },
+  'Coding': { icon: '💻', subs: ['Web Development', 'App Development', 'DSA / Competitive Programming'] },
+  'Professional Communication': { icon: '🎤', subs: ['Public Speaking', 'Debate / Discussion', 'Hosting (Webinar / Seminar)'] },
+  'Photography / Videography': { icon: '📸', subs: ['Photography', 'Videography', 'Editing'] },
+  'Research': { icon: '🔬', subs: ['Academic Research', 'Technical Research', 'Market Research'] },
+  'Design': { icon: '🎨', subs: ['UI/UX Design', 'Graphic Design', 'Thumbnail Design'] },
+  'Business / Entrepreneurship': { icon: '🚀', subs: ['Marketing', 'Sales', 'Startup Building'] },
+  'Personal Development': { icon: '🌱', subs: ['Leadership', 'Time Management', 'Problem Solving'] }
+};
+
+var obSelectedSkills = {};
+var obSelectedLevel = '';
+var obSelectedIntent = '';
+var obCurrentStep = 1;
+
+function showOnboarding() {
+  document.getElementById('onboarding-overlay').style.display = 'block';
+  renderSkillsGrid();
+}
+
+function renderSkillsGrid() {
+  var grid = document.getElementById('ob-skills-grid');
+  grid.innerHTML = Object.keys(SKILLS_DATA).map(function(skill) {
+    var d = SKILLS_DATA[skill];
+    return '<button onclick="toggleObSkill(this,\'' + skill.replace(/'/g, "\\'") + '\')" style="padding:16px 12px;border-radius:14px;border:1.5px solid rgba(255,255,255,0.1);background:transparent;color:#f0f0ff;font-family:inherit;font-size:.85rem;font-weight:600;cursor:pointer;text-align:center;transition:all .2s;" data-skill="' + skill + '">' + d.icon + '<br/><span style="font-size:.8rem;">' + skill + '</span></button>';
+  }).join('');
+}
+
+function toggleObSkill(btn, skill) {
+  if (obSelectedSkills[skill]) {
+    delete obSelectedSkills[skill];
+    btn.style.background = 'transparent';
+    btn.style.borderColor = 'rgba(255,255,255,0.1)';
+    btn.style.color = '#f0f0ff';
+  } else {
+    obSelectedSkills[skill] = { subSkills: [] };
+    btn.style.background = 'rgba(139,92,246,0.2)';
+    btn.style.borderColor = '#8b5cf6';
+    btn.style.color = '#a78bfa';
+  }
+  document.getElementById('ob-btn-1').disabled = Object.keys(obSelectedSkills).length === 0;
+}
+
+function obNextStep(step) {
+  document.getElementById('ob-step-' + obCurrentStep).style.display = 'none';
+  obCurrentStep = step;
+  document.getElementById('ob-step-' + step).style.display = 'block';
+  // Update progress bars
+  for (var i = 1; i <= 4; i++) {
+    document.getElementById('ob-step-' + i + '-bar').style.background = i <= step ? '#8b5cf6' : 'rgba(255,255,255,0.1)';
+  }
+  if (step === 2) renderSubSkills();
+}
+
+function renderSubSkills() {
+  var container = document.getElementById('ob-subskills-container');
+  container.innerHTML = Object.keys(obSelectedSkills).map(function(skill) {
+    var d = SKILLS_DATA[skill];
+    return '<div style="margin-bottom:20px;"><div style="font-weight:700;margin-bottom:10px;">' + d.icon + ' ' + skill + '</div><div style="display:flex;flex-wrap:wrap;gap:8px;">' +
+      d.subs.map(function(sub) {
+        var selected = obSelectedSkills[skill].subSkills.includes(sub);
+        return '<button onclick="toggleSubSkill(this,\'' + skill.replace(/'/g, "\\'") + '\',\'' + sub.replace(/'/g, "\\'") + '\')" style="padding:8px 14px;border-radius:999px;border:1.5px solid ' + (selected ? '#8b5cf6' : 'rgba(255,255,255,0.1)') + ';background:' + (selected ? 'rgba(139,92,246,0.2)' : 'transparent') + ';color:' + (selected ? '#a78bfa' : '#f0f0ff') + ';font-family:inherit;font-size:.82rem;font-weight:600;cursor:pointer;transition:all .2s;">' + sub + '</button>';
+      }).join('') + '</div></div>';
+  }).join('');
+}
+
+function toggleSubSkill(btn, skill, sub) {
+  var arr = obSelectedSkills[skill].subSkills;
+  var idx = arr.indexOf(sub);
+  if (idx > -1) {
+    arr.splice(idx, 1);
+    btn.style.background = 'transparent';
+    btn.style.borderColor = 'rgba(255,255,255,0.1)';
+    btn.style.color = '#f0f0ff';
+  } else {
+    arr.push(sub);
+    btn.style.background = 'rgba(139,92,246,0.2)';
+    btn.style.borderColor = '#8b5cf6';
+    btn.style.color = '#a78bfa';
+  }
+}
+
+function selectLevel(btn) {
+  document.querySelectorAll('.ob-level-btn').forEach(function(b) {
+    b.style.background = 'transparent';
+    b.style.borderColor = 'rgba(255,255,255,0.1)';
+    b.style.color = '#f0f0ff';
+  });
+  btn.style.background = 'rgba(139,92,246,0.2)';
+  btn.style.borderColor = '#8b5cf6';
+  btn.style.color = '#a78bfa';
+  obSelectedLevel = btn.dataset.level;
+  checkStep3();
+}
+
+function selectIntent(btn) {
+  document.querySelectorAll('.ob-intent-btn').forEach(function(b) {
+    b.style.background = 'transparent';
+    b.style.borderColor = 'rgba(255,255,255,0.1)';
+    b.style.color = '#f0f0ff';
+  });
+  btn.style.background = 'rgba(139,92,246,0.2)';
+  btn.style.borderColor = '#8b5cf6';
+  btn.style.color = '#a78bfa';
+  obSelectedIntent = btn.dataset.intent;
+  checkStep3();
+}
+
+function checkStep3() {
+  document.getElementById('ob-btn-3').disabled = !(obSelectedLevel && obSelectedIntent);
+}
+
+async function completeOnboarding(skip) {
+  var btn = document.getElementById('ob-btn-finish');
+  if (btn) { btn.innerHTML = '<span class="spinner" style="width:18px;height:18px;border-width:2px;"></span>'; btn.disabled = true; }
+
+  var skills = [];
+  Object.keys(obSelectedSkills).forEach(function(skillName) {
+    var subSkills = obSelectedSkills[skillName].subSkills;
+    if (subSkills.length === 0) {
+      skills.push({ skillName: skillName, subSkill: null, level: obSelectedLevel || 'Beginner' });
+    } else {
+      subSkills.forEach(function(sub) {
+        skills.push({ skillName: skillName, subSkill: sub, level: obSelectedLevel || 'Beginner' });
+      });
+    }
+  });
+
+  try {
+    var body = {
+      skills: skills,
+      lookingFor: obSelectedIntent || 'learn',
+      verificationLinks: skip ? {} : {
+        strava: document.getElementById('ob-strava') ? document.getElementById('ob-strava').value : '',
+        github: document.getElementById('ob-github') ? document.getElementById('ob-github').value : '',
+        portfolio: document.getElementById('ob-portfolio') ? document.getElementById('ob-portfolio').value : ''
+      }
+    };
+
+    var r = await fetch(API + '/profile/onboarding', {
+      method: 'POST',
+      headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders()),
+      body: JSON.stringify(body)
+    });
+    var d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'Failed');
+
+    document.getElementById('onboarding-overlay').style.display = 'none';
+    switchTab2('home');
+    toast('Profile set up! Welcome 🎉', 'success');
+  } catch(err) {
+    toast(err.message, 'error');
+    if (btn) { btn.innerHTML = 'Finish Setup 🚀'; btn.disabled = false; }
+  }
+}
+</script></body>
 
 </html>
+
+
+
 
 
 

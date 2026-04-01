@@ -5,6 +5,66 @@ const { getProfile, updateProfile, addSkills, deleteSkill } = require('../servic
 const { User, SkillVerification, Skill, SkillEndorsement, Feedback } = require('../db/index');
 const { v4: uuidv4 } = require('uuid');
 
+// POST /profile/onboarding — complete onboarding with skills, sub-skills, level, lookingFor
+router.post('/onboarding', verifyToken, async (req, res) => {
+  try {
+    const { skills, lookingFor, verificationLinks } = req.body;
+    const userId = req.user.userId;
+
+    // Save each skill with sub-skill and level
+    if (skills && skills.length) {
+      const { UserSkill, Skill } = require('../db/index');
+      for (const s of skills) {
+        const skillDoc = await Skill.findOne({ name: { $regex: new RegExp('^' + s.skillName + '$', 'i') } });
+        if (!skillDoc) continue;
+        try {
+          await UserSkill.findOneAndUpdate(
+            { userId, skillId: skillDoc._id, subSkill: s.subSkill || null },
+            { userId, skillId: skillDoc._id, subSkill: s.subSkill || null, level: s.level || 'Beginner' },
+            { upsert: true, new: true }
+          );
+        } catch (e) { /* skip duplicates */ }
+      }
+    }
+
+    // Save lookingFor and verification links
+    const update = { onboardingComplete: true };
+    if (lookingFor) update.lookingFor = lookingFor;
+    if (verificationLinks) {
+      if (verificationLinks.strava) update.stravaId = verificationLinks.strava;
+      if (verificationLinks.github) update.githubId = verificationLinks.github;
+      if (verificationLinks.portfolio) update.portfolioUrl = verificationLinks.portfolio;
+    }
+
+    await require('../db/index').User.findByIdAndUpdate(userId, update);
+    const profile = await require('../services/profile').getProfile(userId);
+    res.json(profile);
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
+});
+
+// GET /profile/skills-list — get all skills with sub-skills
+router.get('/skills-list', (req, res) => {
+  const SKILLS_DATA = {
+    'Running': ['Fitness Running', 'Marathon / Endurance', 'Sprinting'],
+    'Cycling': ['Road Cycling', 'Mountain Biking', 'Fitness Cycling'],
+    'Swimming': ['Fitness Swimming', 'Competitive Swimming', 'Coaching'],
+    'Gym / Fitness': ['Weight Training', 'Calisthenics', 'Personal Training'],
+    'Content Creation': ['Short-form (Reels)', 'Long-form (YouTube)', 'Personal Branding'],
+    'Coding': ['Web Development', 'App Development', 'DSA / Competitive Programming'],
+    'Professional Communication': ['Public Speaking', 'Debate / Discussion', 'Hosting (Webinar / Seminar)'],
+    'Photography / Videography': ['Photography', 'Videography', 'Editing'],
+    'Research': ['Academic Research', 'Technical Research', 'Market Research'],
+    'Design': ['UI/UX Design', 'Graphic Design', 'Thumbnail Design'],
+    'Business / Entrepreneurship': ['Marketing', 'Sales', 'Startup Building'],
+    'Personal Development': ['Leadership', 'Time Management', 'Problem Solving'],
+    'Yoga': ['Hatha Yoga', 'Power Yoga', 'Meditation'],
+    'Hiking': ['Trail Hiking', 'Mountain Trekking', 'Backpacking']
+  };
+  res.json(SKILLS_DATA);
+});
+
 // GET /profile/by-short-id/:shortId — public lookup by 8-digit ID
 router.get('/by-short-id/:shortId', async (req, res) => {
   const user = await User.findOne({ shortId: req.params.shortId });

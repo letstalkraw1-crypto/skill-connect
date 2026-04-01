@@ -19,8 +19,9 @@ async function getProfile(userId) {
       const verifiedCount = await SkillVerification.countDocuments({ userId, skillId: us.skillId, status: 'verified' });
 
       return {
-        skillId: skill._id,
-        name: skill.name,
+        skillId: skill?._id,
+        name: skill?.name,
+        subSkill: us.subSkill || null,
         level: us.level,
         yearsExp: us.yearsExp,
         proficiency: proficiency?.name,
@@ -42,7 +43,7 @@ async function getProfile(userId) {
   };
 }
 
-async function updateProfile(userId, { bio, location, avatarUrl, name, stravaId, garminId, instagramId, allowTagging, theme, accountType } = {}) {
+async function updateProfile(userId, { bio, location, avatarUrl, name, stravaId, garminId, instagramId, githubId, portfolioUrl, allowTagging, theme, accountType, lookingFor } = {}) {
   const updateData = {};
 
   if (name !== undefined && name.trim()) updateData.name = name.trim();
@@ -52,9 +53,12 @@ async function updateProfile(userId, { bio, location, avatarUrl, name, stravaId,
   if (stravaId !== undefined) updateData.stravaId = stravaId;
   if (garminId !== undefined) updateData.garminId = garminId;
   if (instagramId !== undefined) updateData.instagramId = instagramId;
+  if (githubId !== undefined) updateData.githubId = githubId;
+  if (portfolioUrl !== undefined) updateData.portfolioUrl = portfolioUrl;
   if (allowTagging !== undefined) updateData.allowTagging = allowTagging;
   if (theme !== undefined) updateData.theme = theme;
   if (accountType !== undefined) updateData.accountType = accountType;
+  if (lookingFor !== undefined) updateData.lookingFor = lookingFor;
 
   if (Object.keys(updateData).length === 0) {
     return getProfile(userId);

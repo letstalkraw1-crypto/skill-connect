@@ -36,7 +36,13 @@ async function seedInitialData() {
     const skillCount = await Skill.countDocuments();
     if (skillCount === 0) {
       const mongoose = require('mongoose');
-      const skills = ['running', 'cycling', 'swimming', 'gym', 'yoga', 'hiking'];
+      const skills = [
+        'Running', 'Cycling', 'Swimming', 'Gym / Fitness',
+        'Content Creation', 'Coding', 'Professional Communication',
+        'Photography / Videography', 'Research', 'Design',
+        'Business / Entrepreneurship', 'Personal Development',
+        'Yoga', 'Hiking'
+      ];
       await Skill.insertMany(skills.map(name => ({ _id: new mongoose.Types.ObjectId(), name })));
       console.log('✅ Skills seeded');
     }
