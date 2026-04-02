@@ -102,10 +102,18 @@ router.delete('/skills/:skillId', verifyToken, async (req, res) => {
 
 // POST /profile/verifications — submit skill verification (auth required)
 router.post('/verifications', verifyToken, async (req, res) => {
-  const { skillId, verificationType, url } = req.body;
-  if (!skillId || !verificationType) return res.status(400).json({ error: 'skillId and verificationType required' });
+  let { skillId, skillName, verificationType, url } = req.body;
+  if (!skillId && !skillName) return res.status(400).json({ error: 'skillId or skillName required' });
+  if (!verificationType) return res.status(400).json({ error: 'verificationType required' });
   
   try {
+    // If only name provided, find the ID
+    if (!skillId && skillName) {
+      const skill = await Skill.findOne({ name: { $regex: new RegExp('^' + skillName + '$', 'i') } });
+      if (skill) skillId = skill._id;
+      else return res.status(404).json({ error: 'Skill not found' });
+    }
+
     const verification = new SkillVerification({
       _id: uuidv4(),
       userId: req.user.userId,

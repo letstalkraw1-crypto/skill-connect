@@ -103,14 +103,17 @@ async function addSkills(userId, skills) {
     }
 
     try {
-      const userSkill = new UserSkill({
-        userId,
-        skillId: skillDoc._id,
-        level: skill.level || null,
-        yearsExp: skill.yearsExp || null,
-        proficiencyId
-      });
-      await userSkill.save();
+      await UserSkill.findOneAndUpdate(
+        { userId, skillId: skillDoc._id },
+        { 
+          userId, 
+          skillId: skillDoc._id, 
+          level: skill.level || 'Beginner', 
+          yearsExp: skill.yearsExp || null, 
+          proficiencyId 
+        },
+        { upsert: true, new: true }
+      );
     } catch (e) {
       if (e.code === 11000) {
         const err = new Error(`Skill already added: ${skill.name}`);

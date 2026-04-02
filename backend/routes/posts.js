@@ -90,6 +90,7 @@ router.get('/', verifyToken, async (req, res) => {
         
         return {
           ...post,
+          id: post._id,
           authorName: post.userId.name,
           author_name: post.userId.name,
           authorAvatar: post.userId.avatarUrl,
@@ -97,9 +98,9 @@ router.get('/', verifyToken, async (req, res) => {
           authorShortId: post.userId.shortId,
           author_short_id: post.userId.shortId,
           likeCount,
-          like_count: likeCount,
+          likes_count: likeCount,
           commentCount,
-          comment_count: commentCount,
+          comments_count: commentCount,
           isLiked: !!isLiked,
           is_liked: !!isLiked,
           image_urls: post.imageUrls || []
@@ -174,12 +175,20 @@ router.post('/', verifyToken, upload.array('images', 10), async (req, res) => {
     
     res.status(201).json({
       ...post,
+      id: post._id,
       authorName: post.userId.name,
+      author_name: post.userId.name,
       authorAvatar: post.userId.avatarUrl,
+      author_avatar: post.userId.avatarUrl,
       authorShortId: post.userId.shortId,
+      author_short_id: post.userId.shortId,
       likeCount: 0,
+      likes_count: 0,
       commentCount: 0,
-      isLiked: false
+      comments_count: 0,
+      isLiked: false,
+      is_liked: false,
+      image_urls: post.imageUrls || []
     });
   } catch (err) {
     console.error('Post creation error:', err);

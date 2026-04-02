@@ -22,7 +22,7 @@ function switchTab(t) {
 
 function switchTab2(tab) {
   document.querySelectorAll('.nav-tab').forEach(function (b) { b.classList.remove('active'); });
-  var btn = document.querySelector('[onclick="switchTab2(\'' + tab + '\')"]');
+  var btn = document.getElementById('nav-' + tab);
   if (btn) btn.classList.add('active');
   
   document.querySelectorAll('.screen').forEach(function (s) { s.classList.remove('active'); });

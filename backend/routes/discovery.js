@@ -16,20 +16,53 @@ router.get('/search', verifyToken, async (req, res) => {
       return res.status(400).json({ error: 'Search query must be at least 2 characters' });
     }
 
-    const { User } = require('../db/index');
+    const { User, UserSkill, Skill } = require('../db/index');
     const searchTerm = q.trim();
     
-    // Search by name or shortId
-    const users = await User.find({
+    // Find matching Skill IDs first
+    const matchingSkills = await Skill.find({ 
+      name: { $regex: searchTerm, $options: 'i' } 
+    }).select('_id');
+    const skillIds = matchingSkills.map(s => s._id);
+
+    // Find User IDs from UserSkill matching subSkill or skillId
+    const matchingUserSkills = await UserSkill.find({
       $or: [
-        { name: { $regex: searchTerm, $options: 'i' } },
-        { shortId: searchTerm }
-      ],
-      _id: { $ne: req.user.userId } // Exclude self
+        { subSkill: { $regex: searchTerm, $options: 'i' } },
+        { skillId: { $in: skillIds } }
+      ]
+    }).select('userId');
+    const skillUserIds = matchingUserSkills.map(us => us.userId);
+
+    // Final Search Query on Users
+    const users = await User.find({
+      $and: [
+        { _id: { $ne: req.user.userId } }, // Exclude self
+        {
+          $or: [
+            { name: { $regex: searchTerm, $options: 'i' } },
+            { shortId: searchTerm },
+            { _id: { $in: skillUserIds } }
+          ]
+        }
+      ]
     })
-      .select('_id name shortId avatarUrl bio location')
-      .limit(20)
-      .lean();
+    .select('_id name shortId avatarUrl bio location')
+    .limit(30)
+    .lean();
+
+    // Attach skills to the results for rendering
+    for (let u of users) {
+      const userSkills = await UserSkill.find({ userId: u._id })
+        .populate('skillId', 'name')
+        .limit(5)
+        .lean();
+      
+      u.skills = userSkills.map(us => ({
+        skillName: us.skillId ? us.skillId.name : 'Unknown',
+        subSkill: us.subSkill
+      }));
+    }
 
     res.json(users);
   } catch (err) {

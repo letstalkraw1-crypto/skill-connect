@@ -9,7 +9,7 @@ async function loadConversations() {
   if (!el) return;
   el.innerHTML = '<div style="text-align:center;padding:32px;"><span class="spinner"></span></div>';
   try {
-    var r = await fetch(API + '/messaging/conversations', { headers: authHeaders() });
+    var r = await fetch(API + '/conversations', { headers: authHeaders() });
     var d = await r.json(); if (!r.ok) throw new Error(d.error);
     renderConversations(d);
   } catch (err) { el.innerHTML = '<div style="color:var(--text2);text-align:center;padding:16px;">' + esc(err.message) + '</div>'; }
@@ -37,8 +37,10 @@ async function openChatThread(convId, otherName) {
   var el = document.getElementById('chat-messages');
   el.innerHTML = '<div style="text-align:center;padding:32px;"><span class="spinner"></span></div>';
   try {
-    var r = await fetch(API + '/messaging/conversations/' + convId, { headers: authHeaders() });
+    var r = await fetch(API + '/conversations/' + convId + '/messages', { headers: authHeaders() });
     var d = await r.json(); if (!r.ok) throw new Error(d.error);
+    
+    // d is now { messages: [], wallpaper: "" }
     if (typeof applyWallpaperStyle === 'function') applyWallpaperStyle(d.wallpaper);
     el.innerHTML = '';
     (d.messages || []).forEach(appendBubble);

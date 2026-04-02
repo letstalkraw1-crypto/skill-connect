@@ -12,65 +12,155 @@ async function loadProfile() {
 }
 
 function renderProfile(u) {
+  localStorage.setItem('sc_user', JSON.stringify(u)); // Store for helper functions
   var avWrap = document.getElementById('profile-avatar-wrap');
   if (avWrap) avWrap.innerHTML = avatarEl(u);
+  
+  // Also update the display in the profile screen
+  var avatarDisplay = document.getElementById('profile-avatar-display');
+  if (avatarDisplay) {
+    if (u.avatar_url || u.avatarUrl) {
+      avatarDisplay.innerHTML = '<img src="' + (u.avatar_url || u.avatarUrl) + '" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" />';
+    } else {
+      avatarDisplay.textContent = avatarLetter(u);
+    }
+  }
+
   var nameEl = document.getElementById('profile-name');
   if (nameEl) nameEl.textContent = u.name;
+  var nameDisp = document.getElementById('profile-name-display');
+  if (nameDisp) nameDisp.textContent = u.name;
+  
+  var emailDisp = document.getElementById('profile-email-display');
+  if (emailDisp) emailDisp.textContent = u.email || '';
+
   var bioEl = document.getElementById('profile-bio');
   if (bioEl) bioEl.textContent = u.bio || 'New athlete on Collabro';
   var locEl = document.getElementById('profile-location');
   if (locEl) locEl.textContent = u.location || 'Secret Location';
+  
   var sidEl = document.getElementById('profile-short-id');
   if (sidEl) sidEl.textContent = u.short_id || u.shortId || '--';
   var slEl = document.getElementById('profile-share-link');
   if (slEl) slEl.textContent = window.location.origin + '/?id=' + (u.short_id || u.shortId || u.id);
+  
   var ccEl = document.getElementById('conn-count');
   if (ccEl) ccEl.textContent = u.connection_count || u.connectionCount || 0;
+  var pccEl = document.getElementById('profile-conn-count');
+  if (pccEl) pccEl.textContent = u.connection_count || u.connectionCount || 0;
   
+  var scEl = document.getElementById('profile-skill-count');
+  if (scEl) scEl.textContent = (u.skills ? u.skills.length : 0);
+
   // Sync edit fields
   var en = document.getElementById('edit-name'); if (en) en.value = u.name || '';
   var eb = document.getElementById('edit-bio'); if (eb) eb.value = u.bio || '';
   var el = document.getElementById('edit-location'); if (el) el.value = u.location || '';
   var es = document.getElementById('edit-strava'); if (es) es.value = u.strava_id || u.stravaId || '';
-  var ei = document.getElementById('edit-instagram'); if (ei) ei.value = u.instagram_id || u.instagramId || '';
+  var ei = document.getElementById('edit-garmin'); if (ei) ei.value = u.garmin_id || u.garminId || '';
+  var eins = document.getElementById('edit-instagram'); if (eins) eins.value = u.instagram_id || u.instagramId || '';
   
-  var sList = document.getElementById('my-skills-list');
+  var elf = document.getElementById('edit-looking-for'); if (elf) elf.value = u.lookingFor || u.looking_for || 'learn';
+  
+  var sList = document.getElementById('current-skills-list');
   if (sList) {
     if (u.skills && u.skills.length) {
       sList.innerHTML = u.skills.map(function(s) {
-        return '<div class="skill-pill-large"><span>' + (typeof skillEmoji === 'function' ? skillEmoji(s.name) : '') + ' ' + esc(s.name) + '</span><span onclick="removeSkill(\'' + (s.skill_id || s.skillId) + '\')" style="margin-left:8px;opacity:.5;cursor:pointer;">&times;</span></div>';
+        var levelLabel = s.level || 'Beginner';
+        return '<div class="skill-pill-large" style="flex-direction:column;align-items:flex-start;padding:12px 14px;">' +
+                 '<div style="display:flex;justify-content:space-between;width:100%;margin-bottom:6px;">' +
+                   '<span style="font-weight:700;">' + (typeof skillEmoji === 'function' ? skillEmoji(s.name) : '') + ' ' + esc(s.name) + '</span>' +
+                   '<span onclick="removeSkill(\'' + (s.skill_id || s.skillId || s._id) + '\')" style="opacity:.5;cursor:pointer;">&times;</span>' +
+                 '</div>' +
+                 '<div style="display:flex;align-items:center;gap:8px;font-size:0.75rem;color:var(--text2);">' +
+                   '<span>Lv: ' + levelLabel + '</span>' +
+                   '<span onclick="editSkillLevel(\'' + (s.skill_id || s.skillId || s._id) + '\', \'' + levelLabel + '\')" style="color:var(--purple-l);cursor:pointer;font-weight:700;">Edit</span>' +
+                 '</div>' +
+               '</div>';
       }).join('');
     } else { sList.innerHTML = '<div style="color:var(--text2);padding:10px;">No skills added yet</div>'; }
   }
   
   if (typeof generateQR === 'function') generateQR(window.location.origin + '/?id=' + (u.short_id || u.shortId || u.id));
-  loadVerifications(); loadEndorsements();
-  if (typeof populateVerificationSkills === 'function') populateVerificationSkills(u.skills || []);
+  loadVerifications(); 
+  loadEndorsements();
+  populateVerificationSkills(u.skills || []);
+}
+
+function populateVerificationSkills(skills) {
+  var select = document.getElementById('verification-skill-select');
+  if (!select) return;
+  select.innerHTML = '<option value="">Select skill</option>' + 
+    skills.map(function(s) { return '<option value="' + esc(s.name) + '">' + esc(s.name) + '</option>'; }).join('');
 }
 
 async function saveBasicInfo() {
   try {
-    var p = { name: document.getElementById('edit-name').value, bio: document.getElementById('edit-bio').value, location: document.getElementById('edit-location').value };
-    var r = await fetch(API + '/profile/' + userId, { method: 'PUT', headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders()), body: JSON.stringify(p) });
+    var p = { 
+      name: document.getElementById('edit-name').value, 
+      bio: document.getElementById('edit-bio').value, 
+      location: document.getElementById('edit-location').value,
+      lookingFor: document.getElementById('edit-looking-for').value
+    };
+    var r = await fetch(API + '/profile/' + userId, { 
+      method: 'PUT', 
+      headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders()), 
+      body: JSON.stringify(p) 
+    });
     var d = await r.json(); if (!r.ok) throw new Error(d.error);
-    toast('Profile updated!', 'success'); renderProfile(d);
+    toast('Profile updated!', 'success'); 
+    renderProfile(d);
   } catch (err) { toast(err.message, 'error'); }
 }
 
 async function saveSocialLinks() {
   try {
-    var p = { strava_id: document.getElementById('edit-strava').value, garmin_id: document.getElementById('edit-garmin').value, instagram_id: document.getElementById('edit-instagram').value };
-    var r = await fetch(API + '/profile/' + userId, { method: 'PUT', headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders()), body: JSON.stringify(p) });
+    var p = { 
+      strava_id: document.getElementById('edit-strava').value, 
+      garmin_id: document.getElementById('edit-garmin').value, 
+      instagram_id: document.getElementById('edit-instagram').value 
+    };
+    var r = await fetch(API + '/profile/' + userId, { 
+      method: 'PUT', 
+      headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders()), 
+      body: JSON.stringify(p) 
+    });
     var d = await r.json(); if (!r.ok) throw new Error(d.error);
     toast('Links saved!', 'success');
   } catch (err) { toast(err.message, 'error'); }
+}
+
+async function uploadAvatar(input) {
+  if (!input.files || !input.files[0]) return;
+  var file = input.files[0];
+  var formData = new FormData();
+  formData.append('avatar', file);
+
+  try {
+    var r = await fetch(API + '/upload/avatar', {
+      method: 'POST',
+      headers: authHeaders(),
+      body: formData
+    });
+    var d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'Upload failed');
+    
+    toast('Profile photo updated!', 'success');
+    loadProfile(); 
+  } catch (err) {
+    toast(err.message, 'error');
+  }
 }
 
 async function addSkill() {
   if (!selectedSkillToAdd) return;
   var proficiency = document.getElementById('skill-level-select') ? document.getElementById('skill-level-select').value : 'Beginner';
   try {
-    var r = await fetch(API + '/profile/skills', { method: 'POST', headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders()), body: JSON.stringify({ skills: [{ name: selectedSkillToAdd, proficiency: proficiency }] }) });
+    var r = await fetch(API + '/profile/skills', { 
+      method: 'POST', 
+      headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders()), 
+      body: JSON.stringify({ skills: [{ name: selectedSkillToAdd, proficiency: proficiency }] }) 
+    });
     var d = await r.json(); if (!r.ok) throw new Error(d.error);
     toast('Skill added!', 'success');
     selectedSkillToAdd = null;
@@ -87,6 +177,77 @@ async function removeSkill(skillId) {
     var d = await r.json(); if (!r.ok) throw new Error(d.error);
     toast('Skill removed', 'info'); loadProfile();
   } catch (err) { toast(err.message, 'error'); }
+}
+
+async function editSkillLevel(skillId, currentLevel) {
+  var newLevel = window.prompt("Enter new level (Beginner, Intermediate, Expert):", currentLevel);
+  if (!newLevel) return;
+  
+  var validLevels = ['Beginner', 'Intermediate', 'Expert'];
+  if (!validLevels.indexOf(newLevel) === -1) {
+    toast("Invalid level: Beginner, Intermediate, or Expert", "error");
+    return;
+  }
+  
+  if (newLevel === currentLevel) return;
+
+  try {
+    var userId = localStorage.getItem('sc_userId');
+    var u = JSON.parse(localStorage.getItem('sc_user') || '{}');
+    var skill = u.skills.find(s => (s.skill_id || s.skillId || s._id) === skillId);
+    
+    var r = await fetch(API + '/profile/' + userId + '/skills', {
+      method: 'POST',
+      headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders()),
+      body: JSON.stringify({ skills: [{ name: skill.name, level: newLevel }] })
+    });
+    
+    if (r.ok) {
+      toast("Skill level updated!", "success");
+      loadProfile();
+    } else {
+      var d = await r.json();
+      toast(d.error || "Failed to update level", "error");
+    }
+  } catch (e) {
+    console.error(e);
+    toast("Connection error", "error");
+  }
+}
+
+window.addSkill = addSkill;
+window.removeSkill = removeSkill;
+window.editSkillLevel = editSkillLevel;
+window.submitVerification = submitVerification;
+window.saveThemePreference = saveThemePreference;
+window.saveAccountType = saveAccountType;
+window.changePassword = changePassword;
+window.applyThemePreview = applyThemePreview;
+window.copyShortId = copyShortId;
+window.copyShareLink = copyShareLink;
+window.downloadQR = downloadQR;
+
+async function submitVerification() {
+  var skillName = document.getElementById('verification-skill-select').value;
+  var type = document.getElementById('verification-type-select').value;
+  var url = document.getElementById('verification-url').value;
+  
+  if (!skillName || !url) return toast('Please fill all fields', 'error');
+
+  try {
+    var r = await fetch(API + '/profile/verifications', {
+      method: 'POST',
+      headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders()),
+      body: JSON.stringify({ skillName: skillName, verificationType: type, url: url })
+    });
+    var d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'Submission failed');
+    toast('Verification submitted!', 'success');
+    document.getElementById('verification-url').value = '';
+    loadVerifications();
+  } catch (err) {
+    toast(err.message, 'error');
+  }
 }
 
 function renderVerifications(verifications) {
@@ -123,8 +284,95 @@ async function loadEndorsements() {
 }
 
 function generateQR(url) {
-  var el = document.getElementById('profile-qr');
+  var el = document.getElementById('qr-code-container');
   if (!el || !window.QRCode) return;
   el.innerHTML = '';
-  new QRCode(el, { text: url, width: 140, height: 140, colorDark: "#ffffff", colorLight: "#00000000", correctLevel: QRCode.CorrectLevel.H });
+  new QRCode(el, { text: url, width: 140, height: 140, colorDark: "#333333", colorLight: "#ffffff", correctLevel: QRCode.CorrectLevel.H });
+}
+function downloadQR() {
+  var canvas = document.querySelector('#qr-code-container canvas');
+  if (!canvas) return toast('QR code not ready', 'error');
+  var link = document.createElement('a');
+  link.download = 'skill-connect-qr.png';
+  link.href = canvas.toDataURL();
+  link.click();
+}
+
+function copyShortId() {
+  var id = document.getElementById('profile-short-id').textContent;
+  if (!id || id === '--') return;
+  navigator.clipboard.writeText(id);
+  toast('ID copied to clipboard!', 'success');
+}
+
+function copyShareLink() {
+  var link = document.getElementById('profile-share-link').textContent;
+  if (!link) return;
+  navigator.clipboard.writeText(link);
+  toast('Link copied to clipboard!', 'success');
+}
+
+async function saveThemePreference() {
+  var theme = document.getElementById('edit-theme').value;
+  try {
+    var r = await fetch(API + '/profile/' + userId, {
+      method: 'PUT',
+      headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders()),
+      body: JSON.stringify({ theme: theme })
+    });
+    if (!r.ok) throw new Error('Failed to save theme');
+    toast('Theme preference saved!', 'success');
+  } catch (err) { toast(err.message, 'error'); }
+}
+
+async function saveAccountType() {
+  var type = document.getElementById('edit-account-type').value;
+  try {
+    var r = await fetch(API + '/profile/' + userId, {
+      method: 'PUT',
+      headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders()),
+      body: JSON.stringify({ accountType: type })
+    });
+    if (!r.ok) throw new Error('Failed to save account type');
+    toast('Account type updated!', 'success');
+  } catch (err) { toast(err.message, 'error'); }
+}
+
+async function changePassword() {
+  var oldPw = document.getElementById('old-password').value;
+  var newPw = document.getElementById('new-password').value;
+  var confirmPw = document.getElementById('confirm-password').value;
+  
+  if (!oldPw || !newPw) return toast('Please fill all fields', 'error');
+  if (newPw !== confirmPw) return toast('Passwords do not match', 'error');
+
+  try {
+    var r = await fetch(API + '/auth/change-password', {
+      method: 'POST',
+      headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders()),
+      body: JSON.stringify({ oldPassword: oldPw, newPassword: newPw })
+    });
+    var d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'Failed to change password');
+    toast('Password changed successfully!', 'success');
+    document.getElementById('old-password').value = '';
+    document.getElementById('new-password').value = '';
+    document.getElementById('confirm-password').value = '';
+    closeSecuritySheet();
+  } catch (err) { toast(err.message, 'error'); }
+}
+
+function applyThemePreview() {
+  var theme = document.getElementById('edit-theme').value;
+  if (theme === 'dark') {
+    document.documentElement.style.setProperty('--bg', '#0F172A');
+    document.documentElement.style.setProperty('--card', '#1E293B');
+    document.documentElement.style.setProperty('--text', '#F8FAFC');
+    document.documentElement.style.setProperty('--border', '#334155');
+  } else {
+    document.documentElement.style.setProperty('--bg', '#F8FAFC');
+    document.documentElement.style.setProperty('--card', '#FFFFFF');
+    document.documentElement.style.setProperty('--text', '#0F172A');
+    document.documentElement.style.setProperty('--border', '#E2E8F0');
+  }
 }

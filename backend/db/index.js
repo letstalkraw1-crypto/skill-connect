@@ -36,7 +36,6 @@ async function seedInitialData() {
     // Seed skills if empty
     const skillCount = await Skill.countDocuments();
     if (skillCount === 0) {
-      const mongoose = require('mongoose');
       const skills = [
         'Running', 'Cycling', 'Swimming', 'Gym / Fitness',
         'Content Creation', 'Coding', 'Professional Communication',
@@ -44,16 +43,15 @@ async function seedInitialData() {
         'Business / Entrepreneurship', 'Personal Development',
         'Yoga', 'Hiking'
       ];
-      await Skill.insertMany(skills.map(name => ({ _id: new mongoose.Types.ObjectId(), name })));
+      await Skill.insertMany(skills.map(name => ({ name })));
       console.log('✅ Skills seeded');
     }
 
     // Seed proficiency levels if empty
     const profCount = await ProficiencyLevel.countDocuments();
     if (profCount === 0) {
-      const mongoose = require('mongoose');
       const levels = ['Beginner', 'Intermediate', 'Expert'];
-      await ProficiencyLevel.insertMany(levels.map(name => ({ _id: new mongoose.Types.ObjectId(), name })));
+      await ProficiencyLevel.insertMany(levels.map(name => ({ name })));
       console.log('✅ Proficiency levels seeded');
     }
   } catch (err) {

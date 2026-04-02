@@ -4,7 +4,17 @@ const { createConversation, listConversations, getMessages, deleteMessage, updat
 
 const router = express.Router();
 
-// POST /conversations — create new conversation
+// GET / — list conversations for current user
+router.get('/', verifyToken, async (req, res) => {
+  try {
+    const occupations = await listConversations(req.user.userId);
+    return res.status(200).json(occupations);
+  } catch (err) {
+    return res.status(err.status || 500).json({ error: err.message });
+  }
+});
+
+// POST / — create new conversation
 router.post('/', verifyToken, async (req, res) => {
   try {
     const conversation = await createConversation(req.user.userId, req.body.participantIds);
@@ -18,9 +28,9 @@ router.post('/', verifyToken, async (req, res) => {
 router.get('/:conversationId/messages', verifyToken, async (req, res) => {
   try {
     const result = await getMessages(req.params.conversationId, req.user.userId);
-    // Support both array response and { messages, wallpaper } response
-    const messages = Array.isArray(result) ? result : (result.messages || []);
-    return res.status(200).json(messages);
+    // Always return { messages, wallpaper } for consistency
+    const data = Array.isArray(result) ? { messages: result, wallpaper: null } : result;
+    return res.status(200).json(data);
   } catch (err) {
     return res.status(err.status || 500).json({ error: err.message });
   }

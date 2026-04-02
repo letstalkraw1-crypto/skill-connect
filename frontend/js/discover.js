@@ -1,6 +1,26 @@
 // Discovery and Search Features
 var discoverSkillFilter = 'all';
 
+async function searchAthletes() {
+  var q = document.getElementById('discover-search-input').value.trim();
+  var el = document.getElementById('discover-results');
+  if (!el) return;
+  
+  if (!q) {
+    return loadSuggestions();
+  }
+
+  el.innerHTML = '<div style="text-align:center;padding:32px;"><span class="spinner"></span></div>';
+  try {
+    var r = await fetch(API + '/discover/search?q=' + encodeURIComponent(q), { headers: authHeaders() });
+    var d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'Search failed');
+    renderDiscoverCards(d);
+  } catch (err) { 
+    el.innerHTML = '<div style="color:var(--text2);text-align:center;padding:32px;">' + esc(err.message) + '</div>'; 
+  }
+}
+
 async function loadSuggestions() {
   var el = document.getElementById('discover-results');
   if (!el) return;
@@ -37,20 +57,36 @@ async function doDiscover(url, el) {
   } catch (err) { el.innerHTML = '<div style="color:var(--text2);text-align:center;padding:32px;">' + esc(err.message) + '</div>'; }
 }
 
+function filterSkill(btn) {
+  document.querySelectorAll('.chip-row .pill').forEach(function(b) { b.classList.remove('active'); });
+  btn.classList.add('active');
+  discoverSkillFilter = btn.dataset.skill;
+  
+  // If a skill is selected, put it in the search box and search
+  if (discoverSkillFilter !== 'all') {
+    document.getElementById('discover-search-input').value = discoverSkillFilter;
+    searchAthletes();
+  } else {
+    document.getElementById('discover-search-input').value = '';
+    loadSuggestions();
+  }
+}
+
 function renderDiscoverCards(users) {
   var el = document.getElementById('discover-results');
   if (!el) return;
   if (!users.length) { el.innerHTML = '<div style="color:var(--text2);text-align:center;padding:32px;">No athletes found</div>'; return; }
   el.innerHTML = users.map(function (u) {
     var skills = (u.skills || []).slice(0, 3).map(function (s) { 
-      return '<span class="pill" style="font-size:.7rem;padding:4px 8px;">' + (typeof skillEmoji === 'function' ? skillEmoji(s.name) : '') + ' ' + esc(s.name) + '</span>'; 
+      var sn = s.skillName || s.name || '';
+      return '<span class="pill" style="font-size:.7rem;padding:4px 8px;">' + (typeof skillEmoji === 'function' ? skillEmoji(sn) : '') + ' ' + esc(sn) + '</span>'; 
     }).join('');
     return '<div class="card" style="margin-bottom:16px;">' +
       '<div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">' +
-      '<div class="avatar av-md" onclick="gotoProfile(\'' + (u.short_id || u.shortId || u.id) + '\')">' + avatarEl(u) + '</div>' +
-      '<div style="flex:1;"><div style="font-weight:700;font-size:1rem;cursor:pointer;" onclick="gotoProfile(\'' + (u.short_id || u.shortId || u.id) + '\')">' + esc(u.name) + '</div>' +
+      '<div class="avatar av-md" onclick="gotoProfile(\'' + (u.short_id || u.shortId || u._id || u.id) + '\')">' + avatarEl(u) + '</div>' +
+      '<div style="flex:1;"><div style="font-weight:700;font-size:1rem;cursor:pointer;" onclick="gotoProfile(\'' + (u.short_id || u.shortId || u._id || u.id) + '\')">' + esc(u.name) + '</div>' +
       '<div style="font-size:0.8rem;color:var(--text2);">' + esc(u.location || 'Unknown') + '</div></div>' +
-      '<button class="btn btn-primary btn-xs" onclick="requestConnection(\'' + u.id + '\')">Connect</button>' +
+      '<button class="btn btn-primary btn-xs" onclick="requestConnection(\'' + (u._id || u.id) + '\')">Connect</button>' +
       '</div><div style="display:flex;flex-wrap:wrap;gap:6px;">' + skills + '</div></div>';
   }).join('');
 }
