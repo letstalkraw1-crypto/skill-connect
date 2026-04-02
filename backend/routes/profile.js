@@ -236,18 +236,22 @@ router.get('/:userId/share', async (req, res) => {
     const user = await User.findById(req.params.userId).select('shortId name avatarUrl');
     if (!user) return res.status(404).json({ error: 'User not found' });
 
+    const protocol = req.protocol;
+    const host = req.get('host');
+    const baseUrl = process.env.BASE_URL || `${protocol}://${host}`;
+
     // Generate sharing data
     const shareData = {
       userId: user._id,
       shortId: user.shortId,
       name: user.name,
       avatarUrl: user.avatarUrl,
-      shareLink: `${process.env.BASE_URL || 'https://skill-connect.onrender.com'}/profile?id=${user.shortId}`,
+      shareLink: `${baseUrl}/profile?id=${user.shortId}`,
       qrCode: {
         // QR code generation would require qrcode library
         // For now, provide data for frontend to generate QR
         type: 'profile',
-        value: `${process.env.BASE_URL || 'https://skill-connect.onrender.com'}/profile?id=${user.shortId}`
+        value: `${baseUrl}/profile?id=${user.shortId}`
       }
     };
 
