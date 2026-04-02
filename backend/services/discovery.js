@@ -11,7 +11,7 @@ function haversine(lat1, lng1, lat2, lng2) {
   return EARTH_RADIUS_KM * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-async function discoverUsers(requestingUserId, skillName, lat, lng, radiusKm, proficiencyName) {
+async function discoverUsers(requestingUserId, skillName, lat, lng, radiusKm, proficiencyName, subSkill, lookingFor) {
   if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
     const err = new Error('Invalid coordinates');
     err.status = 400;
@@ -33,10 +33,10 @@ async function discoverUsers(requestingUserId, skillName, lat, lng, radiusKm, pr
   let skillFilter = { skillId: skill._id };
   if (proficiencyName) {
     const prof = await ProficiencyLevel.findOne({ name: proficiencyName });
-    if (prof) {
-      skillFilter.proficiencyId = prof._id;
-    }
+    if (prof) skillFilter.proficiencyId = prof._id;
   }
+  // Filter by sub-skill if provided
+  if (subSkill) skillFilter.subSkill = subSkill;
 
   const userSkills = await UserSkill.find(skillFilter).lean();
   const userIds = userSkills.map(us => us.userId);
@@ -44,7 +44,9 @@ async function discoverUsers(requestingUserId, skillName, lat, lng, radiusKm, pr
   const candidates = await User.find({
     _id: { $in: userIds, $ne: requestingUserId },
     lat: { $exists: true, $ne: null },
-    lng: { $exists: true, $ne: null }
+    lng: { $exists: true, $ne: null },
+    // Filter by lookingFor if provided
+    ...(lookingFor ? { lookingFor } : {})
   }).lean();
 
   const connections = await Connection.find({
@@ -73,9 +75,11 @@ async function discoverUsers(requestingUserId, skillName, lat, lng, radiusKm, pr
       location: candidate.location,
       lat: candidate.lat,
       lng: candidate.lng,
+      lookingFor: candidate.lookingFor,
       skills: theirSkills.map(s => ({
         id: s.skillId._id,
         name: s.skillId.name,
+        subSkill: s.subSkill,
         level: s.level,
         yearsExp: s.yearsExp,
         proficiency: s.proficiencyId?.name
@@ -150,9 +154,11 @@ async function getSuggestions(userId, limit = 20) {
       name: candidate.name,
       avatarUrl: candidate.avatarUrl,
       location: candidate.location,
+      lookingFor: candidate.lookingFor,
       skills: theirSkills.map(s => ({
         id: s.skillId?._id,
         name: s.skillId?.name,
+        subSkill: s.subSkill,
         level: s.level
       })),
       mutualCount,

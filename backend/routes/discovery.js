@@ -54,12 +54,11 @@ router.get('/suggestions', verifyToken, async (req, res) => {
  * GET /discover?skill=running&lat=40.7&lng=-74.0&radius=10&proficiency=Beginner
  */
 router.get('/', verifyToken, async (req, res) => {
-  const { skill, lat, lng, radius, proficiency } = req.query;
+  const { skill, lat, lng, radius, proficiency, subSkill, lookingFor } = req.query;
   const latNum = parseFloat(lat);
   const lngNum = parseFloat(lng);
   const radiusNum = parseFloat(radius) || 25;
 
-  // If no valid coordinates, fall back to suggestions
   if (isNaN(latNum) || isNaN(lngNum)) {
     try {
       const results = await getSuggestions(req.user.userId);
@@ -70,7 +69,7 @@ router.get('/', verifyToken, async (req, res) => {
   }
 
   try {
-    const results = await discoverUsers(req.user.userId, skill, latNum, lngNum, radiusNum, proficiency);
+    const results = await discoverUsers(req.user.userId, skill, latNum, lngNum, radiusNum, proficiency, subSkill, lookingFor);
     return res.status(200).json(results);
   } catch (err) {
     return res.status(err.status || 500).json({ error: err.message });

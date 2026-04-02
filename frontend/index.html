@@ -1771,7 +1771,7 @@ function timeAgo(ts) { if (!ts) return ''; if (typeof ts === 'string' && !ts.end
       document.getElementById('signup-otp').value = '';
     }
 
-    async async async function onLoginSuccess(d) {
+    async function onLoginSuccess(d) {
       token = d.token; userId = d.userId;
       localStorage.setItem('sc_token', token);
       localStorage.setItem('sc_userId', userId);
@@ -1854,7 +1854,8 @@ function timeAgo(ts) { if (!ts) return ''; if (typeof ts === 'string' && !ts.end
       var el = document.getElementById('discover-results');
       if (!users.length) { el.innerHTML = '<div style="color:var(--text2);text-align:center;padding:32px;">No athletes found</div>'; return; }
       el.innerHTML = users.map(function (u) {
-        var skills = u.skills && u.skills.length ? '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;">' + u.skills.map(function (s) { return '<span class="pill" style="font-size:.78rem;padding:5px 10px;">' + skillEmoji(s.name) + ' ' + esc(s.name) + '</span>'; }).join('') + '</div>' : '';
+        var skills = u.skills && u.skills.length ? '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;">' + u.skills.map(function (s) { return '<span class="pill" style="font-size:.78rem;padding:5px 10px;">' + skillEmoji(s.name) + ' ' + esc(s.name) + (s.subSkill ? ' · ' + esc(s.subSkill) : '') + (s.level ? ' <span style="opacity:.6;font-size:.7rem;">(' + esc(s.level) + ')</span>' : '') + '</span>'; }).join('') + '</div>' : '';
+        var lookingForBadge = u.lookingFor ? '<span style="display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:999px;font-size:.72rem;font-weight:700;background:rgba(6,182,212,.15);border:1px solid rgba(6,182,212,.3);color:#06b6d4;margin-bottom:8px;">' + (u.lookingFor === 'learn' ? '📚 Looking to Learn' : u.lookingFor === 'collaborate' ? '🤝 Looking to Collaborate' : '🏆 Looking to Compete') + '</span>' : '';
         var mutual = u.mutual_connections ? '<span class="mutual-badge" style="margin-top:4px;">&#129309; ' + u.mutual_connections + ' mutual</span>' : '';
 
         var btnHtml = '<button class="btn btn-primary btn-sm" style="width:100%;" onclick="sendConnectionRequest(\'' + (u._id||u.id) + '\',\'' + esc(u.name || '') + '\', this)">Connect &#8594;</button>';
@@ -3437,7 +3438,9 @@ var SKILLS_DATA = {
   'Research': { icon: '🔬', subs: ['Academic Research', 'Technical Research', 'Market Research'] },
   'Design': { icon: '🎨', subs: ['UI/UX Design', 'Graphic Design', 'Thumbnail Design'] },
   'Business / Entrepreneurship': { icon: '🚀', subs: ['Marketing', 'Sales', 'Startup Building'] },
-  'Personal Development': { icon: '🌱', subs: ['Leadership', 'Time Management', 'Problem Solving'] }
+  'Personal Development': { icon: '🌱', subs: ['Leadership', 'Time Management', 'Problem Solving'] },
+  'Yoga': { icon: '🧘', subs: ['Hatha Yoga', 'Power Yoga', 'Meditation'] },
+  'Hiking': { icon: '🥾', subs: ['Trail Hiking', 'Mountain Trekking', 'Backpacking'] }
 };
 
 var obSelectedSkills = {};
@@ -3588,6 +3591,13 @@ async function completeOnboarding(skip) {
 </script></body>
 
 </html>
+
+
+
+
+
+
+
 
 
 
