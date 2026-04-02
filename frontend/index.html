@@ -1148,16 +1148,16 @@
           <h2 style="font-size:1.5rem;font-weight:800;margin-bottom:6px;">Your skill level</h2>
           <p style="color:#6b7280;margin-bottom:20px;">How would you describe yourself overall?</p>
           <div style="display:flex;gap:10px;margin-bottom:28px;">
-            <button class="ob-level-btn" data-level="Beginner" onclick="selectObLevel(this)" style="flex:1;padding:14px;border:2px solid #e5e7eb;border-radius:12px;background:#fff;font-size:.9rem;font-weight:600;cursor:pointer;">🌱 Beginner</button>
-            <button class="ob-level-btn" data-level="Intermediate" onclick="selectObLevel(this)" style="flex:1;padding:14px;border:2px solid #e5e7eb;border-radius:12px;background:#fff;font-size:.9rem;font-weight:600;cursor:pointer;">⚡ Intermediate</button>
-            <button class="ob-level-btn" data-level="Pro" onclick="selectObLevel(this)" style="flex:1;padding:14px;border:2px solid #e5e7eb;border-radius:12px;background:#fff;font-size:.9rem;font-weight:600;cursor:pointer;">🔥 Pro</button>
+            <button class="ob-level-btn" data-level="Beginner" onclick="selectLevel(this)" style="flex:1;padding:14px;border:2px solid #e5e7eb;border-radius:12px;background:#fff;font-size:.9rem;font-weight:600;cursor:pointer;">🌱 Beginner</button>
+            <button class="ob-level-btn" data-level="Intermediate" onclick="selectLevel(this)" style="flex:1;padding:14px;border:2px solid #e5e7eb;border-radius:12px;background:#fff;font-size:.9rem;font-weight:600;cursor:pointer;">⚡ Intermediate</button>
+            <button class="ob-level-btn" data-level="Pro" onclick="selectLevel(this)" style="flex:1;padding:14px;border:2px solid #e5e7eb;border-radius:12px;background:#fff;font-size:.9rem;font-weight:600;cursor:pointer;">🔥 Pro</button>
           </div>
           <h2 style="font-size:1.3rem;font-weight:800;margin-bottom:6px;">What are you looking for?</h2>
           <p style="color:#6b7280;margin-bottom:16px;">This helps us match you better</p>
           <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:24px;">
-            <button class="ob-intent-btn" data-intent="learn" onclick="selectObIntent(this)" style="padding:16px;border:2px solid #e5e7eb;border-radius:12px;background:#fff;text-align:left;cursor:pointer;font-size:.95rem;font-weight:600;">📚 Learn — Find mentors & people to learn from</button>
-            <button class="ob-intent-btn" data-intent="collaborate" onclick="selectObIntent(this)" style="padding:16px;border:2px solid #e5e7eb;border-radius:12px;background:#fff;text-align:left;cursor:pointer;font-size:.95rem;font-weight:600;">🤝 Collaborate — Work on projects together</button>
-            <button class="ob-intent-btn" data-intent="compete" onclick="selectObIntent(this)" style="padding:16px;border:2px solid #e5e7eb;border-radius:12px;background:#fff;text-align:left;cursor:pointer;font-size:.95rem;font-weight:600;">🏆 Compete — Find challengers & rivals</button>
+            <button class="ob-intent-btn" data-intent="learn" onclick="selectIntent(this)" style="padding:16px;border:2px solid #e5e7eb;border-radius:12px;background:#fff;text-align:left;cursor:pointer;font-size:.95rem;font-weight:600;">📚 Learn — Find mentors & people to learn from</button>
+            <button class="ob-intent-btn" data-intent="collaborate" onclick="selectIntent(this)" style="padding:16px;border:2px solid #e5e7eb;border-radius:12px;background:#fff;text-align:left;cursor:pointer;font-size:.95rem;font-weight:600;">🤝 Collaborate — Work on projects together</button>
+            <button class="ob-intent-btn" data-intent="compete" onclick="selectIntent(this)" style="padding:16px;border:2px solid #e5e7eb;border-radius:12px;background:#fff;text-align:left;cursor:pointer;font-size:.95rem;font-weight:600;">🏆 Compete — Find challengers & rivals</button>
           </div>
           <button onclick="obNextStep(4)" style="width:100%;padding:14px;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;border:none;border-radius:12px;font-size:1rem;font-weight:700;cursor:pointer;">Continue →</button>
         </div>
@@ -3591,6 +3591,7 @@ async function completeOnboarding(skip) {
 </script></body>
 
 </html>
+
 
 
 
