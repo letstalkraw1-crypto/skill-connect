@@ -76,52 +76,52 @@ async function deleteConnection(connectionId, userId) {
 async function listConnections(userId) {
   const connections = await Connection.find({
     $or: [{ requesterId: userId }, { addresseeId: userId }]
-  });
+  }).lean();
 
-  // Pending requests where I am the addressee
-  const requesterIds = connections
-    .filter(c => c.status === 'pending' && c.addresseeId === userId)
-    .map(c => c.requesterId);
+  const allRelatedUserIds = [...new Set(connections.flatMap(c => [c.requesterId, c.addresseeId]))];
+  const relatedUsers = await User.find({ _id: { $in: allRelatedUserIds } }).select('_id name avatarUrl location shortId').lean();
 
-  const acceptedConnIds = connections
-    .filter(c => c.status === 'accepted')
-    .map(c => c.requesterId === userId ? c.addresseeId : c.requesterId);
-
-  const pendingUsers = await User.find({ _id: { $in: requesterIds } }).lean();
-  const acceptedUsers = await User.find({ _id: { $in: acceptedConnIds } }).lean();
+  const getUserData = (id) => {
+    const u = relatedUsers.find(user => user._id.toString() === id.toString());
+    return u ? {
+      id: u._id,
+      name: u.name,
+      avatarUrl: u.avatarUrl,
+      avatar_url: u.avatarUrl,
+      location: u.location,
+      shortId: u.shortId,
+      short_id: u.shortId
+    } : { id };
+  };
 
   const pending = connections
-    .filter(c => c.status === 'pending' && c.addresseeId === userId)
-    .map(c => {
-      const user = pendingUsers.find(u => u._id === c.requesterId);
-      return {
-        connectionId: c._id,
-        connection_id: c._id,
-        id: c.requesterId,
-        name: user?.name,
-        avatarUrl: user?.avatarUrl,
-        avatar_url: user?.avatarUrl,
-        location: user?.location
-      };
-    });
+    .filter(c => c.status === 'pending' && c.addresseeId.toString() === userId.toString())
+    .map(c => ({
+      ...getUserData(c.requesterId),
+      connectionId: c._id,
+      connection_id: c._id
+    }));
+
+  const outgoing = connections
+    .filter(c => c.status === 'pending' && c.requesterId.toString() === userId.toString())
+    .map(c => ({
+      ...getUserData(c.addresseeId),
+      connectionId: c._id,
+      connection_id: c._id
+    }));
 
   const accepted = connections
     .filter(c => c.status === 'accepted')
     .map(c => {
-      const connectedUserId = c.requesterId === userId ? c.addresseeId : c.requesterId;
-      const user = acceptedUsers.find(u => u._id === connectedUserId);
+      const otherId = c.requesterId.toString() === userId.toString() ? c.addresseeId : c.requesterId;
       return {
+        ...getUserData(otherId),
         connectionId: c._id,
-        connection_id: c._id,
-        id: connectedUserId,
-        name: user?.name,
-        avatarUrl: user?.avatarUrl,
-        avatar_url: user?.avatarUrl,
-        location: user?.location
+        connection_id: c._id
       };
     });
 
-  return { pending, connections: accepted };
+  return { pending, outgoing, connections: accepted };
 }
 
 module.exports = { sendRequest, acceptConnection, declineConnection, deleteConnection, listConnections };

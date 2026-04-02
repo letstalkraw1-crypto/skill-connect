@@ -105,9 +105,9 @@ async function getSuggestions(userId, limit = 20) {
     $or: [{ requesterId: userId }, { addresseeId: userId }]
   }).lean();
 
-  const connectedIds = connections.map(c =>
-    c.requesterId === userId ? c.addresseeId : c.requesterId
-  );
+  const connectedIds = connections
+    .filter(c => c.status === 'accepted' || c.status === 'blocked')
+    .map(c => c.requesterId === userId ? c.addresseeId : c.requesterId);
 
   const excluded = [userId, ...connectedIds];
 
@@ -153,6 +153,10 @@ async function getSuggestions(userId, limit = 20) {
       mySkillIds.includes(s.skillId?._id?.toString() || s.skillId?.toString())
     ).length;
 
+    const connection = connections.find(c => 
+      c.requesterId === candidate._id || c.addresseeId === candidate._id
+    );
+
     return {
       id: candidate._id,
       userId: candidate._id,
@@ -171,11 +175,12 @@ async function getSuggestions(userId, limit = 20) {
         level: s.level
       })),
       mutualCount,
-      mutualCount: mutualCount,
       mutual_connections: mutualCount,
       mutualNames: [],
       sharedSkillCount,
       shared_skill_count: sharedSkillCount,
+      connectionStatus: connection?.status || 'none',
+      connection_status: connection?.status || 'none',
       score: mutualCount * 3 + sharedSkillCount
     };
   });

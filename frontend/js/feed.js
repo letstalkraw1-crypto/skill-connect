@@ -27,12 +27,11 @@ function renderFeed(posts) {
         }).join('');
       } catch(e){}
     }
-    return '<div class="card" id="post-' + p.id + '">' +
-      '<div style="display:flex;justify-content:space-between;">' +
-      '<div style="display:flex;gap:10px;align-items:center;">' +
-      '<div class="avatar av-md">' + avatarEl(p.author || {name: p.author_name, avatar_url: p.author_avatar}) + '</div>' +
-      '<div><div style="font-weight:700;">' + esc(p.author_name) + '</div><div style="font-size:0.75rem;color:var(--text2);">' + timeAgo(p.created_at) + '</div></div>' +
-      '</div><i onclick="openPostOptions(\'' + p.id + '\', ' + (p.user_id === userId) + ')" style="cursor:pointer;opacity:.5;">&#8942;</i></div>' +
+    return '<div class="card" style="margin-bottom:16px;">' +
+      '<div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">' +
+      '<div class="avatar av-md" onclick="showUserInfoCard(\'' + (p.author_id || p.author?._id || p.author?.id) + '\')">' + avatarEl(p.author || {name: p.author_name, avatar_url: p.author_avatar}) + '</div>' +
+      '<div style="flex:1;"><div style="font-weight:700;cursor:pointer;" onclick="showUserInfoCard(\'' + (p.author_id || p.author?._id || p.author?.id) + '\')">' + esc(p.author_name) + '</div><div style="font-size:0.75rem;color:var(--text2);">' + timeAgo(p.created_at) + '</div></div>' +
+      '<i onclick="openPostOptions(\'' + p.id + '\', ' + (p.user_id === userId) + ')" style="cursor:pointer;opacity:.5;">&#8942;</i></div>' +
       (p.note ? '<div style="margin-top:12px;font-size:1.1rem;font-weight:800;color:var(--purple-l);">' + esc(p.note) + '</div>' : '') +
       '<div style="margin-top:8px;font-size:0.95rem;white-space:pre-wrap;">' + esc(p.caption) + '</div>' + images +
       '<div style="display:flex;gap:20px;margin-top:16px;">' +

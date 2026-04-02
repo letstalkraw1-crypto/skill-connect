@@ -5,7 +5,7 @@ var isVoiceRecording = false;
 var isUploadingMedia = false;
 
 async function loadConversations() {
-  var el = document.getElementById('chat-list');
+  var el = document.getElementById('conv-list');
   if (!el) return;
   el.innerHTML = '<div style="text-align:center;padding:32px;"><span class="spinner"></span></div>';
   try {
@@ -16,7 +16,7 @@ async function loadConversations() {
 }
 
 function renderConversations(convs) {
-  var el = document.getElementById('chat-list');
+  var el = document.getElementById('conv-list');
   if (!el || !convs) return;
   if (!convs.length) { el.innerHTML = '<div style="color:var(--text2);text-align:center;padding:32px;">No active chats</div>'; return; }
   el.innerHTML = convs.map(function (c) {
@@ -32,7 +32,8 @@ function renderConversations(convs) {
 
 async function openChatThread(convId, otherName) {
   currentConvId = convId;
-  document.getElementById('chat-thread-title').textContent = otherName;
+  var titleEl = document.getElementById('chat-thread-name');
+  if (titleEl) titleEl.textContent = otherName;
   document.getElementById('chat-thread-view').style.display = 'flex';
   var el = document.getElementById('chat-messages');
   el.innerHTML = '<div style="text-align:center;padding:32px;"><span class="spinner"></span></div>';
@@ -141,3 +142,67 @@ async function toggleMicRecording() {
     } catch (e) { isVoiceRecording = false; updateChatInputUI(); toast('Mic access denied', 'error'); }
   } else { if (window._currentRecorder && window._currentRecorder.state === 'recording') window._currentRecorder.stop(); }
 }
+async function openNewChatModal() {
+  var modal = document.getElementById('new-chat-modal');
+  var list = document.getElementById('new-chat-list');
+  if (!modal || !list) return;
+
+  modal.style.display = 'flex';
+  list.innerHTML = '<div style="text-align:center;padding:20px;"><span class="spinner"></span></div>';
+
+  try {
+    var r = await fetch(API + '/connections/' + userId, { headers: authHeaders() });
+    var d = await r.json();
+    if (!r.ok) throw new Error(d.error);
+
+    if (!d.connections || !d.connections.length) {
+      list.innerHTML = '<div style="color:var(--text2);text-align:center;padding:20px;">No connections found. Find athletes in Discover!</div>';
+      return;
+    }
+
+    list.innerHTML = d.connections.map(function(c) {
+      return '<div class="user-row" style="padding:10px;border-radius:12px;background:var(--bg);cursor:pointer;" onclick="initiateConversation(\'' + c.id + '\', \'' + esc(c.name) + '\')">' +
+        '<div class="avatar av-sm">' + avatarEl(c) + '</div>' +
+        '<div style="font-weight:600;font-size:0.95rem;">' + esc(c.name) + '</div>' +
+      '</div>';
+    }).join('');
+  } catch (err) {
+    list.innerHTML = '<div style="color:var(--red);text-align:center;padding:20px;">' + esc(err.message) + '</div>';
+  }
+}
+
+function closeNewChatModal(e) {
+  if (e && e.target !== e.currentTarget && e.target.tagName !== 'BUTTON') return;
+  var modal = document.getElementById('new-chat-modal');
+  if (modal) modal.style.display = 'none';
+}
+
+async function initiateConversation(peerId, peerName) {
+  closeNewChatModal();
+  openDirectChat(peerId, peerName);
+}
+
+async function openDirectChat(peerId, peerName) {
+  try {
+    // Switch to chat tab first
+    switchTab2('chat');
+    
+    // Create/Find conversation
+    var r = await fetch(API + '/conversations', {
+      method: 'POST',
+      headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders()),
+      body: JSON.stringify({ participantIds: [peerId] })
+    });
+    var d = await r.json();
+    if (!r.ok) throw new Error(d.error);
+    
+    openChatThread(d._id || d.id, peerName);
+  } catch (err) {
+    toast(err.message, 'error');
+  }
+}
+
+window.openNewChatModal = openNewChatModal;
+window.closeNewChatModal = closeNewChatModal;
+window.initiateConversation = initiateConversation;
+window.openDirectChat = openDirectChat;

@@ -8,7 +8,125 @@ async function loadProfile() {
     var r = await fetch(API + '/profile/' + userId, { headers: authHeaders() });
     var d = await r.json(); if (!r.ok) throw new Error(d.error);
     renderProfile(d);
+    loadConnections(); // Load connections whenever profile is loaded
   } catch (err) { toast(err.message, 'error'); }
+}
+
+async function loadConnections() {
+  var pendingEl = document.getElementById('pending-requests');
+  var connectedEl = document.getElementById('connected-list');
+  if (!pendingEl && !connectedEl) return;
+
+  try {
+    var r = await fetch(API + '/connections/' + userId, { headers: authHeaders() });
+    var d = await r.json();
+    if (!r.ok) throw new Error(d.error);
+
+    if (pendingEl) {
+      var html = '';
+      
+      // Incoming
+      if (d.pending && d.pending.length) {
+        html += '<div class="sec-hdr" style="font-size:0.7rem;margin-top:10px;">Requests for you</div>';
+        html += d.pending.map(function(c) {
+          return '<div class="card" style="margin-bottom:8px;padding:12px;">' +
+            '<div style="display:flex;align-items:center;gap:12px;">' +
+              '<div class="avatar av-sm" onclick="showUserInfoCard(\'' + c.id + '\')">' + avatarEl(c) + '</div>' +
+              '<div style="flex:1;">' +
+                '<div style="font-weight:700;font-size:0.9rem;cursor:pointer;" onclick="showUserInfoCard(\'' + c.id + '\')">' + esc(c.name) + '</div>' +
+                '<div style="font-size:0.75rem;color:var(--text2);">' + (c.shortId || c.short_id || '') + '</div>' +
+              '</div>' +
+              '<div style="display:flex;gap:6px;">' +
+                '<button class="btn btn-primary btn-xs" onclick="respondRequest(\'' + (c.connectionId || c.connection_id) + '\', \'accept\')">Accept</button>' +
+                '<button class="btn btn-secondary btn-xs" onclick="respondRequest(\'' + (c.connectionId || c.connection_id) + '\', \'decline\')">Decline</button>' +
+              '</div>' +
+            '</div>' +
+          '</div>';
+        }).join('');
+      }
+
+      // Outgoing
+      if (d.outgoing && d.outgoing.length) {
+        html += '<div class="sec-hdr" style="font-size:0.7rem;margin-top:10px;">Your Sent Requests</div>';
+        html += d.outgoing.map(function(c) {
+          return '<div class="card" style="margin-bottom:8px;padding:12px;opacity:0.8;">' +
+            '<div style="display:flex;align-items:center;gap:12px;">' +
+              '<div class="avatar av-sm" onclick="showUserInfoCard(\'' + c.id + '\')">' + avatarEl(c) + '</div>' +
+              '<div style="flex:1;">' +
+                '<div style="font-weight:700;font-size:0.9rem;cursor:pointer;" onclick="showUserInfoCard(\'' + c.id + '\')">' + esc(c.name) + '</div>' +
+                '<div style="font-size:0.75rem;color:var(--text2);">Waiting for response</div>' +
+              '</div>' +
+              '<button class="btn btn-ghost btn-xs" onclick="cancelRequest(\'' + (c.connectionId || c.connection_id) + '\')">Cancel</button>' +
+            '</div>' +
+          '</div>';
+        }).join('');
+      }
+
+      if (!html) html = '<div style="color:var(--text2);font-size:.9rem;padding:12px 0;">No pending requests</div>';
+      pendingEl.innerHTML = html;
+    }
+
+    if (connectedEl) {
+      if (!d.connections || !d.connections.length) {
+        connectedEl.innerHTML = '<div style="color:var(--text2);font-size:.9rem;padding:12px 0;">No connections yet</div>';
+      } else {
+        connectedEl.innerHTML = d.connections.map(function(c) {
+          return '<div class="card" style="margin-bottom:8px;padding:12px;">' +
+            '<div style="display:flex;align-items:center;gap:12px;">' +
+              '<div class="avatar av-sm" onclick="showUserInfoCard(\'' + c.id + '\')">' + avatarEl(c) + '</div>' +
+              '<div style="flex:1;">' +
+                '<div style="font-weight:700;font-size:0.9rem;cursor:pointer;" onclick="showUserInfoCard(\'' + c.id + '\')">' + esc(c.name) + '</div>' +
+                '<div style="font-size:0.75rem;color:var(--text2);">' + (c.location || '') + '</div>' +
+              '</div>' +
+              '<button class="btn btn-secondary btn-xs" onclick="startChatWith(\'' + c.id + '\', \'' + esc(c.name) + '\')">Message</button>' +
+            '</div>' +
+          '</div>';
+        }).join('');
+      }
+    }
+  } catch (err) { console.error(err); }
+}
+
+async function cancelRequest(connId) {
+  if (!confirm('Cancel this request?')) return;
+  try {
+    var r = await fetch(API + '/connections/' + connId, {
+      method: 'DELETE',
+      headers: authHeaders()
+    });
+    if (!r.ok) {
+      var d = await r.json();
+      throw new Error(d.error || 'Failed to cancel request');
+    }
+    toast('Request cancelled', 'info');
+    loadConnections();
+  } catch (err) { toast(err.message, 'error'); }
+}
+
+async function respondRequest(connId, action) {
+  try {
+    var r = await fetch(API + '/connections/' + connId + '/' + action, {
+      method: 'PUT',
+      headers: authHeaders()
+    });
+    if (!r.ok) {
+      var d = await r.json();
+      throw new Error(d.error || 'Failed to ' + action);
+    }
+    toast('Request ' + action + 'ed', 'success');
+    loadConnections();
+    loadProfile();
+  } catch (err) { toast(err.message, 'error'); }
+}
+
+async function startChatWith(peerId, peerName) {
+  // Check if we need to implement this in chat.js
+  if (typeof openDirectChat === 'function') {
+    openDirectChat(peerId, peerName);
+  } else {
+    // Fallback: switch to chat tab and hope it handles it
+    switchTab2('chat');
+  }
 }
 
 function renderProfile(u) {
@@ -184,7 +302,7 @@ async function editSkillLevel(skillId, currentLevel) {
   if (!newLevel) return;
   
   var validLevels = ['Beginner', 'Intermediate', 'Expert'];
-  if (!validLevels.indexOf(newLevel) === -1) {
+  if (validLevels.indexOf(newLevel) === -1) {
     toast("Invalid level: Beginner, Intermediate, or Expert", "error");
     return;
   }
@@ -192,11 +310,10 @@ async function editSkillLevel(skillId, currentLevel) {
   if (newLevel === currentLevel) return;
 
   try {
-    var userId = localStorage.getItem('sc_userId');
     var u = JSON.parse(localStorage.getItem('sc_user') || '{}');
-    var skill = u.skills.find(s => (s.skill_id || s.skillId || s._id) === skillId);
+    var skill = u.skills.find(function(s) { return (s.skill_id || s.skillId || s._id) === skillId; });
     
-    var r = await fetch(API + '/profile/' + userId + '/skills', {
+    var r = await fetch(API + '/profile/skills', {
       method: 'POST',
       headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders()),
       body: JSON.stringify({ skills: [{ name: skill.name, level: newLevel }] })

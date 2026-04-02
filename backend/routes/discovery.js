@@ -51,7 +51,11 @@ router.get('/search', verifyToken, async (req, res) => {
     .limit(30)
     .lean();
 
-    // Attach skills to the results for rendering
+    // Attach skills and connection status to the results
+    const myConns = await Connection.find({
+      $or: [{ requesterId: req.user.userId }, { addresseeId: req.user.userId }]
+    }).lean();
+
     for (let u of users) {
       const userSkills = await UserSkill.find({ userId: u._id })
         .populate('skillId', 'name')
@@ -62,6 +66,12 @@ router.get('/search', verifyToken, async (req, res) => {
         skillName: us.skillId ? us.skillId.name : 'Unknown',
         subSkill: us.subSkill
       }));
+
+      const conn = myConns.find(c => 
+        (c.requesterId === u._id.toString() || c.addresseeId === u._id.toString())
+      );
+      u.connectionStatus = conn ? conn.status : 'none';
+      u.connection_status = u.connectionStatus;
     }
 
     res.json(users);

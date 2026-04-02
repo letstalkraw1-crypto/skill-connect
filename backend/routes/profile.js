@@ -262,10 +262,35 @@ router.get('/:userId/share', async (req, res) => {
 });
 
 // GET /profile/:userId — public profile view
-router.get('/:userId', async (req, res) => {
+const { optionalVerifyToken } = require('../services/auth');
+const { Connection } = require('../db/index');
+
+router.get('/:userId', optionalVerifyToken, async (req, res) => {
   try {
     const profile = await getProfile(req.params.userId);
-    res.status(200).json(profile);
+    
+    // Check connection status if requester is logged in
+    let connectionStatus = 'none';
+    if (req.user && req.user.userId !== req.params.userId) {
+      const conn = await Connection.findOne({
+        $or: [
+          { requesterId: req.user.userId, addresseeId: req.params.userId },
+          { requesterId: req.params.userId, addresseeId: req.user.userId }
+        ]
+      });
+      if (conn) {
+        if (conn.status === 'accepted') connectionStatus = 'connected';
+        else if (conn.status === 'pending') {
+          connectionStatus = conn.requesterId.toString() === req.user.userId.toString() ? 'requested' : 'pending';
+        }
+      }
+    }
+
+    res.status(200).json({
+      ...profile,
+      connectionStatus,
+      connection_status: connectionStatus
+    });
   } catch (err) {
     res.status(err.status || 500).json({ error: err.message });
   }
