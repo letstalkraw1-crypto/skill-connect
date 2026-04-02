@@ -25,7 +25,10 @@ router.get('/', async (req, res) => {
     const formattedRooms = rooms.map(room => ({
       ...room,
       hostName: room.hostId.name,
-      skillName: room.skillId?.name || null
+      host_name: room.hostId.name,
+      skillName: room.skillId?.name || null,
+      skill_name: room.skillId?.name || null,
+      scheduled_at: room.scheduledAt
     }));
     
     res.json(formattedRooms);
@@ -100,7 +103,7 @@ router.put('/questions/:id', verifyToken, async (req, res) => {
     });
     
     if (!question) return res.status(404).json({ error: 'Question not found' });
-    if (question.roomId.hostId !== req.user.userId) {
+    if (question.roomId.hostId.toString() !== req.user.userId) {
       return res.status(403).json({ error: 'Only host can answer' });
     }
     
@@ -130,7 +133,11 @@ router.get('/:id/questions', async (req, res) => {
     
     const formattedQuestions = questions.map(q => ({
       ...q,
-      askerName: q.userId.name
+      askerName: q.userId.name,
+      asker_name: q.userId.name,
+      room_id: q.roomId,
+      user_id: q.userId._id,
+      answered_at: q.answeredAt
     }));
     
     res.json(formattedQuestions);

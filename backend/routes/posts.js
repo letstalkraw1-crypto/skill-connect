@@ -91,11 +91,18 @@ router.get('/', verifyToken, async (req, res) => {
         return {
           ...post,
           authorName: post.userId.name,
+          author_name: post.userId.name,
           authorAvatar: post.userId.avatarUrl,
+          author_avatar: post.userId.avatarUrl,
           authorShortId: post.userId.shortId,
+          author_short_id: post.userId.shortId,
           likeCount,
+          like_count: likeCount,
           commentCount,
-          isLiked: !!isLiked
+          comment_count: commentCount,
+          isLiked: !!isLiked,
+          is_liked: !!isLiked,
+          image_urls: post.imageUrls || []
         };
       })
     );
@@ -185,7 +192,7 @@ router.delete('/:id', verifyToken, async (req, res) => {
   try {
     const post = await Post.findById(req.params.id);
     if (!post) return res.status(404).json({ error: 'Post not found' });
-    if (post.userId !== req.user.userId) return res.status(403).json({ error: 'Forbidden' });
+    if (post.userId.toString() !== req.user.userId) return res.status(403).json({ error: 'Forbidden' });
     
     // Delete image files
     if (post.imageUrls && post.imageUrls.length > 0) {

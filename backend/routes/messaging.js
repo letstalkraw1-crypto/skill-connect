@@ -1,6 +1,6 @@
 const express = require('express');
 const { verifyToken } = require('../services/auth');
-const { createConversation, listConversations, getMessages, deleteMessage } = require('../services/messaging');
+const { createConversation, listConversations, getMessages, deleteMessage, updateWallpaper } = require('../services/messaging');
 
 const router = express.Router();
 
@@ -40,8 +40,7 @@ router.delete('/:conversationId/messages/:messageId', verifyToken, async (req, r
 router.put('/:conversationId/wallpaper', verifyToken, async (req, res) => {
   try {
     const { wallpaper } = req.body;
-    // We already have 'updateWallpaper' imported. Wait, I didn't import it in this file yet! I need to ensure it's destructured.
-    const result = await require('../services/messaging').updateWallpaper(req.params.conversationId, wallpaper);
+    const result = await updateWallpaper(req.params.conversationId, wallpaper);
     return res.status(200).json(result);
   } catch (err) {
     return res.status(err.status || 500).json({ error: err.message });

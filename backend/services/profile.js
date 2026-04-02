@@ -20,13 +20,18 @@ async function getProfile(userId) {
 
       return {
         skillId: skill?._id,
+        skill_id: skill?._id,
         name: skill?.name,
         subSkill: us.subSkill || null,
+        sub_skill: us.subSkill || null,
         level: us.level,
         yearsExp: us.yearsExp,
+        years_exp: us.yearsExp,
         proficiency: proficiency?.name,
         endorsementCount,
-        verifiedCount
+        endorsement_count: endorsementCount,
+        verifiedCount,
+        verified_count: verifiedCount
       };
     })
   );
@@ -38,8 +43,22 @@ async function getProfile(userId) {
 
   return { 
     ...user, 
+    // Snake case mappings for User fields
+    short_id: user.shortId,
+    avatar_url: user.avatarUrl,
+    strava_id: user.stravaId,
+    garmin_id: user.garminId,
+    instagram_id: user.instagramId,
+    github_id: user.githubId,
+    portfolio_url: user.portfolioUrl,
+    allow_tagging: user.allowTagging,
+    account_type: user.accountType,
+    onboarding_complete: user.onboardingComplete,
+    created_at: user.createdAt,
+    
     skills, 
-    connectionCount 
+    connectionCount,
+    connection_count: connectionCount
   };
 }
 

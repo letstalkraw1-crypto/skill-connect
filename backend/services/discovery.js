@@ -71,7 +71,9 @@ async function discoverUsers(requestingUserId, skillName, lat, lng, radiusKm, pr
       id: candidate._id,
       name: candidate.name,
       avatarUrl: candidate.avatarUrl,
+      avatar_url: candidate.avatarUrl,
       shortId: candidate.shortId,
+      short_id: candidate.shortId,
       location: candidate.location,
       lat: candidate.lat,
       lng: candidate.lng,
@@ -80,12 +82,16 @@ async function discoverUsers(requestingUserId, skillName, lat, lng, radiusKm, pr
         id: s.skillId._id,
         name: s.skillId.name,
         subSkill: s.subSkill,
+        sub_skill: s.subSkill,
         level: s.level,
         yearsExp: s.yearsExp,
+        years_exp: s.yearsExp,
         proficiency: s.proficiencyId?.name
       })),
       connectionStatus: connection?.status,
-      distanceKm: haversine(lat, lng, candidate.lat, candidate.lng)
+      connection_status: connection?.status,
+      distanceKm: haversine(lat, lng, candidate.lat, candidate.lng),
+      distance_km: haversine(lat, lng, candidate.lat, candidate.lng)
     };
   }));
 
@@ -151,19 +157,25 @@ async function getSuggestions(userId, limit = 20) {
       id: candidate._id,
       userId: candidate._id,
       shortId: candidate.shortId,
+      short_id: candidate.shortId,
       name: candidate.name,
       avatarUrl: candidate.avatarUrl,
+      avatar_url: candidate.avatarUrl,
       location: candidate.location,
       lookingFor: candidate.lookingFor,
       skills: theirSkills.map(s => ({
         id: s.skillId?._id,
         name: s.skillId?.name,
         subSkill: s.subSkill,
+        sub_skill: s.subSkill,
         level: s.level
       })),
       mutualCount,
+      mutualCount: mutualCount,
+      mutual_connections: mutualCount,
       mutualNames: [],
       sharedSkillCount,
+      shared_skill_count: sharedSkillCount,
       score: mutualCount * 3 + sharedSkillCount
     };
   });

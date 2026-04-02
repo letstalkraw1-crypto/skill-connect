@@ -30,7 +30,15 @@ router.get('/', verifyToken, async (req, res) => {
       {
         $addFields: {
           memberCount: { $size: '$members' },
+          member_count: { $size: '$members' },
           isMember: {
+            $cond: [
+              { $in: [userId, '$members.userId'] },
+              true,
+              false
+            ]
+          },
+          is_member: {
             $cond: [
               { $in: [userId, '$members.userId'] },
               true,
@@ -42,7 +50,13 @@ router.get('/', verifyToken, async (req, res) => {
       { $sort: { createdAt: -1 } }
     ]);
 
-    res.json(communities);
+    const formattedCommunities = communities.map(c => ({
+      ...c,
+      id: c._id,
+      creator_id: c.creatorId
+    }));
+
+    res.json(formattedCommunities);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -64,8 +78,12 @@ router.get('/:id', verifyToken, async (req, res) => {
       .lean();
 
     community.memberCount = members.length;
+    community.member_count = members.length;
     community.isMember = members.some(m => m.userId._id.toString() === userId);
-    community.members = members.map(m => ({ ...m.userId, role: m.role }));
+    community.is_member = members.some(m => m.userId._id.toString() === userId);
+    community.members = members.map(m => ({ ...m.userId, id: m.userId._id, avatar_url: m.userId.avatarUrl, role: m.role }));
+    community.id = community._id;
+    community.creator_id = community.creatorId._id;
 
     res.json(community);
   } catch (err) {

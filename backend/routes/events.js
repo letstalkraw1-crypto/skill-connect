@@ -66,10 +66,17 @@ router.get('/', verifyToken, async (req, res) => {
         return {
           ...event,
           creatorName: event.creatorId.name,
+          creator_name: event.creatorId.name,
           creatorAvatar: event.creatorId.avatarUrl,
-          isCreator: event.creatorId._id === userId,
+          creator_avatar: event.creatorId.avatarUrl,
+          isCreator: event.creatorId._id.toString() === userId,
+          is_creator: event.creatorId._id.toString() === userId,
+          venue_name: event.venueName,
+          venue_coords: event.venueCoords,
           attendeeCount,
-          myRsvpStatus: myRsvp?.status || null
+          attendee_count: attendeeCount,
+          myRsvpStatus: myRsvp?.status || null,
+          my_rsvp_status: myRsvp?.status || null
         };
       })
     );
@@ -122,15 +129,23 @@ router.get('/:id', verifyToken, async (req, res) => {
     const eventData = {
       ...event,
       creatorName: event.creatorId.name,
+      creator_name: event.creatorId.name,
       creatorAvatar: event.creatorId.avatarUrl,
+      creator_avatar: event.creatorId.avatarUrl,
       creatorShortId: event.creatorId.shortId,
-      isCreator: event.creatorId._id === userId,
+      creator_short_id: event.creatorId.shortId,
+      isCreator: event.creatorId._id.toString() === userId,
+      is_creator: event.creatorId._id.toString() === userId,
+      venue_name: event.venueName,
+      venue_coords: event.venueCoords,
       myRsvpStatus: myRsvp?.status || null,
-      attendees
+      my_rsvp_status: myRsvp?.status || null,
+      attendees,
+      attendees_list: attendees
     };
     
     // If the requester is the EVENT CREATOR, also fetch pending requests
-    if (event.creatorId._id === userId) {
+    if (event.creatorId._id.toString() === userId) {
       const pendingRsvps = await EventRsvp.find({
         eventId: event._id,
         status: 'pending'
@@ -253,7 +268,7 @@ router.put('/:id/rsvp/:targetUserId', verifyToken, async (req, res) => {
     const event = await Event.findById(eventId);
     
     if (!event) return res.status(404).json({ error: 'Event not found' });
-    if (event.creatorId !== req.user.userId) {
+    if (event.creatorId.toString() !== req.user.userId) {
       return res.status(403).json({ error: 'Only host can manage RSVPs' });
     }
     

@@ -6,12 +6,14 @@ async function connectDB() {
     const mongoUri = process.env.MONGO_URI;
     
     if (!mongoUri) {
-      throw new Error('MONGO_URI environment variable is not set. Please configure it before starting the server.');
+      console.warn('⚠ MONGO_URI missing, running in degraded mode');
+      return;
     }
 
     await mongoose.connect(mongoUri, {
       serverSelectionTimeoutMS: 10000,
       socketTimeoutMS: 45000,
+      family: 4 // Force IPv4 to fix querySrv ECONNREFUSED on Windows
     });
 
     console.log('✅ Connected to MongoDB Atlas');
@@ -21,8 +23,7 @@ async function connectDB() {
 
   } catch (err) {
     console.error('❌ Failed to connect to MongoDB:', err.message);
-    // Exit gracefully - Render will restart the service
-    process.exit(1);
+    console.warn('⚠ App will continue running without Database');
   }
 }
 
@@ -64,7 +65,7 @@ async function seedInitialData() {
 console.log('📡 Attempting to connect to MongoDB...');
 connectDB().catch(err => {
   console.error('❌ Failed to initialize database:', err.message);
-  process.exit(1);
+  // App continues running without DB — routes will return 503 until DB reconnects
 });
 
 // Export models and database utilities

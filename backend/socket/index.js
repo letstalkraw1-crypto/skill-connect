@@ -62,8 +62,11 @@ function initSocket(httpServer) {
           senderId: socket.userId,
           sender_id: socket.userId,
           timestamp: message.sentAt,
+          sent_at: message.sentAt,
           messageId: message._id,
-          replyToMessageId: message.replyToMessageId
+          message_id: message._id,
+          replyToMessageId: message.replyToMessageId,
+          reply_to: message.replyToMessageId
         };
 
         for (const participantId of participants) {
@@ -87,7 +90,9 @@ function initSocket(httpServer) {
             if (recipientSocketId) {
               io.to(recipientSocketId).emit('typing', {
                 conversationId,
-                userId: socket.userId
+                conversation_id: conversationId,
+                userId: socket.userId,
+                user_id: socket.userId
               });
             }
           }
@@ -107,6 +112,7 @@ function initSocket(httpServer) {
             if (recipientSocketId) {
               io.to(recipientSocketId).emit('wallpaper_updated', {
                 conversationId,
+                conversation_id: conversationId,
                 wallpaper
               });
             }

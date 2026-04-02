@@ -31,9 +31,9 @@ router.post('/onboarding', verifyToken, async (req, res) => {
     const update = { onboardingComplete: true };
     if (lookingFor) update.lookingFor = lookingFor;
     if (verificationLinks) {
-      if (verificationLinks.strava) update.stravaId = verificationLinks.strava;
-      if (verificationLinks.github) update.githubId = verificationLinks.github;
-      if (verificationLinks.portfolio) update.portfolioUrl = verificationLinks.portfolio;
+      if (verificationLinks.strava || verificationLinks.strava_id) update.stravaId = verificationLinks.strava || verificationLinks.strava_id;
+      if (verificationLinks.github || verificationLinks.github_id) update.githubId = verificationLinks.github || verificationLinks.github_id;
+      if (verificationLinks.portfolio || verificationLinks.portfolio_url) update.portfolioUrl = verificationLinks.portfolio || verificationLinks.portfolio_url;
     }
 
     await require('../db/index').User.findByIdAndUpdate(userId, update);
@@ -77,30 +77,7 @@ router.get('/by-short-id/:shortId', async (req, res) => {
   }
 });
 
-// GET /profile/:userId — public profile view
-router.get('/:userId', async (req, res) => {
-  try {
-    const profile = await getProfile(req.params.userId);
-    res.status(200).json(profile);
-  } catch (err) {
-    res.status(err.status || 500).json({ error: err.message });
-  }
-});
-
-// PUT /profile/:userId — update own profile (auth required)
-router.put('/:userId', verifyToken, async (req, res) => {
-  if (req.user.userId !== req.params.userId) {
-    return res.status(403).json({ error: 'Forbidden' });
-  }
-
-  try {
-    const { bio, location, avatarUrl, name, stravaId, garminId, instagramId, allowTagging, theme, accountType } = req.body;
-    const profile = await updateProfile(req.params.userId, { bio, location, avatarUrl, name, stravaId, garminId, instagramId, allowTagging, theme, accountType });
-    res.status(200).json(profile);
-  } catch (err) {
-    res.status(err.status || 500).json({ error: err.message });
-  }
-});
+// (moved endpoints GET /:userId and PUT /:userId to bottom of file)
 
 // POST /profile/skills — add skills to own profile (auth required)
 router.post('/skills', verifyToken, async (req, res) => {
@@ -267,6 +244,50 @@ router.get('/:userId/share', async (req, res) => {
     };
 
     res.json(shareData);
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
+});
+
+// GET /profile/:userId — public profile view
+router.get('/:userId', async (req, res) => {
+  try {
+    const profile = await getProfile(req.params.userId);
+    res.status(200).json(profile);
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
+});
+
+// PUT /profile/:userId — update own profile (auth required)
+router.put('/:userId', verifyToken, async (req, res) => {
+  if (req.user.userId !== req.params.userId) {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
+
+  try {
+    const { 
+      bio, location, avatarUrl, avatar_url, name, 
+      stravaId, strava_id, garminId, garmin_id, 
+      instagramId, instagram_id, allowTagging, allow_tagging, 
+      theme, accountType, account_type 
+    } = req.body;
+
+    const updateData = {
+      bio, 
+      location, 
+      avatarUrl: avatarUrl || avatar_url, 
+      name, 
+      stravaId: stravaId || strava_id, 
+      garminId: garminId || garmin_id, 
+      instagramId: instagramId || instagram_id, 
+      allowTagging: allowTagging || allow_tagging, 
+      theme, 
+      accountType: accountType || account_type
+    };
+
+    const profile = await updateProfile(req.params.userId, updateData);
+    res.status(200).json(profile);
   } catch (err) {
     res.status(err.status || 500).json({ error: err.message });
   }

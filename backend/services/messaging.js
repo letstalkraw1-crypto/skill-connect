@@ -59,10 +59,22 @@ async function listConversations(userId) {
     return {
       id: conv._id,
       createdAt: conv.createdAt,
+      created_at: conv.createdAt,
       wallpaper: conv.wallpaper,
-      otherUser,
+      otherUser: {
+        ...otherUser,
+        id: otherUser?._id,
+        avatar_url: otherUser?.avatarUrl
+      },
+      other_user: {
+        ...otherUser,
+        id: otherUser?._id,
+        avatar_url: otherUser?.avatarUrl
+      },
       lastMessage: lastMessage?.text || null,
-      lastAt: lastMessage?.sentAt || conv.createdAt
+      last_message: lastMessage?.text || null,
+      lastAt: lastMessage?.sentAt || conv.createdAt,
+      last_at: lastMessage?.sentAt || conv.createdAt
     };
   }));
 }
@@ -83,7 +95,20 @@ async function getMessages(conversationId, userId) {
 
   const messages = await Message.find({ conversationId }).sort({ sentAt: 1 }).lean();
 
-  return { messages, wallpaper: conversation.wallpaper || null };
+  const messagesWithSnake = messages.map(m => ({
+    ...m,
+    id: m._id,
+    sender_id: m.senderId,
+    conversation_id: m.conversationId,
+    sent_at: m.sentAt,
+    reply_to: m.replyToMessageId
+  }));
+
+  return { 
+    messages: messagesWithSnake, 
+    messages_list: messagesWithSnake,
+    wallpaper: conversation.wallpaper || null 
+  };
 }
 
 async function persistMessage(conversationId, senderId, text, replyToMessageId) {

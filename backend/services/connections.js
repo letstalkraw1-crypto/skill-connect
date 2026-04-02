@@ -96,9 +96,12 @@ async function listConnections(userId) {
       const user = pendingUsers.find(u => u._id === c.requesterId);
       return {
         connectionId: c._id,
+        connection_id: c._id,
         id: c.requesterId,
         name: user?.name,
-        avatarUrl: user?.avatarUrl
+        avatarUrl: user?.avatarUrl,
+        avatar_url: user?.avatarUrl,
+        location: user?.location
       };
     });
 
@@ -109,9 +112,12 @@ async function listConnections(userId) {
       const user = acceptedUsers.find(u => u._id === connectedUserId);
       return {
         connectionId: c._id,
+        connection_id: c._id,
         id: connectedUserId,
         name: user?.name,
-        avatarUrl: user?.avatarUrl
+        avatarUrl: user?.avatarUrl,
+        avatar_url: user?.avatarUrl,
+        location: user?.location
       };
     });
 
