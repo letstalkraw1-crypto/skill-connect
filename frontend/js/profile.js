@@ -438,9 +438,27 @@ async function loadEndorsements() {
   } catch (err) {}
 }
 
-function generateQR(url) {
+async function generateQR(url) {
   var el = document.getElementById('qr-code-container');
-  if (!el || !window.QRCode) return;
+  if (!el) return;
+
+  if (!window.QRCode) {
+    try {
+      if (!document.getElementById('qrcode-script')) {
+        const sc = document.createElement('script');
+        sc.id = 'qrcode-script';
+        sc.src = 'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js';
+        const p = new Promise(res => sc.onload = res);
+        document.head.appendChild(sc);
+        await p;
+      }
+    } catch (e) {
+      console.error('Failed to load QRCode library', e);
+      return;
+    }
+  }
+
+  if (!window.QRCode) return;
   el.innerHTML = '';
   new QRCode(el, { text: url, width: 140, height: 140, colorDark: "#333333", colorLight: "#ffffff", correctLevel: QRCode.CorrectLevel.H });
 }

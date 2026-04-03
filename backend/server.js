@@ -107,17 +107,38 @@ app.use((err, req, res, next) => {
   });
 });
 
-// Serve frontend — no cache so mobile always gets latest
+// Serve frontend using Vite's optimized build directory
 const path = require('path');
-app.use(express.static(path.join(__dirname, '..', 'frontend'), {
-  etag: false,
-  lastModified: false,
-  setHeaders: (res) => {
-    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
-    res.setHeader('Pragma', 'no-cache');
+const distPath = path.join(__dirname, '..', 'frontend', 'dist');
+
+app.use(express.static(distPath, {
+  etag: true,
+  lastModified: true,
+  setHeaders: (res, filePath) => {
+    // Aggressive caching for hashed assets (Vite generates these for JS/CSS/Images)
+    if (filePath.match(/\.(js|css|webp|png|jpg|jpeg|gif|woff2?|svg)$/)) {
+      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    } else if (filePath.endsWith('.html')) {
+      // Revalidate HTML every time to ensure users get the latest version
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    }
   }
 }));
-app.get('/', (req, res) => res.sendFile(path.join(__dirname, '..', 'frontend', 'index.html')));
+
+app.get('*', (req, res, next) => {
+  // If request is not for API, serve index.html
+  if (req.path.startsWith('/auth') || req.path.startsWith('/profile') || 
+      req.path.startsWith('/discover') || req.path.startsWith('/connections') || 
+      req.path.startsWith('/conversations') || req.path.startsWith('/admin') || 
+      req.path.startsWith('/upload') || req.path.startsWith('/posts') || 
+      req.path.startsWith('/events') || req.path.startsWith('/communities') || 
+      req.path.startsWith('/resources') || req.path.startsWith('/challenges') || 
+      req.path.startsWith('/qa') || req.path.startsWith('/documents') ||
+      req.path === '/health') {
+    return next();
+  }
+  res.sendFile(path.join(distPath, 'index.html'));
+});
 
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {

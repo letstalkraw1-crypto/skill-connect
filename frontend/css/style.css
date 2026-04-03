@@ -692,3 +692,69 @@ input[type=range]::-webkit-slider-thumb {
 * {
   scrollbar-width: none;
 }
+
+/* Screen Landing Styles extracted from index.html for performance */
+#screen-landing .hero {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 24px 48px;
+  text-align: center;
+  background: radial-gradient(ellipse at 50% 0%, rgba(99, 102, 241, 0.12) 0%, transparent 70%), var(--bg);
+}
+
+#screen-landing .logo-main {
+  width: 72px;
+  height: 72px;
+  margin-bottom: 8px;
+  display: block;
+  margin: 0 auto;
+}
+
+#screen-landing h1 {
+  font-size: 2.4rem;
+  font-weight: 800;
+  line-height: 1.15;
+  margin-bottom: 10px;
+}
+
+#screen-landing .tagline {
+  font-size: 1.1rem;
+  font-weight: 600;
+  background: var(--grad);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 12px;
+}
+
+#screen-landing .desc {
+  color: var(--text2);
+  font-size: .95rem;
+  line-height: 1.6;
+  margin-bottom: 36px;
+  max-width: 300px;
+}
+
+#screen-landing .pill-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  margin-bottom: 44px;
+}
+
+#screen-landing .btn-row {
+  width: 100%;
+  max-width: 360px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Fix for potential layout issues during bundling */
+#app {
+  width: 100%;
+}

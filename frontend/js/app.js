@@ -1,12 +1,12 @@
 // Main Application Logic and Navigation
 
-function goScreen(s) {
+export function goScreen(s) {
   document.querySelectorAll('.screen').forEach(function(el) { el.classList.remove('active'); });
   var target = document.getElementById('screen-' + s);
   if (target) target.classList.add('active');
 }
 
-function switchTab(t) {
+export function switchTab(t) {
   document.querySelectorAll('.tab-btn').forEach(function(b) { b.classList.remove('active'); });
   var btn = document.getElementById('tab-' + t);
   if (btn) btn.classList.add('active');
@@ -20,7 +20,7 @@ function switchTab(t) {
   }
 }
 
-function switchTab2(tab) {
+export function switchTab2(tab) {
   document.querySelectorAll('.nav-tab').forEach(function (b) { b.classList.remove('active'); });
   var btn = document.getElementById('nav-' + tab);
   if (btn) btn.classList.add('active');
@@ -42,7 +42,7 @@ function switchTab2(tab) {
   }
 }
 
-function logout() {
+export function logout() {
   localStorage.clear();
   location.reload();
 }
@@ -105,7 +105,7 @@ async function showUserInfoCard(id) {
   }
 }
 
-function closeUserInfoModal(e) {
+export function closeUserInfoModal(e) {
   if (e && e.target !== e.currentTarget && e.target.tagName !== 'BUTTON') return;
   var modal = document.getElementById('user-info-modal');
   if (modal) modal.style.display = 'none';
@@ -114,7 +114,7 @@ function closeUserInfoModal(e) {
 window.showUserInfoCard = showUserInfoCard;
 window.closeUserInfoModal = closeUserInfoModal;
 
-function goAuth(mode) {
+export function goAuth(mode) {
   goScreen('auth');
   switchTab(mode);
 }
