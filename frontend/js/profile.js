@@ -203,6 +203,43 @@ function renderProfile(u) {
   loadVerifications(); 
   loadEndorsements();
   populateVerificationSkills(u.skills || []);
+  renderSkillOptions();
+}
+
+function renderSkillOptions() {
+  var container = document.getElementById('skill-options-list');
+  if (!container || !window.SKILLS_DATA) return;
+  
+  var u = JSON.parse(localStorage.getItem('sc_user') || '{}');
+  var existingNames = (u.skills || []).map(function(s) { return s.name; });
+
+  var html = '';
+  for (var category in SKILLS_DATA) {
+    if (existingNames.indexOf(category) === -1) {
+      html += '<button class="pill" onclick="toggleSkillSelection(\'' + category + '\', this)">' + 
+              SKILLS_DATA[category].icon + ' ' + category + '</button>';
+    }
+  }
+  
+  if (!html) html = '<div style="color:var(--text2);font-size:0.8rem;">All primary skills added</div>';
+  container.innerHTML = html;
+}
+
+function toggleSkillSelection(name, btn) {
+  if (selectedSkillBtn) selectedSkillBtn.classList.remove('active');
+  
+  if (selectedSkillToAdd === name) {
+    selectedSkillToAdd = null;
+    selectedSkillBtn = null;
+    document.getElementById('skill-level-wrap').style.display = 'none';
+    document.getElementById('btn-add-skill').style.display = 'none';
+  } else {
+    selectedSkillToAdd = name;
+    selectedSkillBtn = btn;
+    btn.classList.add('active');
+    document.getElementById('skill-level-wrap').style.display = 'block';
+    document.getElementById('btn-add-skill').style.display = 'block';
+  }
 }
 
 function populateVerificationSkills(skills) {
@@ -343,6 +380,7 @@ window.applyThemePreview = applyThemePreview;
 window.copyShortId = copyShortId;
 window.copyShareLink = copyShareLink;
 window.downloadQR = downloadQR;
+window.toggleSkillSelection = toggleSkillSelection;
 
 async function submitVerification() {
   var skillName = document.getElementById('verification-skill-select').value;
