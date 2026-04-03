@@ -15,4 +15,28 @@ const eventSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now }
 });
 
+// Helper to generate a unique 5-digit uppercase alphanumeric code
+async function generateShortCode(model) {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  let isUnique = false;
+  let code = '';
+  while (!isUnique) {
+    code = '';
+    for (let i = 0; i < 5; i++) {
+      code += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    const existing = await model.findOne({ shortCode: code });
+    if (!existing) isUnique = true;
+  }
+  return code;
+}
+
+eventSchema.pre('save', async function (next) {
+  if (!this.shortCode) {
+    this.shortCode = await generateShortCode(this.constructor);
+  }
+  next();
+});
+
 module.exports = mongoose.model('Event', eventSchema);
+

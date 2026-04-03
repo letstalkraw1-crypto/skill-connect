@@ -214,14 +214,63 @@ async function joinCommunity(id) {
   } catch (err) { toast(err.message, 'error'); }
 }
 
+var activeEventId = null;
+
+async function viewPendingRsvps(eventId) {
+  activeEventId = eventId;
+  try {
+    var r = await fetch(API + '/events/' + eventId, { headers: authHeaders() });
+    var ev = await r.json(); if (!r.ok) throw new Error(ev.error);
+
+    if (!ev.pendingRequests || !ev.pendingRequests.length) {
+      return toast('No pending requests for this event');
+    }
+
+    var modal = document.createElement('div');
+    modal.className = 'sheet-overlay'; 
+    modal.onclick = function(e) { if(e.target === modal) modal.remove(); };
+    
+    var listHtml = ev.pendingRequests.map(function(req) {
+      return '<div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;background:var(--card);padding:12px;border-radius:16px;border:1px solid var(--border);">' +
+        '<div class="avatar av-md">' + avatarEl({name: req.name, avatar_url: req.avatarUrl}) + '</div>' +
+        '<div style="flex:1;">' +
+          '<div style="font-weight:700;font-size:0.9rem;">' + esc(req.name) + '</div>' +
+          '<div style="font-size:0.7rem;color:var(--text2);">' + timeAgo(req.createdAt) + '</div>' +
+        '</div>' +
+        '<div style="display:flex;gap:8px;">' +
+          '<button class="btn btn-primary btn-xs" onclick="handleRsvp(\'' + req.userId + '\', \'accepted\'); this.closest(\'.sheet-overlay\').remove();">Accept</button>' +
+          '<button class="btn btn-ghost btn-xs" style="color:var(--red);" onclick="handleRsvp(\'' + req.userId + '\', \'rejected\'); this.closest(\'.sheet-overlay\').remove();">Decline</button>' +
+        '</div>' +
+      '</div>';
+    }).join('');
+
+    modal.innerHTML = '<div class="sheet" style="padding:24px;border-radius:24px 24px 0 0;">' +
+      '<div class="sheet-handle"></div>' +
+      '<h2 style="margin-bottom:4px;">Pending Join Requests</h2>' +
+      '<div style="font-size:0.85rem;color:var(--text2);margin-bottom:20px;">' + esc(ev.title) + '</div>' +
+      '<div style="max-height:60vh;overflow-y:auto;margin-bottom:20px;">' + listHtml + '</div>' +
+      '<button class="btn btn-secondary" style="width:100%;" onclick="this.closest(\'.sheet-overlay\').remove()">Close</button>' +
+    '</div>';
+    
+    document.body.appendChild(modal);
+    setTimeout(function() { modal.classList.add('open'); }, 10);
+  } catch (err) { toast(err.message, 'error'); }
+}
+
 async function handleRsvp(targetUserId, status) {
   if (!activeEventId) return;
   try {
-    var r = await fetch(API + '/events/' + activeEventId + '/rsvp/' + targetUserId, { method: 'PUT', headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders()), body: JSON.stringify({ status }) });
+    var r = await fetch(API + '/events/' + activeEventId + '/rsvp/' + targetUserId, { 
+      method: 'PUT', 
+      headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders()), 
+      body: JSON.stringify({ status: status }) 
+    });
     if (!r.ok) { var d = await r.json(); throw new Error(d.error); }
-    toast('Request ' + status, 'success'); viewPendingRsvps(activeEventId);
+    toast('Request ' + status, 'success'); 
+    loadEvents();
   } catch (err) { toast(err.message, 'error'); }
 }
+
 
 function initVenueAutocomplete(inputId) {
   var id = inputId || 'event-venue';

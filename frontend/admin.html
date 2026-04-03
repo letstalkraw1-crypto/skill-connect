@@ -946,8 +946,10 @@
       document.getElementById('admin-events-list').innerHTML = allEvents.map(e => `
         <div class="card" style="margin-bottom:12px;">
           <div style="font-weight:700;">${esc(e.title)} <span style="font-weight:normal;color:var(--text2);font-size:0.8rem;">by ${esc(e.creator_name)}</span></div>
+          <div style="font-size:0.85rem;color:var(--purple-l);font-weight:800;margin-bottom:4px;">CODE: ${esc(e.shortCode || e.short_code || '---')}</div>
           <div style="font-size:0.85rem;color:var(--text2);margin-bottom:12px;">${esc(e.datetime)} • ${esc(e.venue_name) || 'No venue'}</div>
           <div style="font-size:0.85rem;color:var(--text2);white-space:pre-wrap;margin-bottom:14px;background:var(--surface);padding:10px;border-radius:6px;">${esc(e.guidelines) || 'No guidelines specified'}</div>
+
           <div style="display:flex;gap:8px;">
             <button class="btn btn-ghost btn-sm" onclick="openEventEdit('${e.id}')">✏️ Edit</button>
             <button class="btn btn-danger btn-sm" onclick="deleteEvent('${e.id}')">🗑️ Delete</button>

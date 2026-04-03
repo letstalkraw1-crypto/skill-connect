@@ -89,16 +89,25 @@ async function updateProfile(userId, { bio, location, avatarUrl, name, stravaId,
 
 async function addSkills(userId, skills) {
   for (const skill of skills) {
-    const skillDoc = await Skill.findOne({ name: skill.name });
+    if (!skill.name) continue;
+
+    // Case-insensitive search for the skill
+    let skillDoc = await Skill.findOne({ 
+      name: { $regex: new RegExp("^" + skill.name.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + "$", "i") } 
+    });
+
     if (!skillDoc) {
-      const err = new Error(`Unknown skill: ${skill.name}`);
-      err.status = 400;
-      throw err;
+      // Create it if it doesn't exist
+      skillDoc = new Skill({ name: skill.name.trim() });
+      await skillDoc.save();
     }
 
     let proficiencyId = null;
-    if (skill.proficiency) {
-      const profDoc = await ProficiencyLevel.findOne({ name: skill.proficiency });
+    const profName = (skill.proficiency || skill.level || '').trim();
+    if (profName) {
+      const profDoc = await ProficiencyLevel.findOne({ 
+        name: { $regex: new RegExp("^" + profName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + "$", "i") } 
+      });
       if (profDoc) proficiencyId = profDoc._id;
     }
 
@@ -108,7 +117,7 @@ async function addSkills(userId, skills) {
         { 
           userId, 
           skillId: skillDoc._id, 
-          level: skill.level || 'Beginner', 
+          level: skill.level || skill.proficiency || 'Beginner', 
           yearsExp: skill.yearsExp || null, 
           proficiencyId 
         },
@@ -125,6 +134,7 @@ async function addSkills(userId, skills) {
   }
   return getProfile(userId);
 }
+
 
 async function deleteSkill(userId, skillId) {
   await UserSkill.deleteOne({ userId, skillId });
