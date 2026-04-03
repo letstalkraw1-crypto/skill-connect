@@ -85,6 +85,7 @@ router.get('/', verifyToken, async (req, res) => {
           creator_name: event.creatorId.name,
           creatorAvatar: event.creatorId.avatarUrl,
           creator_avatar: event.creatorId.avatarUrl,
+          creator_id: event.creatorId._id,
           isCreator: event.creatorId._id.toString() === userId,
           is_creator: event.creatorId._id.toString() === userId,
           venue_name: event.venueName,

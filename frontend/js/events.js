@@ -12,7 +12,7 @@ async function loadEvents() {
     el.innerHTML = d.map(function (ev) {
       var dt = new Date(ev.datetime).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
       var btns = ev.creator_id === userId ? '<button class="btn btn-ghost btn-xs" onclick="viewPendingRsvps(\'' + ev.id + '\')">Manage RSVPs</button>' : (ev.my_rsvp_status === 'pending' ? '<button class="btn btn-secondary btn-xs" onclick="requestRsvp(\'' + ev.id + '\')">Cancel</button>' : (ev.my_rsvp_status === 'accepted' ? '✅ Going' : '<button class="btn btn-primary btn-xs" onclick="requestRsvp(\'' + ev.id + '\')">Join</button>'));
-      return '<div class="card" id="event-card-' + ev.id + '"><h3>' + esc(ev.title) + '</h3><div style="font-size:0.8rem;color:var(--purple-l);">' + dt + ' • ' + esc(ev.venue_name || 'No venue') + '</div><div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;"><span>By ' + esc(ev.creator_name) + '</span>' + btns + '</div></div>';
+      return '<div class="card" id="event-card-' + ev.id + '"><h3>' + esc(ev.title) + '</h3><div style="font-size:0.8rem;color:var(--purple-l);">' + dt + ' • ' + esc(ev.venue_name || 'No venue') + '</div><div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;"><span>By <strong style="cursor:pointer;" onclick="showUserInfoCard(\'' + ev.creator_id + '\')">' + esc(ev.creator_name) + '</strong></span>' + btns + '</div></div>';
     }).join('');
   } catch (err) { el.innerHTML = '<div style="color:var(--red);">' + esc(err.message) + '</div>'; }
 }
