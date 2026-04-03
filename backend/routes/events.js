@@ -214,6 +214,24 @@ router.post('/', verifyToken, async (req, res) => {
     
     await newEvent.save();
     
+    const event = await Event.findById(newEvent._id)
+      .populate({
+        path: 'creatorId',
+        select: 'name avatarUrl',
+        model: User
+      })
+      .lean();
+    
+    res.status(201).json({
+      ...event,
+      creator_name: event.creatorId.name,
+      creator_avatar: event.creatorId.avatarUrl,
+      creator_id: event.creatorId._id,
+      is_creator: true,
+      attendee_count: 0,
+      my_rsvp_status: 'accepted'
+    });
+    
     // Auto-accept the creator to their own event
     const creatorRsvp = new EventRsvp({
       _id: uuidv4(),

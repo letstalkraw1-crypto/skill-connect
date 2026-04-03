@@ -11,10 +11,38 @@ async function loadEvents() {
     if (!d.length) { el.innerHTML = '<div style="text-align:center;color:var(--text2);padding:24px;">No upcoming events</div>'; return; }
     el.innerHTML = d.map(function (ev) {
       var dt = new Date(ev.datetime).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-      var btns = ev.creator_id === userId ? '<button class="btn btn-ghost btn-xs" onclick="viewPendingRsvps(\'' + ev.id + '\')">Manage RSVPs</button>' : (ev.my_rsvp_status === 'pending' ? '<button class="btn btn-secondary btn-xs" onclick="requestRsvp(\'' + ev.id + '\')">Cancel</button>' : (ev.my_rsvp_status === 'accepted' ? '✅ Going' : '<button class="btn btn-primary btn-xs" onclick="requestRsvp(\'' + ev.id + '\')">Join</button>'));
-      return '<div class="card" id="event-card-' + ev.id + '"><h3>' + esc(ev.title) + '</h3><div style="font-size:0.8rem;color:var(--purple-l);">' + dt + ' • ' + esc(ev.venue_name || 'No venue') + '</div><div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;"><span>By <strong style="cursor:pointer;" onclick="showUserInfoCard(\'' + ev.creator_id + '\')">' + esc(ev.creator_name) + '</strong></span>' + btns + '</div></div>';
+      var btns = ev.creator_id === userId ? '<button class="btn btn-ghost btn-xs" onclick="viewPendingRsvps(\'' + (ev._id || ev.id) + '\')">Manage RSVPs</button>' : (ev.my_rsvp_status === 'pending' ? '<button class="btn btn-secondary btn-xs" onclick="requestRsvp(\'' + (ev._id || ev.id) + '\')">Cancel</button>' : (ev.my_rsvp_status === 'accepted' ? '✅ Going' : '<button class="btn btn-primary btn-xs" onclick="requestRsvp(\'' + (ev._id || ev.id) + '\')">Join</button>'));
+      return '<div class="card" id="event-card-' + (ev._id || ev.id) + '">' +
+             '<h3 style="cursor:pointer;" onclick="showEventInfoCard(\'' + (ev._id || ev.id) + '\')">' + esc(ev.title) + '</h3>' +
+             '<div style="font-size:0.8rem;color:var(--purple-l);">' + dt + ' • ' + esc(ev.venue_name || 'No venue') + '</div>' +
+             '<div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;">' +
+               '<span>By <strong style="cursor:pointer;" onclick="showUserInfoCard(\'' + ev.creator_id + '\')">' + esc(ev.creator_name) + '</strong></span>' + 
+               btns + 
+             '</div>' +
+           '</div>';
     }).join('');
   } catch (err) { el.innerHTML = '<div style="color:var(--red);">' + esc(err.message) + '</div>'; }
+}
+
+function switchMeetupsTab(tab) {
+  var evtBtn = document.getElementById('tab-btn-events');
+  var comBtn = document.getElementById('tab-btn-communities');
+  var evtView = document.getElementById('meetups-events-view');
+  var comView = document.getElementById('meetups-communities-view');
+
+  if (tab === 'events') {
+    if (evtBtn) evtBtn.classList.add('active');
+    if (comBtn) comBtn.classList.remove('active');
+    if (evtView) evtView.style.display = 'block';
+    if (comView) comView.style.display = 'none';
+    loadEvents();
+  } else {
+    if (comBtn) comBtn.classList.add('active');
+    if (evtBtn) evtBtn.classList.remove('active');
+    if (comView) comView.style.display = 'block';
+    if (evtView) evtView.style.display = 'none';
+    loadCommunities();
+  }
 }
 
 async function openEventDetails(eventId) {
@@ -47,8 +75,53 @@ async function submitEvent() {
   try {
     var r = await fetch(API + '/events', { method: 'POST', headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders()), body: JSON.stringify({ title, datetime: dt, venue_name: venue, venue_coords: venueLatLng, guidelines }) });
     if (!r.ok) { var d = await r.json(); throw new Error(d.error || 'Failed'); }
-    toast('Event published!', 'success'); closeCreateEventSheet(); loadEvents();
+    toast('Event published!', 'success'); closeCreateEventSheet(); switchMeetupsTab('events');
   } catch (err) { toast(err.message, 'error'); } finally { btn.innerHTML = 'Publish Notice'; btn.disabled = false; }
+}
+
+function openCreateEventSheet() {
+  var sheet = document.getElementById('create-event-sheet');
+  if (sheet) sheet.classList.add('open');
+}
+
+function closeCreateEventSheet(e) {
+  if (e && e.target !== e.currentTarget) return;
+  var sheet = document.getElementById('create-event-sheet');
+  if (sheet) sheet.classList.remove('open');
+}
+
+function openCreateCommunitySheet() {
+  var sheet = document.getElementById('create-community-sheet');
+  if (sheet) sheet.classList.add('open');
+}
+
+function closeCreateCommunitySheet(e) {
+  if (e && e.target !== e.currentTarget) return;
+  var sheet = document.getElementById('create-community-sheet');
+  if (sheet) sheet.classList.remove('open');
+}
+
+async function submitCommunity() {
+  var name = document.getElementById('community-name').value.trim();
+  var desc = document.getElementById('community-desc').value.trim();
+  if (!name) return toast('Community name required', 'error');
+  
+  var btn = document.querySelector('#create-community-sheet .btn-primary'); 
+  var oldText = btn.innerHTML;
+  btn.innerHTML = '<span class="spinner"></span>'; btn.disabled = true;
+  
+  try {
+    var r = await fetch(API + '/communities', { 
+      method: 'POST', 
+      headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders()), 
+      body: JSON.stringify({ name, description: desc }) 
+    });
+    if (!r.ok) { var d = await r.json(); throw new Error(d.error || 'Failed'); }
+    toast('Community created!', 'success'); 
+    closeCreateCommunitySheet(); 
+    switchMeetupsTab('communities');
+  } catch (err) { toast(err.message, 'error'); } 
+  finally { btn.innerHTML = oldText; btn.disabled = false; }
 }
 
 async function loadCommunities() {
@@ -60,10 +133,77 @@ async function loadCommunities() {
     var d = await r.json(); if (!r.ok) throw new Error(d.error);
     if (!d.length) { el.innerHTML = '<div style="text-align:center;color:var(--text2);padding:24px;">No communities found</div>'; return; }
     el.innerHTML = d.map(function (c) {
-      var btn = c.is_member ? '<button class="btn btn-secondary btn-xs" onclick="joinCommunity(\'' + c.id + '\')">Leave</button>' : '<button class="btn btn-primary btn-xs" onclick="joinCommunity(\'' + c.id + '\')">Join</button>';
-      return '<div class="card" style="display:flex;align-items:center;gap:12px;"><div class="avatar av-md">#</div><div style="flex:1;"><strong>' + esc(c.name) + '</strong><br><small>' + c.member_count + ' members</small></div>' + btn + '</div>';
+      var btn = c.is_member || c.isMember ? '<button class="btn btn-secondary btn-xs" onclick="joinCommunity(\'' + (c._id || c.id) + '\')">Leave</button>' : '<button class="btn btn-primary btn-xs" onclick="joinCommunity(\'' + (c._id || c.id) + '\')">Join</button>';
+      return '<div class="card" style="display:flex;align-items:center;gap:12px;">' +
+             '<div class="avatar av-md" onclick="showCommunityInfoCard(\'' + (c._id || c.id) + '\')" style="cursor:pointer;">#</div>' +
+             '<div style="flex:1;">' +
+               '<strong style="cursor:pointer;" onclick="showCommunityInfoCard(\'' + (c._id || c.id) + '\')">' + esc(c.name) + '</strong><br>' +
+               '<small>' + (c.member_count || c.memberCount || 0) + ' members</small>' +
+             '</div>' +
+             btn +
+           '</div>';
     }).join('');
   } catch (err) { el.innerHTML = '<div style="color:var(--red);">' + esc(err.message) + '</div>'; }
+}
+
+async function showEventInfoCard(eventId) {
+   try {
+     var r = await fetch(API + '/events/' + eventId, { headers: authHeaders() });
+     var ev = await r.json(); if (!r.ok) throw new Error(ev.error);
+     
+     // We will reuse the showUserInfoCard style/modal but with different content if needed
+     // For now, let's toast details or open a specific modal if it exists
+     var dt = new Date(ev.datetime).toLocaleString([], { month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+     
+     // Creating an ad-hoc modal for event info
+     var modal = document.createElement('div');
+     modal.className = 'sheet-overlay'; 
+     modal.onclick = function(e) { if(e.target === modal) modal.remove(); };
+     modal.innerHTML = '<div class="sheet" style="padding:24px;border-radius:24px 24px 0 0;">' +
+       '<div class="sheet-handle"></div>' +
+       '<h2 style="margin-bottom:8px;">' + esc(ev.title) + '</h2>' +
+       '<div style="background:var(--purple-l);color:white;display:inline-block;padding:4px 12px;border-radius:12px;font-weight:800;font-size:0.9rem;margin-bottom:16px;">' + esc(ev.shortCode || ev.short_code || '---') + '</div>' +
+       '<div style="margin-bottom:12px;font-size:1rem;">📅 <strong>' + dt + '</strong></div>' +
+       '<div style="margin-bottom:12px;font-size:1rem;">📍 <strong>' + esc(ev.venueName || ev.venue_name || 'No Venue') + '</strong></div>' +
+       '<div style="margin-bottom:20px;color:var(--text2);font-size:0.95rem;line-height:1.5;">' + esc(ev.guidelines || 'No guidelines provided.') + '</div>' +
+       '<div style="display:flex;align-items:center;gap:12px;margin-bottom:24px;background:var(--card);padding:12px;border-radius:16px;border:1px solid var(--border);">' +
+         '<div class="avatar av-sm">' + avatarEl({name: ev.creator_name, avatar_url: ev.creator_avatar}) + '</div>' +
+         '<div style="font-size:0.85rem;">Organized by <strong style="cursor:pointer;color:var(--purple-l);" onclick="showUserInfoCard(\'' + ev.creator_id + '\')">' + esc(ev.creator_name) + '</strong></div>' +
+       '</div>' +
+       '<button class="btn btn-secondary" style="width:100%;" onclick="this.closest(\'.sheet-overlay\').remove()">Close</button>' +
+     '</div>';
+     document.body.appendChild(modal);
+     setTimeout(function() { modal.classList.add('open'); }, 10);
+   } catch (err) { toast(err.message, 'error'); }
+}
+
+async function showCommunityInfoCard(communityId) {
+  try {
+     var r = await fetch(API + '/communities/' + communityId, { headers: authHeaders() });
+     var c = await r.json(); if (!r.ok) throw new Error(c.error);
+     
+     var modal = document.createElement('div');
+     modal.className = 'sheet-overlay'; 
+     modal.onclick = function(e) { if(e.target === modal) modal.remove(); };
+     modal.innerHTML = '<div class="sheet" style="padding:24px;border-radius:24px 24px 0 0;">' +
+       '<div class="sheet-handle"></div>' +
+       '<div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">' +
+         '<div class="avatar av-lg" style="background:var(--grad);color:white;font-weight:900;">#</div>' +
+         '<div>' +
+           '<h2 style="margin:0;">' + esc(c.name) + '</h2>' +
+           '<div style="color:var(--text2);font-size:0.85rem;">' + (c.member_count || c.memberCount || 0) + ' active members</div>' +
+         '</div>' +
+       '</div>' +
+       '<div style="margin-bottom:20px;color:var(--text);font-size:1rem;line-height:1.5;">' + esc(c.description || 'Welcome to this community!') + '</div>' +
+       '<div style="display:flex;align-items:center;gap:12px;margin-bottom:24px;background:var(--card);padding:12px;border-radius:16px;border:1px solid var(--border);">' +
+         '<div class="avatar av-sm">' + avatarEl({name: c.creator_name, avatar_url: c.creator_avatar}) + '</div>' +
+         '<div style="font-size:0.85rem;">Created by <strong style="cursor:pointer;color:var(--purple-l);" onclick="showUserInfoCard(\'' + c.creator_id + '\')">' + esc(c.creator_name) + '</strong></div>' +
+       '</div>' +
+       '<button class="btn btn-secondary" style="width:100%;" onclick="this.closest(\'.sheet-overlay\').remove()">Close</button>' +
+     '</div>';
+     document.body.appendChild(modal);
+     setTimeout(function() { modal.classList.add('open'); }, 10);
+  } catch (err) { toast(err.message, 'error'); }
 }
 
 async function joinCommunity(id) {

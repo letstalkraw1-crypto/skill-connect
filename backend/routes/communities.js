@@ -53,7 +53,9 @@ router.get('/', verifyToken, async (req, res) => {
     const formattedCommunities = communities.map(c => ({
       ...c,
       id: c._id,
-      creator_id: c.creatorId
+      creator_id: c.creatorId,
+      creator_name: c.creator?.[0]?.name || 'Unknown',
+      creator_avatar: c.creator?.[0]?.avatarUrl || null
     }));
 
     res.json(formattedCommunities);
@@ -84,6 +86,8 @@ router.get('/:id', verifyToken, async (req, res) => {
     community.members = members.map(m => ({ ...m.userId, id: m.userId._id, avatar_url: m.userId.avatarUrl, role: m.role }));
     community.id = community._id;
     community.creator_id = community.creatorId._id;
+    community.creator_name = community.creatorId.name;
+    community.creator_avatar = community.creatorId.avatarUrl;
 
     res.json(community);
   } catch (err) {
@@ -115,7 +119,19 @@ router.post('/', verifyToken, async (req, res) => {
     });
     await member.save();
 
-    res.status(201).json(community);
+    const com = await Community.findById(community._id)
+      .populate('creatorId', 'name avatarUrl')
+      .lean();
+    
+    res.status(201).json({
+      ...com,
+      id: com._id,
+      creator_id: com.creatorId._id,
+      creator_name: com.creatorId.name,
+      creator_avatar: com.creatorId.avatarUrl,
+      member_count: 1,
+      is_member: true
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
