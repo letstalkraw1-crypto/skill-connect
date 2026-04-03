@@ -32,11 +32,11 @@ export function switchTab2(tab) {
   var nav = document.getElementById('bottom-nav');
   if (nav) nav.classList.add('visible');
   
-  if (tab === 'home') loadFeed();
-  if (tab === 'chat') { if (typeof loadConversations === 'function') loadConversations(); }
-  if (tab === 'discover') { if (typeof loadSuggestions === 'function') loadSuggestions(); }
-  if (tab === 'profile') { if (typeof loadProfile === 'function') loadProfile(); }
-  if (tab === 'connections') { if (typeof loadConnections === 'function') loadConnections(); }
+  if (tab === 'home') if (typeof loadFeed === 'function') loadFeed();
+  if (tab === 'chat') if (typeof loadConversations === 'function') loadConversations();
+  if (tab === 'discover') if (typeof loadSuggestions === 'function') loadSuggestions();
+  if (tab === 'profile') if (typeof loadProfile === 'function') loadProfile();
+  if (tab === 'connections') if (typeof loadConnections === 'function') loadConnections();
   if (tab === 'meetups') {
     if (typeof switchMeetupsTab === 'function') switchMeetupsTab('events');
   }
@@ -47,7 +47,7 @@ export function logout() {
   location.reload();
 }
 
-async function showUserInfoCard(id) {
+export async function showUserInfoCard(id) {
   var modal = document.getElementById('user-info-modal');
   if (!modal) return;
 
@@ -111,16 +111,13 @@ export function closeUserInfoModal(e) {
   if (modal) modal.style.display = 'none';
 }
 
-window.showUserInfoCard = showUserInfoCard;
-window.closeUserInfoModal = closeUserInfoModal;
-
 export function goAuth(mode) {
   goScreen('auth');
   switchTab(mode);
 }
 
 // Initial Setup
-(function init() {
+export function init() {
   if (token && userId) {
     if (typeof initSocket === 'function') initSocket();
     switchTab2('home');
@@ -140,37 +137,38 @@ export function goAuth(mode) {
       }
     }, 1000);
   }
-})();
+}
 
-// UI Helpers for sheets
-function openPostSheet() {
-  setPostMode('activity');
+// Attach UI Helpers for sheets to window and export
+export function openPostSheet() {
+  if (typeof setPostMode === 'function') setPostMode('activity');
   var sheet = document.getElementById('post-sheet');
   if (sheet) {
     sheet.classList.add('open');
     if (typeof initVenueAutocomplete === 'function') initVenueAutocomplete('post-event-venue');
   }
 }
+export function closePostSheet(e) { if (!e || e.target === document.getElementById('post-sheet')) document.getElementById('post-sheet').classList.remove('open'); }
 
-function openCreateEventSheet() { 
+export function openCreateEventSheet() { 
   document.getElementById('create-event-sheet').classList.add('open'); 
   if (typeof initVenueAutocomplete === 'function') initVenueAutocomplete('event-venue'); 
 }
-function closeCreateEventSheet(e) { if (!e || e.target === document.getElementById('create-event-sheet')) document.getElementById('create-event-sheet').classList.remove('open'); }
-function openCreateCommunitySheet() { document.getElementById('create-community-sheet').classList.add('open'); }
-function closeCreateCommunitySheet(e) { if (!e || e.target === document.getElementById('create-community-sheet')) document.getElementById('create-community-sheet').classList.remove('open'); }
-function openSettingsSheet() { document.getElementById('settings-sheet').classList.add('open'); }
-function closeSettingsSheet(e) { if (!e || e.target === document.getElementById('settings-sheet')) document.getElementById('settings-sheet').classList.remove('open'); }
-function openSecuritySheet() { document.getElementById('security-sheet').classList.add('open'); }
-function closeSecuritySheet(e) { if (!e || e.target === document.getElementById('security-sheet')) document.getElementById('security-sheet').classList.remove('open'); }
+export function closeCreateEventSheet(e) { if (!e || e.target === document.getElementById('create-event-sheet')) document.getElementById('create-event-sheet').classList.remove('open'); }
+export function openCreateCommunitySheet() { document.getElementById('create-community-sheet').classList.add('open'); }
+export function closeCreateCommunitySheet(e) { if (!e || e.target === document.getElementById('create-community-sheet')) document.getElementById('create-community-sheet').classList.remove('open'); }
+export function openSettingsSheet() { document.getElementById('settings-sheet').classList.add('open'); }
+export function closeSettingsSheet(e) { if (!e || e.target === document.getElementById('settings-sheet')) document.getElementById('settings-sheet').classList.remove('open'); }
+export function openSecuritySheet() { document.getElementById('security-sheet').classList.add('open'); }
+export function closeSecuritySheet(e) { if (!e || e.target === document.getElementById('security-sheet')) document.getElementById('security-sheet').classList.remove('open'); }
 
-function openWallpaperSheet() { if (typeof currentConvId !== 'undefined' && currentConvId) document.getElementById('wallpaper-sheet').classList.add('open'); }
-function closeWallpaperSheet(e) { if (!e || e.target === document.getElementById('wallpaper-sheet')) document.getElementById('wallpaper-sheet').classList.remove('open'); }
+export function openWallpaperSheet() { if (typeof currentConvId !== 'undefined' && currentConvId) document.getElementById('wallpaper-sheet').classList.add('open'); }
+export function closeWallpaperSheet(e) { if (!e || e.target === document.getElementById('wallpaper-sheet')) document.getElementById('wallpaper-sheet').classList.remove('open'); }
 
-function openStickersSheet() { document.getElementById('stickers-sheet').classList.add('open'); }
-function closeStickersSheet(e) { if (!e || e.target === document.getElementById('stickers-sheet')) document.getElementById('stickers-sheet').classList.remove('open'); }
+export function openStickersSheet() { document.getElementById('stickers-sheet').classList.add('open'); }
+export function closeStickersSheet(e) { if (!e || e.target === document.getElementById('stickers-sheet')) document.getElementById('stickers-sheet').classList.remove('open'); }
 
-function openMediaPreview(src) {
+export function openMediaPreview(src) {
   var modal = document.getElementById('media-preview-modal');
   var img = document.getElementById('media-preview-img');
   if (modal && img) {
@@ -179,7 +177,36 @@ function openMediaPreview(src) {
   }
 }
 
-function closeMediaPreview() {
+export function closeMediaPreview() {
   var modal = document.getElementById('media-preview-modal');
   if (modal) modal.style.display = 'none';
 }
+
+// Global attachments
+window.goScreen = goScreen;
+window.switchTab = switchTab;
+window.switchTab2 = switchTab2;
+window.logout = logout;
+window.showUserInfoCard = showUserInfoCard;
+window.closeUserInfoModal = closeUserInfoModal;
+window.goAuth = goAuth;
+window.init = init;
+window.openPostSheet = openPostSheet;
+window.closePostSheet = closePostSheet;
+window.openCreateEventSheet = openCreateEventSheet;
+window.closeCreateEventSheet = closeCreateEventSheet;
+window.openCreateCommunitySheet = openCreateCommunitySheet;
+window.closeCreateCommunitySheet = closeCreateCommunitySheet;
+window.openSettingsSheet = openSettingsSheet;
+window.closeSettingsSheet = closeSettingsSheet;
+window.openSecuritySheet = openSecuritySheet;
+window.closeSecuritySheet = closeSecuritySheet;
+window.openWallpaperSheet = openWallpaperSheet;
+window.closeWallpaperSheet = closeWallpaperSheet;
+window.openStickersSheet = openStickersSheet;
+window.closeStickersSheet = closeStickersSheet;
+window.openMediaPreview = openMediaPreview;
+window.closeMediaPreview = closeMediaPreview;
+
+// Run init
+init();

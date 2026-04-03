@@ -1,19 +1,16 @@
 // Onboarding Logic and Data
+export var obSelectedSkills = {};
+export var obSelectedLevel = '';
+export var obSelectedIntent = '';
+export var obCurrentStep = 1;
 
-
-
-var obSelectedSkills = {};
-var obSelectedLevel = '';
-var obSelectedIntent = '';
-var obCurrentStep = 1;
-
-function showOnboarding() {
+export function showOnboarding() {
   var overlay = document.getElementById('onboarding-overlay');
   if (overlay) overlay.style.display = 'block';
   if (typeof renderSkillsGrid === 'function') renderSkillsGrid();
 }
 
-function renderSkillsGrid() {
+export function renderSkillsGrid() {
   var grid = document.getElementById('ob-skills-grid');
   if (!grid) return;
   grid.innerHTML = Object.keys(SKILLS_DATA).map(function(skill) {
@@ -22,26 +19,26 @@ function renderSkillsGrid() {
   }).join('');
 }
 
-function toggleObSkill(btn, skill) {
-  if (obSelectedSkills[skill]) {
-    delete obSelectedSkills[skill];
+export function toggleObSkill(btn, skill) {
+  if (window.obSelectedSkills[skill]) {
+    delete window.obSelectedSkills[skill];
     btn.style.background = 'transparent';
     btn.style.borderColor = 'rgba(255,255,255,0.1)';
     btn.style.color = '#f0f0ff';
   } else {
-    obSelectedSkills[skill] = { subSkills: [] };
+    window.obSelectedSkills[skill] = { subSkills: [] };
     btn.style.background = 'rgba(139,92,246,0.2)';
     btn.style.borderColor = '#8b5cf6';
     btn.style.color = '#a78bfa';
   }
   var continueBtn = document.getElementById('ob-btn-1');
-  if (continueBtn) continueBtn.disabled = Object.keys(obSelectedSkills).length === 0;
+  if (continueBtn) continueBtn.disabled = Object.keys(window.obSelectedSkills).length === 0;
 }
 
-function obNextStep(step) {
-  var currentStepEl = document.getElementById('ob-step-' + obCurrentStep);
+export function obNextStep(step) {
+  var currentStepEl = document.getElementById('ob-step-' + window.obCurrentStep);
   if (currentStepEl) currentStepEl.style.display = 'none';
-  obCurrentStep = step;
+  window.obCurrentStep = step;
   var nextStepEl = document.getElementById('ob-step-' + step);
   if (nextStepEl) nextStepEl.style.display = 'block';
   for (var i = 1; i <= 4; i++) {
@@ -51,21 +48,21 @@ function obNextStep(step) {
   if (step === 2 && typeof renderSubSkills === 'function') renderSubSkills();
 }
 
-function renderSubSkills() {
+export function renderSubSkills() {
   var container = document.getElementById('ob-subskills-container');
   if (!container) return;
-  container.innerHTML = Object.keys(obSelectedSkills).map(function(skill) {
+  container.innerHTML = Object.keys(window.obSelectedSkills).map(function(skill) {
     var d = SKILLS_DATA[skill];
     return '<div style="margin-bottom:20px;"><div style="font-weight:700;margin-bottom:10px;">' + d.icon + ' ' + skill + '</div><div style="display:flex;flex-wrap:wrap;gap:8px;">' +
       d.subs.map(function(sub) {
-        var selected = obSelectedSkills[skill].subSkills.includes(sub);
+        var selected = window.obSelectedSkills[skill].subSkills.includes(sub);
         return '<button onclick="toggleSubSkill(this,\'' + skill.replace(/'/g, "\\'") + '\',\'' + sub.replace(/'/g, "\\'") + '\')" style="padding:8px 14px;border-radius:999px;border:1.5px solid ' + (selected ? '#8b5cf6' : 'rgba(255,255,255,0.1)') + ';background:' + (selected ? 'rgba(139,92,246,0.2)' : 'transparent') + ';color:' + (selected ? '#a78bfa' : '#f0f0ff') + ';font-family:inherit;font-size:.82rem;font-weight:600;cursor:pointer;transition:all .2s;">' + sub + '</button>';
       }).join('') + '</div></div>';
   }).join('');
 }
 
-function toggleSubSkill(btn, skill, sub) {
-  var arr = obSelectedSkills[skill].subSkills;
+export function toggleSubSkill(btn, skill, sub) {
+  var arr = window.obSelectedSkills[skill].subSkills;
   var idx = arr.indexOf(sub);
   if (idx > -1) {
     arr.splice(idx, 1);
@@ -80,7 +77,7 @@ function toggleSubSkill(btn, skill, sub) {
   }
 }
 
-function selectLevel(btn) {
+export function selectLevel(btn) {
   document.querySelectorAll('.ob-level-btn').forEach(function(b) {
     b.style.background = 'transparent';
     b.style.borderColor = 'rgba(255,255,255,0.1)';
@@ -89,11 +86,11 @@ function selectLevel(btn) {
   btn.style.background = 'rgba(139,92,246,0.2)';
   btn.style.borderColor = '#8b5cf6';
   btn.style.color = '#a78bfa';
-  obSelectedLevel = btn.dataset.level;
+  window.obSelectedLevel = btn.dataset.level;
   if (typeof checkStep3 === 'function') checkStep3();
 }
 
-function selectIntent(btn) {
+export function selectIntent(btn) {
   document.querySelectorAll('.ob-intent-btn').forEach(function(b) {
     b.style.background = 'transparent';
     b.style.borderColor = 'rgba(255,255,255,0.1)';
@@ -102,27 +99,27 @@ function selectIntent(btn) {
   btn.style.background = 'rgba(139,92,246,0.2)';
   btn.style.borderColor = '#8b5cf6';
   btn.style.color = '#a78bfa';
-  obSelectedIntent = btn.dataset.intent;
+  window.obSelectedIntent = btn.dataset.intent;
   if (typeof checkStep3 === 'function') checkStep3();
 }
 
-function checkStep3() {
+export function checkStep3() {
   var btn = document.getElementById('ob-btn-3');
-  if (btn) btn.disabled = !(obSelectedLevel && obSelectedIntent);
+  if (btn) btn.disabled = !(window.obSelectedLevel && window.obSelectedIntent);
 }
 
-async function completeOnboarding(skip) {
+export async function completeOnboarding(skip) {
   var btn = document.getElementById('ob-btn-finish');
   if (btn) { btn.innerHTML = 'Saving...'; btn.disabled = true; }
 
   var skills = [];
-  Object.keys(obSelectedSkills).forEach(function(skillName) {
-    var subSkills = obSelectedSkills[skillName].subSkills;
+  Object.keys(window.obSelectedSkills).forEach(function(skillName) {
+    var subSkills = window.obSelectedSkills[skillName].subSkills;
     if (subSkills.length === 0) {
-      skills.push({ skillName: skillName, subSkill: null, level: obSelectedLevel || 'Beginner' });
+      skills.push({ skillName: skillName, subSkill: null, level: window.obSelectedLevel || 'Beginner' });
     } else {
       subSkills.forEach(function(sub) {
-        skills.push({ skillName: skillName, subSkill: sub, level: obSelectedLevel || 'Beginner' });
+        skills.push({ skillName: skillName, subSkill: sub, level: window.obSelectedLevel || 'Beginner' });
       });
     }
   });
@@ -130,7 +127,7 @@ async function completeOnboarding(skip) {
   try {
     var body = {
       skills: skills,
-      lookingFor: obSelectedIntent || 'learn',
+      lookingFor: window.obSelectedIntent || 'learn',
       verificationLinks: skip ? {} : {
         strava: document.getElementById('ob-strava') ? document.getElementById('ob-strava').value : '',
         github: document.getElementById('ob-github') ? document.getElementById('ob-github').value : '',
@@ -155,3 +152,19 @@ async function completeOnboarding(skip) {
     if (btn) { btn.innerHTML = 'Finish Setup'; btn.disabled = false; }
   }
 }
+
+// Attach to window
+window.obSelectedSkills = obSelectedSkills;
+window.obSelectedLevel = obSelectedLevel;
+window.obSelectedIntent = obSelectedIntent;
+window.obCurrentStep = obCurrentStep;
+window.showOnboarding = showOnboarding;
+window.renderSkillsGrid = renderSkillsGrid;
+window.toggleObSkill = toggleObSkill;
+window.obNextStep = obNextStep;
+window.renderSubSkills = renderSubSkills;
+window.toggleSubSkill = toggleSubSkill;
+window.selectLevel = selectLevel;
+window.selectIntent = selectIntent;
+window.checkStep3 = checkStep3;
+window.completeOnboarding = completeOnboarding;

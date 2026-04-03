@@ -1,9 +1,9 @@
 // Profile Management and Endorsements
-var activeSharePostId = null;
-var selectedSkillToAdd = null;
-var selectedSkillBtn = null;
+export var activeSharePostId = null;
+export var selectedSkillToAdd = null;
+export var selectedSkillBtn = null;
 
-async function loadProfile() {
+export async function loadProfile() {
   try {
     var r = await fetch(API + '/profile/' + userId, { headers: authHeaders() });
     var d = await r.json(); if (!r.ok) throw new Error(d.error);
@@ -12,7 +12,7 @@ async function loadProfile() {
   } catch (err) { toast(err.message, 'error'); }
 }
 
-async function loadConnections() {
+export async function loadConnections() {
   var pendingEl = document.getElementById('pending-requests');
   var connectedEl = document.getElementById('connected-list');
   if (!pendingEl && !connectedEl) return;
@@ -87,7 +87,7 @@ async function loadConnections() {
   } catch (err) { console.error(err); }
 }
 
-async function cancelRequest(connId) {
+export async function cancelRequest(connId) {
   if (!confirm('Cancel this request?')) return;
   try {
     var r = await fetch(API + '/connections/' + connId, {
@@ -103,7 +103,7 @@ async function cancelRequest(connId) {
   } catch (err) { toast(err.message, 'error'); }
 }
 
-async function respondRequest(connId, action) {
+export async function respondRequest(connId, action) {
   try {
     var r = await fetch(API + '/connections/' + connId + '/' + action, {
       method: 'PUT',
@@ -119,22 +119,19 @@ async function respondRequest(connId, action) {
   } catch (err) { toast(err.message, 'error'); }
 }
 
-async function startChatWith(peerId, peerName) {
-  // Check if we need to implement this in chat.js
+export async function startChatWith(peerId, peerName) {
   if (typeof openDirectChat === 'function') {
     openDirectChat(peerId, peerName);
   } else {
-    // Fallback: switch to chat tab and hope it handles it
-    switchTab2('chat');
+    if (typeof switchTab2 === 'function') switchTab2('chat');
   }
 }
 
-function renderProfile(u) {
-  localStorage.setItem('sc_user', JSON.stringify(u)); // Store for helper functions
+export function renderProfile(u) {
+  localStorage.setItem('sc_user', JSON.stringify(u));
   var avWrap = document.getElementById('profile-avatar-wrap');
   if (avWrap) avWrap.innerHTML = avatarEl(u);
   
-  // Also update the display in the profile screen
   var avatarDisplay = document.getElementById('profile-avatar-display');
   if (avatarDisplay) {
     if (u.avatar_url || u.avatarUrl) {
@@ -153,7 +150,7 @@ function renderProfile(u) {
   if (emailDisp) emailDisp.textContent = u.email || '';
 
   var bioEl = document.getElementById('profile-bio');
-  if (bioEl) bioEl.textContent = u.bio || 'New athlete on Collabro';
+  if (bioEl) bioEl.textContent = u.bio || 'New athlete on SkillConnect';
   var locEl = document.getElementById('profile-location');
   if (locEl) locEl.textContent = u.location || 'Secret Location';
   
@@ -206,7 +203,7 @@ function renderProfile(u) {
   renderSkillOptions();
 }
 
-function renderSkillOptions() {
+export function renderSkillOptions() {
   var container = document.getElementById('skill-options-list');
   if (!container || !window.SKILLS_DATA) return;
   
@@ -225,31 +222,31 @@ function renderSkillOptions() {
   container.innerHTML = html;
 }
 
-function toggleSkillSelection(name, btn) {
-  if (selectedSkillBtn) selectedSkillBtn.classList.remove('active');
+export function toggleSkillSelection(name, btn) {
+  if (window.selectedSkillBtn) window.selectedSkillBtn.classList.remove('active');
   
-  if (selectedSkillToAdd === name) {
-    selectedSkillToAdd = null;
-    selectedSkillBtn = null;
+  if (window.selectedSkillToAdd === name) {
+    window.selectedSkillToAdd = null;
+    window.selectedSkillBtn = null;
     document.getElementById('skill-level-wrap').style.display = 'none';
     document.getElementById('btn-add-skill').style.display = 'none';
   } else {
-    selectedSkillToAdd = name;
-    selectedSkillBtn = btn;
+    window.selectedSkillToAdd = name;
+    window.selectedSkillBtn = btn;
     btn.classList.add('active');
     document.getElementById('skill-level-wrap').style.display = 'block';
     document.getElementById('btn-add-skill').style.display = 'block';
   }
 }
 
-function populateVerificationSkills(skills) {
+export function populateVerificationSkills(skills) {
   var select = document.getElementById('verification-skill-select');
   if (!select) return;
   select.innerHTML = '<option value="">Select skill</option>' + 
     skills.map(function(s) { return '<option value="' + esc(s.name) + '">' + esc(s.name) + '</option>'; }).join('');
 }
 
-async function saveBasicInfo() {
+export async function saveBasicInfo() {
   try {
     var p = { 
       name: document.getElementById('edit-name').value, 
@@ -268,7 +265,7 @@ async function saveBasicInfo() {
   } catch (err) { toast(err.message, 'error'); }
 }
 
-async function saveSocialLinks() {
+export async function saveSocialLinks() {
   try {
     var p = { 
       strava_id: document.getElementById('edit-strava').value, 
@@ -285,7 +282,7 @@ async function saveSocialLinks() {
   } catch (err) { toast(err.message, 'error'); }
 }
 
-async function uploadAvatar(input) {
+export async function uploadAvatar(input) {
   if (!input.files || !input.files[0]) return;
   var file = input.files[0];
   var formData = new FormData();
@@ -307,26 +304,26 @@ async function uploadAvatar(input) {
   }
 }
 
-async function addSkill() {
-  if (!selectedSkillToAdd) return;
+export async function addSkill() {
+  if (!window.selectedSkillToAdd) return;
   var proficiency = document.getElementById('skill-level-select') ? document.getElementById('skill-level-select').value : 'Beginner';
   try {
     var r = await fetch(API + '/profile/skills', { 
       method: 'POST', 
       headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders()), 
-      body: JSON.stringify({ skills: [{ name: selectedSkillToAdd, proficiency: proficiency }] }) 
+      body: JSON.stringify({ skills: [{ name: window.selectedSkillToAdd, proficiency: proficiency }] }) 
     });
     var d = await r.json(); if (!r.ok) throw new Error(d.error);
     toast('Skill added!', 'success');
-    selectedSkillToAdd = null;
-    if (selectedSkillBtn) { selectedSkillBtn.classList.remove('active'); selectedSkillBtn = null; }
+    window.selectedSkillToAdd = null;
+    if (window.selectedSkillBtn) { window.selectedSkillBtn.classList.remove('active'); window.selectedSkillBtn = null; }
     document.getElementById('skill-level-wrap').style.display = 'none';
     document.getElementById('btn-add-skill').style.display = 'none';
     loadProfile();
   } catch (err) { toast(err.message, 'error'); }
 }
 
-async function removeSkill(skillId) {
+export async function removeSkill(skillId) {
   try {
     var r = await fetch(API + '/profile/skills/' + skillId, { method: 'DELETE', headers: authHeaders() });
     var d = await r.json(); if (!r.ok) throw new Error(d.error);
@@ -334,7 +331,7 @@ async function removeSkill(skillId) {
   } catch (err) { toast(err.message, 'error'); }
 }
 
-async function editSkillLevel(skillId, currentLevel) {
+export async function editSkillLevel(skillId, currentLevel) {
   var newLevel = window.prompt("Enter new level (Beginner, Intermediate, Expert):", currentLevel);
   if (!newLevel) return;
   
@@ -369,20 +366,7 @@ async function editSkillLevel(skillId, currentLevel) {
   }
 }
 
-window.addSkill = addSkill;
-window.removeSkill = removeSkill;
-window.editSkillLevel = editSkillLevel;
-window.submitVerification = submitVerification;
-window.saveThemePreference = saveThemePreference;
-window.saveAccountType = saveAccountType;
-window.changePassword = changePassword;
-window.applyThemePreview = applyThemePreview;
-window.copyShortId = copyShortId;
-window.copyShareLink = copyShareLink;
-window.downloadQR = downloadQR;
-window.toggleSkillSelection = toggleSkillSelection;
-
-async function submitVerification() {
+export async function submitVerification() {
   var skillName = document.getElementById('verification-skill-select').value;
   var type = document.getElementById('verification-type-select').value;
   var url = document.getElementById('verification-url').value;
@@ -405,7 +389,7 @@ async function submitVerification() {
   }
 }
 
-function renderVerifications(verifications) {
+export function renderVerifications(verifications) {
   var el = document.getElementById('verifications-list');
   if (!el) return;
   if (!verifications.length) { el.innerHTML = '<span style="color:var(--text2);font-size:.9rem;">No verifications submitted</span>'; return; }
@@ -415,14 +399,14 @@ function renderVerifications(verifications) {
   }).join('');
 }
 
-async function loadVerifications() {
+export async function loadVerifications() {
   try {
     var r = await fetch(API + '/profile/verifications', { headers: authHeaders() });
     var d = await r.json(); if (r.ok) renderVerifications(d);
   } catch (err) {}
 }
 
-function renderEndorsements(endorsements) {
+export function renderEndorsements(endorsements) {
   var el = document.getElementById('endorsements-list');
   if (!el) return;
   if (!endorsements.length) { el.innerHTML = '<span style="color:var(--text2);font-size:.9rem;">No endorsements received</span>'; return; }
@@ -431,14 +415,14 @@ function renderEndorsements(endorsements) {
   }).join('');
 }
 
-async function loadEndorsements() {
+export async function loadEndorsements() {
   try {
     var r = await fetch(API + '/profile/' + userId + '/endorsements');
     var d = await r.json(); if (r.ok) renderEndorsements(d);
   } catch (err) {}
 }
 
-async function generateQR(url) {
+export async function generateQR(url) {
   var el = document.getElementById('qr-code-container');
   if (!el) return;
 
@@ -462,7 +446,8 @@ async function generateQR(url) {
   el.innerHTML = '';
   new QRCode(el, { text: url, width: 140, height: 140, colorDark: "#333333", colorLight: "#ffffff", correctLevel: QRCode.CorrectLevel.H });
 }
-function downloadQR() {
+
+export function downloadQR() {
   var canvas = document.querySelector('#qr-code-container canvas');
   if (!canvas) return toast('QR code not ready', 'error');
   var link = document.createElement('a');
@@ -471,21 +456,21 @@ function downloadQR() {
   link.click();
 }
 
-function copyShortId() {
+export function copyShortId() {
   var id = document.getElementById('profile-short-id').textContent;
   if (!id || id === '--') return;
   navigator.clipboard.writeText(id);
   toast('ID copied to clipboard!', 'success');
 }
 
-function copyShareLink() {
+export function copyShareLink() {
   var link = document.getElementById('profile-share-link').textContent;
   if (!link) return;
   navigator.clipboard.writeText(link);
   toast('Link copied to clipboard!', 'success');
 }
 
-async function saveThemePreference() {
+export async function saveThemePreference() {
   var theme = document.getElementById('edit-theme').value;
   try {
     var r = await fetch(API + '/profile/' + userId, {
@@ -498,7 +483,7 @@ async function saveThemePreference() {
   } catch (err) { toast(err.message, 'error'); }
 }
 
-async function saveAccountType() {
+export async function saveAccountType() {
   var type = document.getElementById('edit-account-type').value;
   try {
     var r = await fetch(API + '/profile/' + userId, {
@@ -511,7 +496,7 @@ async function saveAccountType() {
   } catch (err) { toast(err.message, 'error'); }
 }
 
-async function changePassword() {
+export async function changePassword() {
   var oldPw = document.getElementById('old-password').value;
   var newPw = document.getElementById('new-password').value;
   var confirmPw = document.getElementById('confirm-password').value;
@@ -531,11 +516,11 @@ async function changePassword() {
     document.getElementById('old-password').value = '';
     document.getElementById('new-password').value = '';
     document.getElementById('confirm-password').value = '';
-    closeSecuritySheet();
+    if (typeof closeSecuritySheet === 'function') closeSecuritySheet();
   } catch (err) { toast(err.message, 'error'); }
 }
 
-function applyThemePreview() {
+export function applyThemePreview() {
   var theme = document.getElementById('edit-theme').value;
   if (theme === 'dark') {
     document.documentElement.style.setProperty('--bg', '#0F172A');
@@ -549,3 +534,36 @@ function applyThemePreview() {
     document.documentElement.style.setProperty('--border', '#E2E8F0');
   }
 }
+
+// Attach to window
+window.activeSharePostId = activeSharePostId;
+window.selectedSkillToAdd = selectedSkillToAdd;
+window.selectedSkillBtn = selectedSkillBtn;
+window.loadProfile = loadProfile;
+window.loadConnections = loadConnections;
+window.cancelRequest = cancelRequest;
+window.respondRequest = respondRequest;
+window.startChatWith = startChatWith;
+window.renderProfile = renderProfile;
+window.renderSkillOptions = renderSkillOptions;
+window.toggleSkillSelection = toggleSkillSelection;
+window.populateVerificationSkills = populateVerificationSkills;
+window.saveBasicInfo = saveBasicInfo;
+window.saveSocialLinks = saveSocialLinks;
+window.uploadAvatar = uploadAvatar;
+window.addSkill = addSkill;
+window.removeSkill = removeSkill;
+window.editSkillLevel = editSkillLevel;
+window.submitVerification = submitVerification;
+window.renderVerifications = renderVerifications;
+window.loadVerifications = loadVerifications;
+window.renderEndorsements = renderEndorsements;
+window.loadEndorsements = loadEndorsements;
+window.generateQR = generateQR;
+window.downloadQR = downloadQR;
+window.copyShortId = copyShortId;
+window.copyShareLink = copyShareLink;
+window.saveThemePreference = saveThemePreference;
+window.saveAccountType = saveAccountType;
+window.changePassword = changePassword;
+window.applyThemePreview = applyThemePreview;

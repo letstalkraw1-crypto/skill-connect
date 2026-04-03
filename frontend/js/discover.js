@@ -1,7 +1,7 @@
 // Discovery and Search Features
-var discoverSkillFilter = 'all';
+export var discoverSkillFilter = 'all';
 
-async function searchAthletes() {
+export async function searchAthletes() {
   var q = document.getElementById('discover-search-input').value.trim();
   var el = document.getElementById('discover-results');
   if (!el) return;
@@ -27,7 +27,7 @@ async function searchAthletes() {
   }
 }
 
-async function loadSuggestions() {
+export async function loadSuggestions() {
   var el = document.getElementById('discover-results');
   if (!el) return;
   el.innerHTML = '<div style="text-align:center;padding:32px;"><span class="spinner"></span></div>';
@@ -39,7 +39,7 @@ async function loadSuggestions() {
   } catch (err) { el.innerHTML = '<div style="color:var(--text2);text-align:center;padding:32px;">' + esc(err.message) + '</div>'; }
 }
 
-async function searchNearby() {
+export async function searchNearby() {
   var el = document.getElementById('discover-results');
   if (!el) return;
   el.innerHTML = '<div style="text-align:center;padding:32px;"><span class="spinner"></span></div>';
@@ -54,7 +54,7 @@ async function searchNearby() {
   } else { await doDiscover(url, el); }
 }
 
-async function doDiscover(url, el) {
+export async function doDiscover(url, el) {
   try {
     var r = await fetch(url, { headers: authHeaders() });
     var d = await r.json();
@@ -63,7 +63,7 @@ async function doDiscover(url, el) {
   } catch (err) { el.innerHTML = '<div style="color:var(--text2);text-align:center;padding:32px;">' + esc(err.message) + '</div>'; }
 }
 
-function filterSkill(btn) {
+export function filterSkill(btn) {
   document.querySelectorAll('.chip-row .pill').forEach(function(b) { b.classList.remove('active'); });
   btn.classList.add('active');
   discoverSkillFilter = btn.dataset.skill;
@@ -78,7 +78,7 @@ function filterSkill(btn) {
   }
 }
 
-function renderDiscoverCards(users) {
+export function renderDiscoverCards(users) {
   var el = document.getElementById('discover-results');
   if (!el) return;
   if (!users || !users.length) { el.innerHTML = '<div style="color:var(--text2);text-align:center;padding:32px;">No athletes found</div>'; return; }
@@ -121,7 +121,7 @@ function renderDiscoverCards(users) {
   }).join('');
 }
 
-function renderEventCard(evt) {
+export function renderEventCard(evt) {
   var el = document.getElementById('discover-results');
   if (!el) return;
   
@@ -140,13 +140,13 @@ function renderEventCard(evt) {
     '</div>';
 }
 
-function joinEventByCode(eventId) {
+export function joinEventByCode(eventId) {
     // Switch to meetups tab and load this event
     switchTab2('meetups');
     if (typeof openEventDetails === 'function') openEventDetails(eventId);
 }
 
-async function requestConnection(targetId) {
+export async function requestConnection(targetId) {
   var btn = document.getElementById('conn-btn-' + targetId);
   if (btn) {
     btn.textContent = 'Sending...';
@@ -174,4 +174,16 @@ async function requestConnection(targetId) {
     }
   }
 }
+
+// Attach to window
+window.discoverSkillFilter = discoverSkillFilter;
+window.searchAthletes = searchAthletes;
+window.loadSuggestions = loadSuggestions;
+window.searchNearby = searchNearby;
+window.doDiscover = doDiscover;
+window.filterSkill = filterSkill;
+window.renderDiscoverCards = renderDiscoverCards;
+window.renderEventCard = renderEventCard;
+window.joinEventByCode = joinEventByCode;
+window.requestConnection = requestConnection;
 

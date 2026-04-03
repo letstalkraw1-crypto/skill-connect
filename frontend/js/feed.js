@@ -1,6 +1,6 @@
 // Activity Feed and Social Interactions
 
-async function loadFeed() {
+export async function loadFeed() {
   var el = document.getElementById('feed-list');
   if (!el) return;
   el.innerHTML = '<div style="text-align:center;padding:64px;"><span class="spinner"></span></div>';
@@ -11,7 +11,7 @@ async function loadFeed() {
   } catch (err) { el.innerHTML = '<div style="color:var(--text2);text-align:center;padding:32px;">' + esc(err.message) + '</div>'; }
 }
 
-function renderFeed(posts) {
+export function renderFeed(posts) {
   var el = document.getElementById('feed-list');
   if (!el) return;
   if (!posts || !posts.length) { el.innerHTML = '<div style="color:var(--text2);text-align:center;padding:64px;">No activities yet.<br>Be the first to post!</div>'; return; }
@@ -42,7 +42,7 @@ function renderFeed(posts) {
   }).join('');
 }
 
-async function toggleLike(postId, el) {
+export async function toggleLike(postId, el) {
   try {
     var r = await fetch(API + '/posts/' + postId + '/like', { method: 'POST', headers: authHeaders() });
     var d = await r.json(); if (!r.ok) throw new Error(d.error);
@@ -52,8 +52,9 @@ async function toggleLike(postId, el) {
   } catch (err) { toast(err.message, 'error'); }
 }
 
-var activeOptionsPostId = null;
-function openPostOptions(postId, isAuthor) {
+export var activeOptionsPostId = null;
+
+export function openPostOptions(postId, isAuthor) {
   activeOptionsPostId = postId;
   var sheet = document.getElementById('post-options-sheet');
   if (sheet) sheet.classList.add('open');
@@ -63,7 +64,7 @@ function openPostOptions(postId, isAuthor) {
   if (viewerEl) viewerEl.style.display = isAuthor ? 'none' : 'flex';
 }
 
-function closePostOptionsSheet(e) {
+export function closePostOptionsSheet(e) {
   var sheet = document.getElementById('post-options-sheet');
   if (!e || (sheet && e.target === sheet)) {
     if (sheet) sheet.classList.remove('open');
@@ -71,7 +72,7 @@ function closePostOptionsSheet(e) {
   }
 }
 
-async function deletePost() {
+export async function deletePost() {
   if (!activeOptionsPostId) return;
   try {
     var r = await fetch(API + '/posts/' + activeOptionsPostId, { method: 'DELETE', headers: authHeaders() });
@@ -82,10 +83,10 @@ async function deletePost() {
 }
 
 // Post Sheet and Submission Logic
-var postPhotos = [];
-var currentPostMode = 'activity';
+export var postPhotos = [];
+export var currentPostMode = 'activity';
 
-function setPostMode(mode) {
+export function setPostMode(mode) {
   currentPostMode = mode;
   var actFields = document.getElementById('post-activity-fields');
   var evtFields = document.getElementById('post-event-fields');
@@ -104,25 +105,22 @@ function setPostMode(mode) {
     if (evtBtn) evtBtn.classList.add('active');
   }
 }
-window.setPostMode = setPostMode;
 
-function openPostSheet() {
+export function openPostSheet() {
   setPostMode('activity');
   var sheet = document.getElementById('post-sheet');
   if (sheet) sheet.classList.add('open');
 }
-window.openPostSheet = openPostSheet;
 
-function closePostSheet(e) {
+export function closePostSheet(e) {
   var sheet = document.getElementById('post-sheet');
   if (sheet && (!e || e.target === sheet)) {
     sheet.classList.remove('open');
     resetPostForm();
   }
 }
-window.closePostSheet = closePostSheet;
 
-function resetPostForm() {
+export function resetPostForm() {
   var note = document.getElementById('post-note'); if (note) note.value = '';
   var cap = document.getElementById('post-caption'); if (cap) cap.value = '';
   var verix = document.getElementById('post-verification'); if (verix) verix.value = '';
@@ -137,33 +135,29 @@ function resetPostForm() {
   renderPostPhotoPreview();
 }
 
-function requestMediaAccess() {
+export function requestMediaAccess() {
   var popup = document.getElementById('media-popup');
   if (popup) popup.classList.add('open');
 }
-window.requestMediaAccess = requestMediaAccess;
 
-function closeMediaPopup(e) {
+export function closeMediaPopup(e) {
   var popup = document.getElementById('media-popup');
   if (popup && (!e || e.target === popup)) {
     popup.classList.remove('open');
   }
 }
-window.closeMediaPopup = closeMediaPopup;
 
-function grantFullAccess() {
+export function grantFullAccess() {
   closeMediaPopup();
   document.getElementById('post-photo-input').click();
 }
-window.grantFullAccess = grantFullAccess;
 
-function grantLimitedAccess() {
+export function grantLimitedAccess() {
   closeMediaPopup();
   document.getElementById('post-photo-input').click();
 }
-window.grantLimitedAccess = grantLimitedAccess;
 
-function previewPostPhoto(input) {
+export function previewPostPhoto(input) {
   if (input.files) {
     Array.from(input.files).forEach(file => {
       postPhotos.push(file);
@@ -171,9 +165,8 @@ function previewPostPhoto(input) {
     renderPostPhotoPreview();
   }
 }
-window.previewPostPhoto = previewPostPhoto;
 
-function renderPostPhotoPreview() {
+export function renderPostPhotoPreview() {
   var container = document.getElementById('post-photo-preview');
   var header = document.getElementById('post-photo-header');
   if (!container || !header) return;
@@ -194,19 +187,17 @@ function renderPostPhotoPreview() {
   }
 }
 
-function removePostPhoto() {
+export function removePostPhoto() {
   postPhotos = [];
   renderPostPhotoPreview();
 }
-window.removePostPhoto = removePostPhoto;
 
-function removeSpecificPhoto(idx) {
+export function removeSpecificPhoto(idx) {
   postPhotos.splice(idx, 1);
   renderPostPhotoPreview();
 }
-window.removeSpecificPhoto = removeSpecificPhoto;
 
-async function submitPost() {
+export async function submitPost() {
   if (currentPostMode === 'event') {
     return submitEventFromPost();
   }
@@ -258,7 +249,7 @@ async function submitPost() {
   }
 }
 
-async function submitEventFromPost() {
+export async function submitEventFromPost() {
   var title = document.getElementById('post-event-title').value.trim();
   var datetime = document.getElementById('post-event-datetime').value;
   var venue = document.getElementById('post-event-venue').value.trim();
@@ -287,11 +278,9 @@ async function submitEventFromPost() {
 
     toast('Event scheduled! Code: ' + (d.shortCode || d.short_code), 'success');
     
-    // If there are photos, we might want to also create a post, but user didn't ask for it.
-    // For now, just close.
     closePostSheet();
     if (typeof loadEvents === 'function') loadEvents(); 
-    switchTab2('meetups');
+    if (typeof switchTab2 === 'function') switchTab2('meetups');
   } catch (err) {
     toast(err.message, 'error');
   } finally {
@@ -300,4 +289,24 @@ async function submitEventFromPost() {
   }
 }
 
+// Attach to window
+window.loadFeed = loadFeed;
+window.renderFeed = renderFeed;
+window.toggleLike = toggleLike;
+window.openPostOptions = openPostOptions;
+window.closePostOptionsSheet = closePostOptionsSheet;
+window.deletePost = deletePost;
+window.setPostMode = setPostMode;
+window.openPostSheet = openPostSheet;
+window.closePostSheet = closePostSheet;
+window.resetPostForm = resetPostForm;
+window.requestMediaAccess = requestMediaAccess;
+window.closeMediaPopup = closeMediaPopup;
+window.grantFullAccess = grantFullAccess;
+window.grantLimitedAccess = grantLimitedAccess;
+window.previewPostPhoto = previewPostPhoto;
+window.renderPostPhotoPreview = renderPostPhotoPreview;
+window.removePostPhoto = removePostPhoto;
+window.removeSpecificPhoto = removeSpecificPhoto;
 window.submitPost = submitPost;
+window.submitEventFromPost = submitEventFromPost;

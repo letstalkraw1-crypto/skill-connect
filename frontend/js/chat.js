@@ -1,10 +1,10 @@
 // Messaging and Chat Logic
-var currentConvId = null;
-var pendingVoiceBlob = null;
-var isVoiceRecording = false;
-var isUploadingMedia = false;
+export var currentConvId = null;
+export var pendingVoiceBlob = null;
+export var isVoiceRecording = false;
+export var isUploadingMedia = false;
 
-async function loadConversations() {
+export async function loadConversations() {
   var el = document.getElementById('conv-list');
   if (!el) return;
   el.innerHTML = '<div style="text-align:center;padding:32px;"><span class="spinner"></span></div>';
@@ -15,7 +15,7 @@ async function loadConversations() {
   } catch (err) { el.innerHTML = '<div style="color:var(--text2);text-align:center;padding:16px;">' + esc(err.message) + '</div>'; }
 }
 
-function renderConversations(convs) {
+export function renderConversations(convs) {
   var el = document.getElementById('conv-list');
   if (!el || !convs) return;
   if (!convs.length) { el.innerHTML = '<div style="color:var(--text2);text-align:center;padding:32px;">No active chats</div>'; return; }
@@ -30,8 +30,8 @@ function renderConversations(convs) {
   }).join('');
 }
 
-async function openChatThread(convId, otherName) {
-  currentConvId = convId;
+export async function openChatThread(convId, otherName) {
+  window.currentConvId = convId;
   var titleEl = document.getElementById('chat-thread-name');
   if (titleEl) titleEl.textContent = otherName;
   
@@ -59,17 +59,17 @@ async function openChatThread(convId, otherName) {
   } catch (err) { toast(err.message, 'error'); }
 }
 
-function closeChatThread() {
+export function closeChatThread() {
   var listView = document.getElementById('chat-list-view');
   var threadView = document.getElementById('chat-thread-view');
   if (threadView) threadView.style.display = 'none';
   if (listView) listView.style.display = 'flex';
 
-  if (socket && currentConvId) socket.emit('leave_room', { conversationId: currentConvId });
-  currentConvId = null; loadConversations();
+  if (socket && window.currentConvId) socket.emit('leave_room', { conversationId: window.currentConvId });
+  window.currentConvId = null; loadConversations();
 }
 
-function appendBubble(m) {
+export function appendBubble(m) {
   var el = document.getElementById('chat-messages');
   if (!el) return;
   var isMe = m.sender_id === userId || m.senderId === userId;
@@ -94,26 +94,30 @@ function appendBubble(m) {
   el.appendChild(bubbleWrap); el.scrollTop = el.scrollHeight;
 }
 
-async function sendMessage() {
+export async function sendMessage() {
   var input = document.getElementById('chat-input');
   var content = input.value.trim();
-  if (!content && !pendingVoiceBlob) return;
-  var msgData = { conversationId: currentConvId, senderId: userId, content: content || '🎤 Voice message' };
-  if (pendingVoiceBlob) {
-    var fd = new FormData(); fd.append('file', pendingVoiceBlob, 'voice.webm');
+  if (!content && !window.pendingVoiceBlob) return;
+  var msgData = { conversationId: window.currentConvId, senderId: userId, content: content || '🎤 Voice message' };
+  if (window.pendingVoiceBlob) {
+    var fd = new FormData(); fd.append('file', window.pendingVoiceBlob, 'voice.webm');
     try {
       var r = await fetch(API + '/upload/chat', { method: 'POST', headers: authHeaders(), body: fd });
       var d = await r.json(); if (!r.ok) throw new Error(d.error);
       msgData.content = d.url;
     } catch (err) { return toast('Voice upload failed', 'error'); }
-    finally { pendingVoiceBlob = null; updateChatInputUI(); }
+    finally { 
+      window.pendingVoiceBlob = null; 
+      if (typeof updateChatInputUI === 'function') updateChatInputUI(); 
+    }
   }
   if (socket) socket.emit('send_message', msgData);
   appendBubble({ sender_id: userId, content: msgData.content, created_at: new Date() });
-  input.value = ''; updateChatInputUI();
+  input.value = ''; 
+  if (typeof updateChatInputUI === 'function') updateChatInputUI();
 }
 
-function applyWallpaperStyle(wallpaper) {
+export function applyWallpaperStyle(wallpaper) {
   const el = document.getElementById('chat-messages');
   if (!el) return;
   if (!wallpaper) {
@@ -128,24 +132,24 @@ function applyWallpaperStyle(wallpaper) {
   }
 }
 
-function updateChatInputUI() {
+export function updateChatInputUI() {
   var micBtn = document.getElementById('mic-btn');
   if (micBtn) {
-    micBtn.style.color = isVoiceRecording ? 'var(--red)' : 'var(--text2)';
-    micBtn.innerHTML = isVoiceRecording ? '⏹' : '🎤';
+    micBtn.style.color = window.isVoiceRecording ? 'var(--red)' : 'var(--text2)';
+    micBtn.innerHTML = window.isVoiceRecording ? '⏹' : '🎤';
   }
   var sendBtn = document.getElementById('send-btn');
   if (sendBtn) {
     var input = document.getElementById('chat-input');
-    sendBtn.disabled = !(input.value.trim() || pendingVoiceBlob);
+    sendBtn.disabled = !(input.value.trim() || window.pendingVoiceBlob);
   }
 }
 
-async function toggleMicRecording() {
+export async function toggleMicRecording() {
   if (!navigator.mediaDevices) return toast('Media devices not supported', 'error');
-  isVoiceRecording = !isVoiceRecording;
+  window.isVoiceRecording = !window.isVoiceRecording;
   updateChatInputUI();
-  if (isVoiceRecording) {
+  if (window.isVoiceRecording) {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const mediaRecorder = new MediaRecorder(stream);
@@ -153,16 +157,23 @@ async function toggleMicRecording() {
       mediaRecorder.ondataavailable = e => { if (e.data.size > 0) audioChunks.push(e.data); };
       mediaRecorder.onstop = () => {
         stream.getTracks().forEach(t => t.stop());
-        pendingVoiceBlob = new Blob(audioChunks, { type: 'audio/webm' });
-        isVoiceRecording = false; updateChatInputUI();
+        window.pendingVoiceBlob = new Blob(audioChunks, { type: 'audio/webm' });
+        window.isVoiceRecording = false; 
+        updateChatInputUI();
       };
       mediaRecorder.start();
-      // Store recorder instance globally if needed for stopping
       window._currentRecorder = mediaRecorder;
-    } catch (e) { isVoiceRecording = false; updateChatInputUI(); toast('Mic access denied', 'error'); }
-  } else { if (window._currentRecorder && window._currentRecorder.state === 'recording') window._currentRecorder.stop(); }
+    } catch (e) { 
+      window.isVoiceRecording = false; 
+      updateChatInputUI(); 
+      toast('Mic access denied', 'error'); 
+    }
+  } else { 
+    if (window._currentRecorder && window._currentRecorder.state === 'recording') window._currentRecorder.stop(); 
+  }
 }
-async function openNewChatModal() {
+
+export async function openNewChatModal() {
   var modal = document.getElementById('new-chat-modal');
   var list = document.getElementById('new-chat-list');
   if (!modal || !list) return;
@@ -192,16 +203,14 @@ async function openNewChatModal() {
   }
 }
 
-async function handleNewChatAction(type) {
+export async function handleNewChatAction(type) {
   var checks = document.querySelectorAll('.new-chat-check:checked');
   if (checks.length === 0) return toast('Please select at least one person', 'info');
 
   var selectedIds = Array.from(checks).map(c => c.value);
-  var selectedNames = Array.from(checks).map(c => c.getAttribute('data-name'));
-
+  
   if (type === 'community') {
     closeNewChatModal();
-    // User wants a group for communities
     try {
       var name = window.prompt("Enter Community/Group Name:", "New Group");
       if (!name) return;
@@ -220,7 +229,6 @@ async function handleNewChatAction(type) {
       openChatThread(d._id || d.id, name);
     } catch (err) { toast(err.message, 'error'); }
   } else {
-    // Individual messaging for multi-select
     closeNewChatModal();
     var msg = window.prompt("Message to send to all selected (" + selectedIds.length + "):");
     if (!msg) return;
@@ -229,7 +237,6 @@ async function handleNewChatAction(type) {
     let successCount = 0;
     for (let i = 0; i < selectedIds.length; i++) {
         try {
-            // 1. Create/Get conversation
             var r = await fetch(API + '/conversations', {
                 method: 'POST',
                 headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders()),
@@ -238,7 +245,6 @@ async function handleNewChatAction(type) {
             var d = await r.json();
             if (!r.ok) continue;
 
-            // 2. Send message manually via API instead of socket for bulk
             await fetch(API + '/conversations/' + (d._id || d.id) + '/messages', {
                 method: 'POST',
                 headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders()),
@@ -252,23 +258,16 @@ async function handleNewChatAction(type) {
   }
 }
 
-function closeNewChatModal(e) {
+export function closeNewChatModal(e) {
   if (e && e.target !== e.currentTarget && e.target.tagName !== 'BUTTON') return;
   var modal = document.getElementById('new-chat-modal');
   if (modal) modal.style.display = 'none';
 }
 
-async function initiateConversation(peerId, peerName) {
-  closeNewChatModal();
-  openDirectChat(peerId, peerName);
-}
-
-async function openDirectChat(peerId, peerName) {
+export async function openDirectChat(peerId, peerName) {
   try {
-    // Switch to chat tab first
-    switchTab2('chat');
+    if (typeof switchTab2 === 'function') switchTab2('chat');
     
-    // Create/Find conversation
     var r = await fetch(API + '/conversations', {
       method: 'POST',
       headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders()),
@@ -283,7 +282,20 @@ async function openDirectChat(peerId, peerName) {
   }
 }
 
+// Attach to window
+window.currentConvId = currentConvId;
+window.pendingVoiceBlob = pendingVoiceBlob;
+window.isVoiceRecording = isVoiceRecording;
+window.isUploadingMedia = isUploadingMedia;
+window.loadConversations = loadConversations;
+window.openChatThread = openChatThread;
+window.closeChatThread = closeChatThread;
+window.appendBubble = appendBubble;
+window.sendMessage = sendMessage;
+window.toggleMicRecording = toggleMicRecording;
+window.updateChatInputUI = updateChatInputUI;
 window.openNewChatModal = openNewChatModal;
 window.closeNewChatModal = closeNewChatModal;
 window.handleNewChatAction = handleNewChatAction;
 window.openDirectChat = openDirectChat;
+window.applyWallpaperStyle = applyWallpaperStyle;

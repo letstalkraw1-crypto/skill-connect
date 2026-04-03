@@ -1,7 +1,7 @@
 // Meetups, Events, and Communities logic
-var venueLatLng = null;
+export var venueLatLng = null;
 
-async function loadEvents() {
+export async function loadEvents() {
   var el = document.getElementById('events-list');
   if (!el) return;
   el.innerHTML = '<div style="text-align:center;padding:32px;"><span class="spinner"></span></div>';
@@ -24,7 +24,7 @@ async function loadEvents() {
   } catch (err) { el.innerHTML = '<div style="color:var(--red);">' + esc(err.message) + '</div>'; }
 }
 
-function switchMeetupsTab(tab) {
+export function switchMeetupsTab(tab) {
   var evtBtn = document.getElementById('tab-btn-events');
   var comBtn = document.getElementById('tab-btn-communities');
   var evtView = document.getElementById('meetups-events-view');
@@ -45,8 +45,7 @@ function switchMeetupsTab(tab) {
   }
 }
 
-async function openEventDetails(eventId) {
-  // Highlight the event card if it exists, or just toast
+export async function openEventDetails(eventId) {
   setTimeout(() => {
     var card = document.getElementById('event-card-' + eventId);
     if (card) {
@@ -57,7 +56,7 @@ async function openEventDetails(eventId) {
   }, 500);
 }
 
-async function requestRsvp(eventId) {
+export async function requestRsvp(eventId) {
   try {
     var r = await fetch(API + '/events/' + eventId + '/rsvp', { method: 'POST', headers: authHeaders() });
     if (!r.ok) { var d = await r.json(); throw new Error(d.error); }
@@ -65,50 +64,69 @@ async function requestRsvp(eventId) {
   } catch (err) { toast(err.message, 'error'); }
 }
 
-async function submitEvent() {
+export async function submitEvent() {
   var title = document.getElementById('event-title').value.trim();
   var dt = document.getElementById('event-datetime').value;
   var venue = document.getElementById('event-venue').value.trim();
   var guidelines = document.getElementById('event-guidelines').value;
   if (!title || !dt) return toast('Title and date required', 'error');
-  var btn = document.querySelector('#create-event-sheet .btn-primary'); btn.innerHTML = '<span class="spinner"></span>'; btn.disabled = true;
+  var btn = document.querySelector('#create-event-sheet .btn-primary'); 
+  if (btn) {
+    btn.innerHTML = '<span class="spinner"></span>'; 
+    btn.disabled = true;
+  }
   try {
-    var r = await fetch(API + '/events', { method: 'POST', headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders()), body: JSON.stringify({ title, datetime: dt, venue_name: venue, venue_coords: venueLatLng, guidelines }) });
+    var r = await fetch(API + '/events', { 
+      method: 'POST', 
+      headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders()), 
+      body: JSON.stringify({ title, datetime: dt, venue_name: venue, venue_coords: window.venueLatLng, guidelines }) 
+    });
     if (!r.ok) { var d = await r.json(); throw new Error(d.error || 'Failed'); }
-    toast('Event published!', 'success'); closeCreateEventSheet(); switchMeetupsTab('events');
-  } catch (err) { toast(err.message, 'error'); } finally { btn.innerHTML = 'Publish Notice'; btn.disabled = false; }
+    toast('Event published!', 'success'); 
+    closeCreateEventSheet(); 
+    switchMeetupsTab('events');
+  } catch (err) { 
+    toast(err.message, 'error'); 
+  } finally { 
+    if (btn) {
+      btn.innerHTML = 'Publish Notice'; 
+      btn.disabled = false;
+    }
+  }
 }
 
-function openCreateEventSheet() {
+export function openCreateEventSheet() {
   var sheet = document.getElementById('create-event-sheet');
   if (sheet) sheet.classList.add('open');
 }
 
-function closeCreateEventSheet(e) {
+export function closeCreateEventSheet(e) {
   if (e && e.target !== e.currentTarget) return;
   var sheet = document.getElementById('create-event-sheet');
   if (sheet) sheet.classList.remove('open');
 }
 
-function openCreateCommunitySheet() {
+export function openCreateCommunitySheet() {
   var sheet = document.getElementById('create-community-sheet');
   if (sheet) sheet.classList.add('open');
 }
 
-function closeCreateCommunitySheet(e) {
+export function closeCreateCommunitySheet(e) {
   if (e && e.target !== e.currentTarget) return;
   var sheet = document.getElementById('create-community-sheet');
   if (sheet) sheet.classList.remove('open');
 }
 
-async function submitCommunity() {
+export async function submitCommunity() {
   var name = document.getElementById('community-name').value.trim();
   var desc = document.getElementById('community-desc').value.trim();
   if (!name) return toast('Community name required', 'error');
   
   var btn = document.querySelector('#create-community-sheet .btn-primary'); 
-  var oldText = btn.innerHTML;
-  btn.innerHTML = '<span class="spinner"></span>'; btn.disabled = true;
+  var oldText = btn ? btn.innerHTML : 'Create';
+  if (btn) {
+    btn.innerHTML = '<span class="spinner"></span>'; btn.disabled = true;
+  }
   
   try {
     var r = await fetch(API + '/communities', { 
@@ -121,10 +139,14 @@ async function submitCommunity() {
     closeCreateCommunitySheet(); 
     switchMeetupsTab('communities');
   } catch (err) { toast(err.message, 'error'); } 
-  finally { btn.innerHTML = oldText; btn.disabled = false; }
+  finally { 
+    if (btn) {
+      btn.innerHTML = oldText; btn.disabled = false;
+    }
+  }
 }
 
-async function loadCommunities() {
+export async function loadCommunities() {
   var el = document.getElementById('communities-list');
   if (!el) return;
   el.innerHTML = '<div style="text-align:center;padding:32px;"><span class="spinner"></span></div>';
@@ -146,16 +168,13 @@ async function loadCommunities() {
   } catch (err) { el.innerHTML = '<div style="color:var(--red);">' + esc(err.message) + '</div>'; }
 }
 
-async function showEventInfoCard(eventId) {
+export async function showEventInfoCard(eventId) {
    try {
      var r = await fetch(API + '/events/' + eventId, { headers: authHeaders() });
      var ev = await r.json(); if (!r.ok) throw new Error(ev.error);
      
-     // We will reuse the showUserInfoCard style/modal but with different content if needed
-     // For now, let's toast details or open a specific modal if it exists
      var dt = new Date(ev.datetime).toLocaleString([], { month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
      
-     // Creating an ad-hoc modal for event info
      var modal = document.createElement('div');
      modal.className = 'sheet-overlay'; 
      modal.onclick = function(e) { if(e.target === modal) modal.remove(); };
@@ -177,7 +196,7 @@ async function showEventInfoCard(eventId) {
    } catch (err) { toast(err.message, 'error'); }
 }
 
-async function showCommunityInfoCard(communityId) {
+export async function showCommunityInfoCard(communityId) {
   try {
      var r = await fetch(API + '/communities/' + communityId, { headers: authHeaders() });
      var c = await r.json(); if (!r.ok) throw new Error(c.error);
@@ -206,7 +225,7 @@ async function showCommunityInfoCard(communityId) {
   } catch (err) { toast(err.message, 'error'); }
 }
 
-async function joinCommunity(id) {
+export async function joinCommunity(id) {
   try {
     var r = await fetch(API + '/communities/' + id + '/join', { method: 'POST', headers: authHeaders() });
     if (!r.ok) { var d = await r.json(); throw new Error(d.error); }
@@ -214,10 +233,10 @@ async function joinCommunity(id) {
   } catch (err) { toast(err.message, 'error'); }
 }
 
-var activeEventId = null;
+export var activeEventId = null;
 
-async function viewPendingRsvps(eventId) {
-  activeEventId = eventId;
+export async function viewPendingRsvps(eventId) {
+  window.activeEventId = eventId;
   try {
     var r = await fetch(API + '/events/' + eventId, { headers: authHeaders() });
     var ev = await r.json(); if (!r.ok) throw new Error(ev.error);
@@ -257,10 +276,10 @@ async function viewPendingRsvps(eventId) {
   } catch (err) { toast(err.message, 'error'); }
 }
 
-async function handleRsvp(targetUserId, status) {
-  if (!activeEventId) return;
+export async function handleRsvp(targetUserId, status) {
+  if (!window.activeEventId) return;
   try {
-    var r = await fetch(API + '/events/' + activeEventId + '/rsvp/' + targetUserId, { 
+    var r = await fetch(API + '/events/' + window.activeEventId + '/rsvp/' + targetUserId, { 
       method: 'PUT', 
       headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders()), 
       body: JSON.stringify({ status: status }) 
@@ -271,8 +290,7 @@ async function handleRsvp(targetUserId, status) {
   } catch (err) { toast(err.message, 'error'); }
 }
 
-
-function initVenueAutocomplete(inputId) {
+export function initVenueAutocomplete(inputId) {
   var id = inputId || 'event-venue';
   var input = document.getElementById(id);
   if (!input || input._nominatimInit) return;
@@ -312,7 +330,7 @@ function initVenueAutocomplete(inputId) {
             item.addEventListener('mousedown', function(e) {
               e.preventDefault(); 
               input.value = item.dataset.name;
-              venueLatLng = { lat: parseFloat(item.dataset.lat), lng: parseFloat(item.dataset.lng) };
+              window.venueLatLng = { lat: parseFloat(item.dataset.lat), lng: parseFloat(item.dataset.lng) };
               
               var status = document.getElementById('venue-status');
               if (status) status.style.display = 'block'; 
@@ -329,3 +347,24 @@ function initVenueAutocomplete(inputId) {
     setTimeout(function() { dropdown.style.display = 'none'; }, 200);
   });
 }
+
+// Attach to window
+window.venueLatLng = venueLatLng;
+window.loadEvents = loadEvents;
+window.switchMeetupsTab = switchMeetupsTab;
+window.openEventDetails = openEventDetails;
+window.requestRsvp = requestRsvp;
+window.submitEvent = submitEvent;
+window.openCreateEventSheet = openCreateEventSheet;
+window.closeCreateEventSheet = closeCreateEventSheet;
+window.openCreateCommunitySheet = openCreateCommunitySheet;
+window.closeCreateCommunitySheet = closeCreateCommunitySheet;
+window.submitCommunity = submitCommunity;
+window.loadCommunities = loadCommunities;
+window.showEventInfoCard = showEventInfoCard;
+window.showCommunityInfoCard = showCommunityInfoCard;
+window.joinCommunity = joinCommunity;
+window.activeEventId = activeEventId;
+window.viewPendingRsvps = viewPendingRsvps;
+window.handleRsvp = handleRsvp;
+window.initVenueAutocomplete = initVenueAutocomplete;

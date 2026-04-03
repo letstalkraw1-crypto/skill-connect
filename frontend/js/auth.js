@@ -1,9 +1,9 @@
 // Authentication and Profile Logic
 
-async function handleLogin(e) {
+export async function handleLogin(e) {
   if (e) e.preventDefault();
   var b = document.getElementById('btn-login');
-  b.innerHTML = '<span class="spinner"></span>'; b.disabled = true;
+  if (b) { b.innerHTML = '<span class="spinner"></span>'; b.disabled = true; }
   var email = document.getElementById('login-email').value;
   var password = document.getElementById('login-password').value;
   try {
@@ -17,14 +17,14 @@ async function handleLogin(e) {
     onLoginSuccess(d);
   } catch (err) {
     toast(err.message, 'error');
-    b.innerHTML = 'Log In'; b.disabled = false;
+    if (b) { b.innerHTML = 'Log In'; b.disabled = false; }
   }
 }
 
-async function handleSignup(e) {
+export async function handleSignup(e) {
   if (e) e.preventDefault();
   var b = document.getElementById('btn-signup');
-  b.innerHTML = '<span class="spinner"></span>'; b.disabled = true;
+  if (b) { b.innerHTML = '<span class="spinner"></span>'; b.disabled = true; }
   var n = document.getElementById('signup-name').value;
   var em = document.getElementById('signup-email').value;
   var p = document.getElementById('signup-password').value;
@@ -39,44 +39,50 @@ async function handleSignup(e) {
     onLoginSuccess(d);
   } catch (err) {
     toast(err.message, 'error');
-    b.innerHTML = 'Sign Up'; b.disabled = false;
+    if (b) { b.innerHTML = 'Sign Up'; b.disabled = false; }
   }
 }
 
-async function onLoginSuccess(d) {
-  token = d.token; userId = d.userId;
-  localStorage.setItem('sc_token', token);
-  localStorage.setItem('sc_userId', userId);
+export async function onLoginSuccess(d) {
+  // Update local variables but also localStorage
+  window.token = d.token; 
+  window.userId = d.userId;
+  localStorage.setItem('sc_token', d.token);
+  localStorage.setItem('sc_userId', d.userId);
+  
   if (typeof initSocket === 'function') initSocket();
   if (typeof loadAvailableSkills === 'function') await loadAvailableSkills();
+  
   try {
-    var profileRes = await fetch(API + '/profile/' + userId, { headers: authHeaders() });
+    var profileRes = await fetch(API + '/profile/' + d.userId, { headers: authHeaders() });
     var profileData = await profileRes.json();
     if (!profileData.onboardingComplete) { 
       if (typeof showOnboarding === 'function') showOnboarding(); 
       return; 
     }
   } catch(e) {}
+  
   if (typeof switchTab2 === 'function') switchTab2('home');
   toast('Welcome back!', 'success');
 }
 
-function logout() {
-  token = ''; userId = ''; userName = '';
+export function logout() {
+  window.token = ''; window.userId = ''; window.userName = '';
   localStorage.removeItem('sc_token'); localStorage.removeItem('sc_userId');
-  if (socket) { socket.disconnect(); socket = null; }
+  if (window.socket) { window.socket.disconnect(); window.socket = null; }
   if (typeof goScreen === 'function') goScreen('landing');
   var nav = document.getElementById('bottom-nav');
   if (nav) nav.classList.remove('visible');
 }
 
 // OTP Related logic
-var otpRequestId = null;
-async function sendLoginOtp() {
+export var otpRequestId = null;
+
+export async function sendLoginOtp() {
   var phone = document.getElementById('login-phone').value;
   if (!phone) return toast('Phone number required', 'error');
   var b = document.getElementById('btn-send-otp');
-  b.innerHTML = '<span class="spinner"></span>'; b.disabled = true;
+  if (b) { b.innerHTML = '<span class="spinner"></span>'; b.disabled = true; }
   try {
     var r = await fetch(API + '/auth/otp/send', {
       method: 'POST',
@@ -91,14 +97,16 @@ async function sendLoginOtp() {
     document.getElementById('otp-sent-msg').textContent = 'Code sent to ' + phone;
   } catch(err) {
     toast(err.message, 'error');
-  } finally { b.innerHTML = 'Send OTP'; b.disabled = false; }
+  } finally { 
+    if (b) { b.innerHTML = 'Send OTP'; b.disabled = false; }
+  }
 }
 
-async function verifyLoginOtp() {
+export async function verifyLoginOtp() {
   var otp = document.getElementById('login-otp').value;
   if (otp.length < 4) return toast('Invalid OTP', 'error');
   var b = document.getElementById('btn-verify-otp');
-  b.innerHTML = '<span class="spinner"></span>'; b.disabled = true;
+  if (b) { b.innerHTML = '<span class="spinner"></span>'; b.disabled = true; }
   try {
     var r = await fetch(API + '/auth/otp/verify', {
       method: 'POST',
@@ -110,11 +118,22 @@ async function verifyLoginOtp() {
     onLoginSuccess(d);
   } catch(err) {
     toast(err.message, 'error');
-  } finally { b.innerHTML = 'Verify &amp; Log In'; b.disabled = false; }
+  } finally { 
+    if (b) { b.innerHTML = 'Verify & Log In'; b.disabled = false; }
+  }
 }
 
-function resetOtpStep() {
+export function resetOtpStep() {
   document.getElementById('phone-login-step1').style.display = 'block';
   document.getElementById('phone-login-step2').style.display = 'none';
   document.getElementById('login-otp').value = '';
 }
+
+// Attach to window
+window.handleLogin = handleLogin;
+window.handleSignup = handleSignup;
+window.onLoginSuccess = onLoginSuccess;
+window.logout = logout;
+window.sendLoginOtp = sendLoginOtp;
+window.verifyLoginOtp = verifyLoginOtp;
+window.resetOtpStep = resetOtpStep;
