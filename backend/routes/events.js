@@ -5,6 +5,22 @@ const { Event, EventRsvp, User } = require('../db/index');
 
 const router = express.Router();
 
+// Helper to generate a unique 5-digit uppercase alphanumeric code
+async function generateShortCode() {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  let isUnique = false;
+  let code = '';
+  while (!isUnique) {
+    code = '';
+    for (let i = 0; i < 5; i++) {
+      code += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    const existing = await Event.findOne({ shortCode: code });
+    if (!existing) isUnique = true;
+  }
+  return code;
+}
+
 // GET /events/venues/search?q=venueName — MUST be before /:id
 router.get('/venues/search', verifyToken, async (req, res) => {
   try {
@@ -180,6 +196,7 @@ router.post('/', verifyToken, async (req, res) => {
     }
 
     const eventId = uuidv4();
+    const shortCode = await generateShortCode();
     
     const newEvent = new Event({
       _id: eventId,
@@ -190,7 +207,8 @@ router.post('/', verifyToken, async (req, res) => {
       guidelines: guidelines || null,
       routePoints: Array.isArray(routePoints) ? routePoints : (routePoints ? [routePoints] : []),
       venueName: venueName || null,
-      venueCoords: venueCoords || null
+      venueCoords: venueCoords || null,
+      shortCode
     });
     
     await newEvent.save();

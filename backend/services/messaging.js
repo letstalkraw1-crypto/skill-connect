@@ -100,6 +100,7 @@ async function getMessages(conversationId, userId) {
     id: m._id,
     sender_id: m.senderId,
     conversation_id: m.conversationId,
+    content: m.text,
     sent_at: m.sentAt,
     created_at: m.sentAt,
     reply_to: m.replyToMessageId

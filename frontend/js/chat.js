@@ -34,7 +34,16 @@ async function openChatThread(convId, otherName) {
   currentConvId = convId;
   var titleEl = document.getElementById('chat-thread-name');
   if (titleEl) titleEl.textContent = otherName;
-  document.getElementById('chat-thread-view').style.display = 'flex';
+  
+  // Hide list, show thread for "Dedicated Interface"
+  var listView = document.getElementById('chat-list-view');
+  var threadView = document.getElementById('chat-thread-view');
+  if (listView) listView.style.display = 'none';
+  if (threadView) {
+    threadView.style.display = 'flex';
+    threadView.style.animation = 'slideInRight 0.3s ease-out';
+  }
+
   var el = document.getElementById('chat-messages');
   el.innerHTML = '<div style="text-align:center;padding:32px;"><span class="spinner"></span></div>';
   try {
@@ -51,7 +60,11 @@ async function openChatThread(convId, otherName) {
 }
 
 function closeChatThread() {
-  document.getElementById('chat-thread-view').style.display = 'none';
+  var listView = document.getElementById('chat-list-view');
+  var threadView = document.getElementById('chat-thread-view');
+  if (threadView) threadView.style.display = 'none';
+  if (listView) listView.style.display = 'flex';
+
   if (socket && currentConvId) socket.emit('leave_room', { conversationId: currentConvId });
   currentConvId = null; loadConversations();
 }
@@ -60,18 +73,25 @@ function appendBubble(m) {
   var el = document.getElementById('chat-messages');
   if (!el) return;
   var isMe = m.sender_id === userId || m.senderId === userId;
-  var bubble = document.createElement('div');
-  bubble.className = 'message ' + (isMe ? 'me' : 'them');
-  var content = esc(m.content);
-  if (typeof m.content === 'string' && m.content.startsWith('http')) {
-    if (['.jpg', '.png', '.webp', '.jpeg'].some(ext => m.content.toLowerCase().includes(ext))) {
-       content = '<img src="' + m.content + '" style="max-width:100%;border-radius:12px;" onclick="openMediaPreview(\'' + m.content + '\')"/>';
-    } else if (['.mp3', '.webm', '.ogg', '.wav'].some(ext => m.content.toLowerCase().includes(ext))) {
-       content = '<audio controls src="' + m.content + '" style="width:100%;height:32px;"></audio>';
+  var bubbleWrap = document.createElement('div');
+  bubbleWrap.className = 'bubble-wrap ' + (isMe ? 'mine' : 'theirs');
+
+  var content = esc(m.content || m.text || '');
+  if (typeof (m.content || m.text) === 'string' && (m.content || m.text).startsWith('http')) {
+    var url = (m.content || m.text);
+    if (['.jpg', '.png', '.webp', '.jpeg'].some(ext => url.toLowerCase().includes(ext))) {
+       content = '<img src="' + url + '" style="max-width:100%;border-radius:12px;" onclick="openMediaPreview(\'' + url + '\')"/>';
+    } else if (['.mp3', '.webm', '.ogg', '.wav'].some(ext => url.toLowerCase().includes(ext))) {
+       content = '<audio controls src="' + url + '" style="width:100%;height:32px;"></audio>';
     }
   }
-  bubble.innerHTML = '<div class="message-bubble">' + content + '<div class="message-time">' + (m.created_at ? timeAgo(m.created_at) : 'now') + '</div></div>';
-  el.appendChild(bubble); el.scrollTop = el.scrollHeight;
+
+  bubbleWrap.innerHTML = '<div class="bubble ' + (isMe ? 'mine' : 'theirs') + '">' +
+    content +
+    '<div class="message-time">' +
+    (m.created_at ? timeAgo(m.created_at) : 'now') +
+    '</div></div>';
+  el.appendChild(bubbleWrap); el.scrollTop = el.scrollHeight;
 }
 
 async function sendMessage() {
@@ -161,13 +181,74 @@ async function openNewChatModal() {
     }
 
     list.innerHTML = d.connections.map(function(c) {
-      return '<div class="user-row" style="padding:10px;border-radius:12px;background:var(--bg);cursor:pointer;" onclick="initiateConversation(\'' + c.id + '\', \'' + esc(c.name) + '\')">' +
+      return '<label class="user-row" style="padding:10px;border-radius:12px;background:var(--bg);cursor:pointer;display:flex;align-items:center;gap:12px;">' +
+        '<input type="checkbox" class="new-chat-check" value="' + c.id + '" data-name="' + esc(c.name) + '" style="width:18px;height:18px;"/>' +
         '<div class="avatar av-sm">' + avatarEl(c) + '</div>' +
-        '<div style="font-weight:600;font-size:0.95rem;">' + esc(c.name) + '</div>' +
-      '</div>';
+        '<div style="font-weight:600;font-size:0.95rem;flex:1;">' + esc(c.name) + '</div>' +
+      '</label>';
     }).join('');
   } catch (err) {
     list.innerHTML = '<div style="color:var(--red);text-align:center;padding:20px;">' + esc(err.message) + '</div>';
+  }
+}
+
+async function handleNewChatAction(type) {
+  var checks = document.querySelectorAll('.new-chat-check:checked');
+  if (checks.length === 0) return toast('Please select at least one person', 'info');
+
+  var selectedIds = Array.from(checks).map(c => c.value);
+  var selectedNames = Array.from(checks).map(c => c.getAttribute('data-name'));
+
+  if (type === 'community') {
+    closeNewChatModal();
+    // User wants a group for communities
+    try {
+      var name = window.prompt("Enter Community/Group Name:", "New Group");
+      if (!name) return;
+      
+      var r = await fetch(API + '/conversations', {
+        method: 'POST',
+        headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders()),
+        body: JSON.stringify({ 
+          participantIds: selectedIds,
+          isGroup: true,
+          name: name
+        })
+      });
+      var d = await r.json();
+      if (!r.ok) throw new Error(d.error);
+      openChatThread(d._id || d.id, name);
+    } catch (err) { toast(err.message, 'error'); }
+  } else {
+    // Individual messaging for multi-select
+    closeNewChatModal();
+    var msg = window.prompt("Message to send to all selected (" + selectedIds.length + "):");
+    if (!msg) return;
+
+    toast('Sending messages...', 'info');
+    let successCount = 0;
+    for (let i = 0; i < selectedIds.length; i++) {
+        try {
+            // 1. Create/Get conversation
+            var r = await fetch(API + '/conversations', {
+                method: 'POST',
+                headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders()),
+                body: JSON.stringify({ participantIds: [selectedIds[i]] })
+            });
+            var d = await r.json();
+            if (!r.ok) continue;
+
+            // 2. Send message manually via API instead of socket for bulk
+            await fetch(API + '/conversations/' + (d._id || d.id) + '/messages', {
+                method: 'POST',
+                headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders()),
+                body: JSON.stringify({ content: msg })
+            });
+            successCount++;
+        } catch (e) { console.error(e); }
+    }
+    toast('Sent to ' + successCount + ' athletes', 'success');
+    loadConversations();
   }
 }
 
@@ -204,5 +285,5 @@ async function openDirectChat(peerId, peerName) {
 
 window.openNewChatModal = openNewChatModal;
 window.closeNewChatModal = closeNewChatModal;
-window.initiateConversation = initiateConversation;
+window.handleNewChatAction = handleNewChatAction;
 window.openDirectChat = openDirectChat;

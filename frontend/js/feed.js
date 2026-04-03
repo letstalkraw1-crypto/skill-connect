@@ -30,10 +30,10 @@ function renderFeed(posts) {
     return '<div class="card" style="margin-bottom:16px;">' +
       '<div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">' +
       '<div class="avatar av-md" onclick="showUserInfoCard(\'' + (p.author_id || p.author?._id || p.author?.id) + '\')">' + avatarEl(p.author || {name: p.author_name, avatar_url: p.author_avatar}) + '</div>' +
-      '<div style="flex:1;"><div style="font-weight:700;cursor:pointer;" onclick="showUserInfoCard(\'' + (p.author_id || p.author?._id || p.author?.id) + '\')">' + esc(p.author_name) + '</div><div style="font-size:0.75rem;color:var(--text2);">' + timeAgo(p.created_at) + '</div></div>' +
+      '<div style="flex:1;"><div style="font-weight:700;font-size:0.95rem;cursor:pointer;" onclick="showUserInfoCard(\'' + (p.author_id || p.author?._id || p.author?.id) + '\')">' + esc(p.author_name) + '</div><div style="font-size:0.75rem;color:var(--text2);">' + timeAgo(p.created_at) + '</div></div>' +
       '<i onclick="openPostOptions(\'' + p.id + '\', ' + (p.user_id === userId) + ')" style="cursor:pointer;opacity:.5;">&#8942;</i></div>' +
-      (p.note ? '<div style="margin-top:12px;font-size:1.1rem;font-weight:800;color:var(--purple-l);">' + esc(p.note) + '</div>' : '') +
-      '<div style="margin-top:8px;font-size:0.95rem;white-space:pre-wrap;">' + esc(p.caption) + '</div>' + images +
+      (p.note ? '<div style="margin-top:10px;font-size:0.95rem;font-weight:800;color:var(--purple-l);">' + esc(p.note) + '</div>' : '') +
+      '<div style="margin-top:6px;font-size:0.88rem;white-space:pre-wrap;">' + esc(p.caption) + '</div>' + images +
       '<div style="display:flex;gap:20px;margin-top:16px;">' +
       '<div class="feed-stat ' + (isLiked ? 'active' : '') + '" onclick="toggleLike(\'' + p.id + '\', this)"><span>' + (isLiked ? '❤️' : '🤍') + '</span> ' + (p.likes_count || 0) + '</div>' +
       '<div class="feed-stat" onclick="openComments(\'' + p.id + '\')"><span>💬</span> ' + (p.comments_count || 0) + '</div>' +
@@ -83,8 +83,31 @@ async function deletePost() {
 
 // Post Sheet and Submission Logic
 var postPhotos = [];
+var currentPostMode = 'activity';
+
+function setPostMode(mode) {
+  currentPostMode = mode;
+  var actFields = document.getElementById('post-activity-fields');
+  var evtFields = document.getElementById('post-event-fields');
+  var actBtn = document.getElementById('mode-activity');
+  var evtBtn = document.getElementById('mode-event');
+
+  if (mode === 'activity') {
+    if (actFields) actFields.style.display = 'block';
+    if (evtFields) evtFields.style.display = 'none';
+    if (actBtn) actBtn.classList.add('active');
+    if (evtBtn) evtBtn.classList.remove('active');
+  } else {
+    if (actFields) actFields.style.display = 'none';
+    if (evtFields) evtFields.style.display = 'block';
+    if (actBtn) actBtn.classList.remove('active');
+    if (evtBtn) evtBtn.classList.add('active');
+  }
+}
+window.setPostMode = setPostMode;
 
 function openPostSheet() {
+  setPostMode('activity');
   var sheet = document.getElementById('post-sheet');
   if (sheet) sheet.classList.add('open');
 }
@@ -103,6 +126,13 @@ function resetPostForm() {
   var note = document.getElementById('post-note'); if (note) note.value = '';
   var cap = document.getElementById('post-caption'); if (cap) cap.value = '';
   var verix = document.getElementById('post-verification'); if (verix) verix.value = '';
+  
+  // Event fields
+  var et = document.getElementById('post-event-title'); if (et) et.value = '';
+  var edt = document.getElementById('post-event-datetime'); if (edt) edt.value = '';
+  var ev = document.getElementById('post-event-venue'); if (ev) ev.value = '';
+  var eg = document.getElementById('post-event-guidelines'); if (eg) eg.value = '';
+
   postPhotos = [];
   renderPostPhotoPreview();
 }
@@ -177,6 +207,10 @@ function removeSpecificPhoto(idx) {
 window.removeSpecificPhoto = removeSpecificPhoto;
 
 async function submitPost() {
+  if (currentPostMode === 'event') {
+    return submitEventFromPost();
+  }
+
   var note = document.getElementById('post-note').value.trim();
   var caption = document.getElementById('post-caption').value.trim();
   var visibility = document.getElementById('post-visibility').value;
@@ -223,4 +257,47 @@ async function submitPost() {
     btn.disabled = false;
   }
 }
+
+async function submitEventFromPost() {
+  var title = document.getElementById('post-event-title').value.trim();
+  var datetime = document.getElementById('post-event-datetime').value;
+  var venue = document.getElementById('post-event-venue').value.trim();
+  var guidelines = document.getElementById('post-event-guidelines').value.trim();
+
+  if (!title || !datetime) return toast('Title and Date are required', 'error');
+
+  var btn = document.querySelector('#post-sheet .btn-primary');
+  var originalHtml = btn.innerHTML;
+  btn.innerHTML = '<span class="spinner"></span>';
+  btn.disabled = true;
+
+  try {
+    var r = await fetch(API + '/events', {
+      method: 'POST',
+      headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders()),
+      body: JSON.stringify({ 
+        title: title, 
+        datetime: datetime, 
+        venueName: venue, 
+        guidelines: guidelines 
+      })
+    });
+    var d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'Event creation failed');
+
+    toast('Event scheduled! Code: ' + (d.shortCode || d.short_code), 'success');
+    
+    // If there are photos, we might want to also create a post, but user didn't ask for it.
+    // For now, just close.
+    closePostSheet();
+    if (typeof loadEvents === 'function') loadEvents(); 
+    switchTab2('meetups');
+  } catch (err) {
+    toast(err.message, 'error');
+  } finally {
+    btn.innerHTML = originalHtml;
+    btn.disabled = false;
+  }
+}
+
 window.submitPost = submitPost;

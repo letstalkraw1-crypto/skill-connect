@@ -29,14 +29,14 @@ async function loadConnections() {
       if (d.pending && d.pending.length) {
         html += '<div class="sec-hdr" style="font-size:0.7rem;margin-top:10px;">Requests for you</div>';
         html += d.pending.map(function(c) {
-          return '<div class="card" style="margin-bottom:8px;padding:12px;">' +
-            '<div style="display:flex;align-items:center;gap:12px;">' +
+          return '<div class="card" style="margin-bottom:8px;padding:10px;">' +
+            '<div style="display:flex;align-items:center;gap:10px;">' +
               '<div class="avatar av-sm" onclick="showUserInfoCard(\'' + c.id + '\')">' + avatarEl(c) + '</div>' +
               '<div style="flex:1;">' +
-                '<div style="font-weight:700;font-size:0.9rem;cursor:pointer;" onclick="showUserInfoCard(\'' + c.id + '\')">' + esc(c.name) + '</div>' +
-                '<div style="font-size:0.75rem;color:var(--text2);">' + (c.shortId || c.short_id || '') + '</div>' +
+                '<div style="font-weight:700;font-size:0.88rem;cursor:pointer;" onclick="showUserInfoCard(\'' + c.id + '\')">' + esc(c.name) + '</div>' +
+                '<div style="font-size:0.7rem;color:var(--text2);">' + (c.shortId || c.short_id || '') + '</div>' +
               '</div>' +
-              '<div style="display:flex;gap:6px;">' +
+              '<div style="display:flex;gap:4px;">' +
                 '<button class="btn btn-primary btn-xs" onclick="respondRequest(\'' + (c.connectionId || c.connection_id) + '\', \'accept\')">Accept</button>' +
                 '<button class="btn btn-secondary btn-xs" onclick="respondRequest(\'' + (c.connectionId || c.connection_id) + '\', \'decline\')">Decline</button>' +
               '</div>' +
@@ -49,12 +49,12 @@ async function loadConnections() {
       if (d.outgoing && d.outgoing.length) {
         html += '<div class="sec-hdr" style="font-size:0.7rem;margin-top:10px;">Your Sent Requests</div>';
         html += d.outgoing.map(function(c) {
-          return '<div class="card" style="margin-bottom:8px;padding:12px;opacity:0.8;">' +
-            '<div style="display:flex;align-items:center;gap:12px;">' +
+          return '<div class="card" style="margin-bottom:8px;padding:10px;opacity:0.8;">' +
+            '<div style="display:flex;align-items:center;gap:10px;">' +
               '<div class="avatar av-sm" onclick="showUserInfoCard(\'' + c.id + '\')">' + avatarEl(c) + '</div>' +
               '<div style="flex:1;">' +
-                '<div style="font-weight:700;font-size:0.9rem;cursor:pointer;" onclick="showUserInfoCard(\'' + c.id + '\')">' + esc(c.name) + '</div>' +
-                '<div style="font-size:0.75rem;color:var(--text2);">Waiting for response</div>' +
+                '<div style="font-weight:700;font-size:0.88rem;cursor:pointer;" onclick="showUserInfoCard(\'' + c.id + '\')">' + esc(c.name) + '</div>' +
+                '<div style="font-size:0.7rem;color:var(--text2);">Waiting for response</div>' +
               '</div>' +
               '<button class="btn btn-ghost btn-xs" onclick="cancelRequest(\'' + (c.connectionId || c.connection_id) + '\')">Cancel</button>' +
             '</div>' +
@@ -71,12 +71,12 @@ async function loadConnections() {
         connectedEl.innerHTML = '<div style="color:var(--text2);font-size:.9rem;padding:12px 0;">No connections yet</div>';
       } else {
         connectedEl.innerHTML = d.connections.map(function(c) {
-          return '<div class="card" style="margin-bottom:8px;padding:12px;">' +
-            '<div style="display:flex;align-items:center;gap:12px;">' +
+          return '<div class="card" style="margin-bottom:8px;padding:10px;">' +
+            '<div style="display:flex;align-items:center;gap:10px;">' +
               '<div class="avatar av-sm" onclick="showUserInfoCard(\'' + c.id + '\')">' + avatarEl(c) + '</div>' +
               '<div style="flex:1;">' +
-                '<div style="font-weight:700;font-size:0.9rem;cursor:pointer;" onclick="showUserInfoCard(\'' + c.id + '\')">' + esc(c.name) + '</div>' +
-                '<div style="font-size:0.75rem;color:var(--text2);">' + (c.location || '') + '</div>' +
+                '<div style="font-weight:700;font-size:0.88rem;cursor:pointer;" onclick="showUserInfoCard(\'' + c.id + '\')">' + esc(c.name) + '</div>' +
+                '<div style="font-size:0.7rem;color:var(--text2);">' + (c.location || '') + '</div>' +
               '</div>' +
               '<button class="btn btn-secondary btn-xs" onclick="startChatWith(\'' + c.id + '\', \'' + esc(c.name) + '\')">Message</button>' +
             '</div>' +
@@ -185,12 +185,12 @@ function renderProfile(u) {
     if (u.skills && u.skills.length) {
       sList.innerHTML = u.skills.map(function(s) {
         var levelLabel = s.level || 'Beginner';
-        return '<div class="skill-pill-large" style="flex-direction:column;align-items:flex-start;padding:12px 14px;">' +
-                 '<div style="display:flex;justify-content:space-between;width:100%;margin-bottom:6px;">' +
-                   '<span style="font-weight:700;">' + (typeof skillEmoji === 'function' ? skillEmoji(s.name) : '') + ' ' + esc(s.name) + '</span>' +
+        return '<div class="skill-pill-large" style="flex-direction:column;align-items:flex-start;padding:10px 12px;">' +
+                 '<div style="display:flex;justify-content:space-between;width:100%;margin-bottom:4px;">' +
+                   '<span style="font-weight:700;font-size:0.85rem;">' + (typeof skillEmoji === 'function' ? skillEmoji(s.name) : '') + ' ' + esc(s.name) + '</span>' +
                    '<span onclick="removeSkill(\'' + (s.skill_id || s.skillId || s._id) + '\')" style="opacity:.5;cursor:pointer;">&times;</span>' +
                  '</div>' +
-                 '<div style="display:flex;align-items:center;gap:8px;font-size:0.75rem;color:var(--text2);">' +
+                 '<div style="display:flex;align-items:center;gap:6px;font-size:0.7rem;color:var(--text2);">' +
                    '<span>Lv: ' + levelLabel + '</span>' +
                    '<span onclick="editSkillLevel(\'' + (s.skill_id || s.skillId || s._id) + '\', \'' + levelLabel + '\')" style="color:var(--purple-l);cursor:pointer;font-weight:700;">Edit</span>' +
                  '</div>' +

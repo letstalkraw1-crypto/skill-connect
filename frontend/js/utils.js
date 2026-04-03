@@ -76,14 +76,17 @@ function avatarEl(u) {
   return avatarLetter(u);
 }
 
-function toggleCollapse(id) {
-  console.log('Toggling collapse:', id);
+function toggleCollapse(id, forceOpen) {
   var body = document.getElementById(id);
   var arrow = document.getElementById(id + '-arrow');
-  if (!body) {
-    console.warn('Collapse body not found:', id);
+  if (!body) return;
+
+  if (forceOpen === true) {
+    body.classList.add('open');
+    if (arrow) arrow.innerHTML = '&#9650;';
     return;
   }
+
   if (body.classList.contains('open')) {
     body.classList.remove('open');
     if (arrow) arrow.innerHTML = '&#9660;';

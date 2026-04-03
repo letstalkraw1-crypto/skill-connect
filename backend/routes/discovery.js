@@ -1,7 +1,7 @@
 const express = require('express');
 const { verifyToken } = require('../services/auth');
 const { discoverUsers, getSuggestions } = require('../services/discovery');
-const db = require('../db/index');
+const { User, UserSkill, Skill, Connection, Event } = require('../db/index');
 
 const router = express.Router();
 
@@ -16,8 +16,26 @@ router.get('/search', verifyToken, async (req, res) => {
       return res.status(400).json({ error: 'Search query must be at least 2 characters' });
     }
 
-    const { User, UserSkill, Skill } = require('../db/index');
     const searchTerm = q.trim();
+
+    // Check if query is a 5-digit alphanumeric code (Event search)
+    if (searchTerm.length === 5 && /^[A-Z0-9]+$/i.test(searchTerm)) {
+      const event = await Event.findOne({ shortCode: searchTerm.toUpperCase(), status: 'active' })
+        .populate('creatorId', 'name avatarUrl shortId')
+        .lean();
+      
+      if (event) {
+        return res.json({
+          type: 'event',
+          event: {
+            ...event,
+            creator_name: event.creatorId?.name,
+            creator_avatar: event.creatorId?.avatarUrl,
+            short_code: event.shortCode
+          }
+        });
+      }
+    }
     
     // Find matching Skill IDs first
     const matchingSkills = await Skill.find({ 
@@ -122,7 +140,6 @@ router.get('/', verifyToken, async (req, res) => {
 // GET /discover/skills - list all available skill terms (including new admin skills)
 router.get('/skills', verifyToken, async (req, res) => {
   try {
-    const { Skill } = require('../db/index');
     const skills = await Skill.find().select('id name').sort({ name: 1 }).lean();
     res.json(skills);
   } catch (err) {

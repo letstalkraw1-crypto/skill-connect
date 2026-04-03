@@ -10,6 +10,7 @@ const eventSchema = new mongoose.Schema({
   routePoints: { type: [Object], default: [] },
   venueName: String,
   venueCoords: Object,
+  shortCode: { type: String, unique: true, sparse: true }, // 5-digit uppercase alphanumeric
   status: { type: String, default: 'active', enum: ['active', 'cancelled', 'completed'] },
   createdAt: { type: Date, default: Date.now }
 });

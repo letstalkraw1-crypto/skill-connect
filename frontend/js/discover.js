@@ -7,6 +7,7 @@ async function searchAthletes() {
   if (!el) return;
   
   if (!q) {
+    el.innerHTML = '';
     return loadSuggestions();
   }
 
@@ -15,7 +16,12 @@ async function searchAthletes() {
     var r = await fetch(API + '/discover/search?q=' + encodeURIComponent(q), { headers: authHeaders() });
     var d = await r.json();
     if (!r.ok) throw new Error(d.error || 'Search failed');
-    renderDiscoverCards(d);
+    
+    if (d.type === 'event') {
+      renderEventCard(d.event);
+    } else {
+      renderDiscoverCards(d);
+    }
   } catch (err) { 
     el.innerHTML = '<div style="color:var(--text2);text-align:center;padding:32px;">' + esc(err.message) + '</div>'; 
   }
@@ -75,7 +81,7 @@ function filterSkill(btn) {
 function renderDiscoverCards(users) {
   var el = document.getElementById('discover-results');
   if (!el) return;
-  if (!users.length) { el.innerHTML = '<div style="color:var(--text2);text-align:center;padding:32px;">No athletes found</div>'; return; }
+  if (!users || !users.length) { el.innerHTML = '<div style="color:var(--text2);text-align:center;padding:32px;">No athletes found</div>'; return; }
   
   el.innerHTML = users.map(function (u) {
     var skills = (u.skills || []).slice(0, 3).map(function (s) { 
@@ -102,17 +108,42 @@ function renderDiscoverCards(users) {
       btnDisabled = ''; // Allow clicking to go to connections
     }
 
-    var uid = u._id || u.id;
+    var uid = u._id || u.id || u.userId;
     var clickAction = status === 'pending' ? 'switchTab2(\'connections\')' : 'requestConnection(\'' + uid + '\')';
 
     return '<div class="card" style="margin-bottom:16px;">' +
       '<div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">' +
-      '<div class="avatar av-md" onclick="showUserInfoCard(\'' + uid + '\')">' + avatarEl(u) + '</div>' +
-      '<div style="flex:1;"><div style="font-weight:700;font-size:1rem;cursor:pointer;" onclick="showUserInfoCard(\'' + uid + '\')">' + esc(u.name) + '</div>' +
-      '<div style="font-size:0.8rem;color:var(--text2);">' + esc(u.location || 'Unknown') + '</div></div>' +
+      '<div class="avatar av-md" onclick="showUserInfoCard(\'' + uid + '\')">' + (typeof avatarEl === 'function' ? avatarEl(u) : '') + '</div>' +
+      '<div style="flex:1;"><div style="font-weight:700;font-size:0.95rem;cursor:pointer;" onclick="showUserInfoCard(\'' + uid + '\')">' + esc(u.name) + '</div>' +
+      '<div style="font-size:0.75rem;color:var(--text2);">' + esc(u.location || 'Unknown') + '</div></div>' +
       '<button id="conn-btn-' + uid + '" class="btn ' + btnClass + ' btn-xs" ' + btnDisabled + ' onclick="' + clickAction + '">' + btnText + '</button>' +
       '</div><div style="display:flex;flex-wrap:wrap;gap:6px;">' + skills + '</div></div>';
   }).join('');
+}
+
+function renderEventCard(evt) {
+  var el = document.getElementById('discover-results');
+  if (!el) return;
+  
+  el.innerHTML = '<div class="card" style="margin-bottom:16px; border:2px solid var(--purple-l);">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">' +
+        '<span class="pill active" style="font-size:0.7rem;">EVENT FOUND</span>' +
+        '<span style="font-weight:700;color:var(--purple-l);">' + esc(evt.shortCode || evt.short_code) + '</span>' +
+      '</div>' +
+      '<div style="font-size:1.2rem;font-weight:800;margin-bottom:4px;">' + esc(evt.title) + '</div>' +
+      '<div style="color:var(--text2);font-size:0.85rem;margin-bottom:12px;">📅 ' + timeAgo(evt.datetime) + '</div>' +
+      '<div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">' +
+        '<div class="avatar av-sm">' + avatarEl({name: evt.creator_name, avatar_url: evt.creator_avatar}) + '</div>' +
+        '<div style="font-size:0.85rem;">Organized by <strong>' + esc(evt.creator_name) + '</strong></div>' +
+      '</div>' +
+      '<button class="btn btn-primary" style="width:100%;" onclick="joinEventByCode(\'' + evt._id + '\')">View & Join Event</button>' +
+    '</div>';
+}
+
+function joinEventByCode(eventId) {
+    // Switch to meetups tab and load this event
+    switchTab2('meetups');
+    if (typeof openEventDetails === 'function') openEventDetails(eventId);
 }
 
 async function requestConnection(targetId) {
@@ -132,7 +163,8 @@ async function requestConnection(targetId) {
     toast('Connection request sent!', 'success');
     if (btn) {
       btn.textContent = 'Requested';
-      btn.className = 'btn btn-outline btn-xs';
+      btn.className = 'btn btn-secondary btn-xs';
+      btn.disabled = true;
     }
   } catch (err) { 
     toast(err.message, 'error'); 

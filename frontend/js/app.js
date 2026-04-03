@@ -143,7 +143,19 @@ function goAuth(mode) {
 })();
 
 // UI Helpers for sheets
-function openCreateEventSheet() { document.getElementById('create-event-sheet').classList.add('open'); if (typeof initVenueAutocomplete === 'function') initVenueAutocomplete(); }
+function openPostSheet() {
+  setPostMode('activity');
+  var sheet = document.getElementById('post-sheet');
+  if (sheet) {
+    sheet.classList.add('open');
+    if (typeof initVenueAutocomplete === 'function') initVenueAutocomplete('post-event-venue');
+  }
+}
+
+function openCreateEventSheet() { 
+  document.getElementById('create-event-sheet').classList.add('open'); 
+  if (typeof initVenueAutocomplete === 'function') initVenueAutocomplete('event-venue'); 
+}
 function closeCreateEventSheet(e) { if (!e || e.target === document.getElementById('create-event-sheet')) document.getElementById('create-event-sheet').classList.remove('open'); }
 function openCreateCommunitySheet() { document.getElementById('create-community-sheet').classList.add('open'); }
 function closeCreateCommunitySheet(e) { if (!e || e.target === document.getElementById('create-community-sheet')) document.getElementById('create-community-sheet').classList.remove('open'); }

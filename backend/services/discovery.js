@@ -63,9 +63,11 @@ async function discoverUsers(requestingUserId, skillName, lat, lng, radiusKm, pr
       .lean();
 
     const connection = connections.find(c =>
-      (c.requesterId === candidate._id && c.addresseeId === requestingUserId) ||
-      (c.requesterId === requestingUserId && c.addresseeId === candidate._id)
+      (c.requesterId === candidate._id.toString() && c.addresseeId === requestingUserId.toString()) ||
+      (c.requesterId === requestingUserId.toString() && c.addresseeId === candidate._id.toString())
     );
+
+    const status = connection?.status || 'none';
 
     return {
       id: candidate._id,
@@ -88,8 +90,8 @@ async function discoverUsers(requestingUserId, skillName, lat, lng, radiusKm, pr
         years_exp: s.yearsExp,
         proficiency: s.proficiencyId?.name
       })),
-      connectionStatus: connection?.status,
-      connection_status: connection?.status,
+      connectionStatus: status,
+      connection_status: status,
       distanceKm: haversine(lat, lng, candidate.lat, candidate.lng),
       distance_km: haversine(lat, lng, candidate.lat, candidate.lng)
     };
@@ -181,6 +183,10 @@ async function getSuggestions(userId, limit = 20) {
       shared_skill_count: sharedSkillCount,
       connectionStatus: connection?.status || 'none',
       connection_status: connection?.status || 'none',
+      avatarUrl: candidate.avatarUrl,
+      avatar_url: candidate.avatarUrl,
+      shortId: candidate.shortId,
+      short_id: candidate.shortId,
       score: mutualCount * 3 + sharedSkillCount
     };
   });
