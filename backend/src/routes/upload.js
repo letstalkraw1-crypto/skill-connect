@@ -7,8 +7,8 @@ const { User } = require('../config/db');
 
 const router = express.Router();
 
-// Ensure uploads directory exists
-const uploadDir = path.join(__dirname, '..', '..', 'frontend', 'uploads');
+// Ensure uploads directory exists (In the backend root)
+const uploadDir = path.join(__dirname, '..', '..', 'uploads');
 if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
 
 const storage = multer.diskStorage({
@@ -39,7 +39,7 @@ router.post('/avatar', verifyToken, upload.single('avatar'), async (req, res) =>
     const avatarUrl = `/uploads/${req.file.filename}`;
     const user = await User.findById(req.user.userId).select('avatarUrl').lean();
     if (user?.avatarUrl?.startsWith('/uploads/')) {
-      const oldPath = path.join(__dirname, '..', '..', 'frontend', user.avatarUrl);
+      const oldPath = path.join(__dirname, '..', '..', user.avatarUrl);
       if (fs.existsSync(oldPath)) {
         try {
           fs.unlinkSync(oldPath);

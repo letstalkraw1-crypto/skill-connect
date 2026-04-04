@@ -53,7 +53,7 @@ initSocket(server);
 
 // Static Files (Frontend)
 const distPath = path.join(__dirname, '..', '..', 'frontend', 'dist');
-const uploadsPath = path.join(__dirname, '..', '..', 'frontend', 'uploads');
+const uploadsPath = path.join(__dirname, '..', 'uploads');
 
 console.log('Static Paths initialized (Source):');
 console.log(' - Dist:', distPath);

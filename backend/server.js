@@ -109,8 +109,10 @@ app.use((err, req, res, next) => {
 
 // Serve frontend using Vite's optimized build directory
 const path = require('path');
+// Serve frontend using Vite's optimized build directory
+const path = require('path');
 const distPath = path.join(__dirname, '..', 'frontend', 'dist');
-const uploadsPath = path.join(__dirname, '..', 'frontend', 'uploads');
+const uploadsPath = path.join(__dirname, 'uploads');
 
 console.log('Static Paths initialized:');
 console.log(' - Dist:', distPath);
