@@ -5,7 +5,7 @@ node_modules/
 dist/
 build/
 *.log
-uploads/*
-!uploads/.gitkeep
+**/uploads/*
+!**/uploads/.gitkeep
 .vscode/
 .idea/

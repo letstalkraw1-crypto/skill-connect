@@ -10,6 +10,7 @@ export default defineConfig({
     rollupOptions: {
       input: {
         main: resolve(__dirname, 'index.html'),
+        admin: resolve(__dirname, 'admin.html'),
       },
       output: {
         manualChunks: {
@@ -35,6 +36,7 @@ export default defineConfig({
       '/challenges': 'http://localhost:5000',
       '/qa': 'http://localhost:5000',
       '/documents': 'http://localhost:5000',
+      '/uploads': 'http://localhost:5000',
       '/socket.io': {
         target: 'ws://localhost:5000',
         ws: true
