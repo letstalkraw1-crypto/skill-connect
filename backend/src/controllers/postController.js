@@ -1,4 +1,4 @@
-const { Post, PostLike, PostComment, PostInteraction, User, Connection } = require('../config/db');
+const { Post, PostLike, PostComment, PostInteraction, User, Connection, Notification } = require('../config/db');
 const { v4: uuidv4 } = require('uuid');
 const path = require('path');
 const fs = require('fs');
@@ -199,6 +199,25 @@ const likePost = async (req, res) => {
       await PostLike.deleteOne({ _id: existing._id });
     } else {
       await new PostLike({ _id: uuidv4(), postId: req.params.id, userId: req.user.userId }).save();
+      
+      // Create notification for the post author
+      try {
+        const post = await Post.findById(req.params.id).select('userId');
+        if (post && post.userId.toString() !== req.user.userId.toString()) {
+          const sender = await User.findById(req.user.userId).select('name');
+          const notification = new Notification({
+            _id: uuidv4(),
+            recipientId: post.userId,
+            senderId: req.user.userId,
+            type: 'like',
+            message: `${sender.name} liked your post!`,
+            relatedId: req.params.id
+          });
+          await notification.save();
+        }
+      } catch (err) {
+        console.error('Failed to create like notification:', err);
+      }
     }
     const likeCount = await PostLike.countDocuments({ postId: req.params.id });
     res.json({ liked: !existing, likeCount });
@@ -226,6 +245,26 @@ const addComment = async (req, res) => {
     const newComment = new PostComment({ _id: uuidv4(), postId: req.params.id, userId: req.user.userId, text });
     await newComment.save();
     const comment = await PostComment.findById(newComment._id).populate('userId', 'name avatarUrl').lean();
+
+    // Create notification for the post author
+    try {
+      const post = await Post.findById(req.params.id).select('userId');
+      if (post && post.userId.toString() !== req.user.userId.toString()) {
+        const sender = await User.findById(req.user.userId).select('name');
+        const notification = new Notification({
+          _id: uuidv4(),
+          recipientId: post.userId,
+          senderId: req.user.userId,
+          type: 'comment',
+          message: `${sender.name} commented on your post: "${text.substring(0, 20)}${text.length > 20 ? '...' : ''}"`,
+          relatedId: req.params.id
+        });
+        await notification.save();
+      }
+    } catch (err) {
+      console.error('Failed to create comment notification:', err);
+    }
+
     res.status(201).json({ ...comment, authorName: comment.userId.name, authorAvatar: comment.userId.avatarUrl });
   } catch (err) {
     res.status(500).json({ error: err.message });

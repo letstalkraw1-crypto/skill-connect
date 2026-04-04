@@ -3,7 +3,7 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const { verifyToken } = require('../services/auth');
-const db = require('../db/index');
+const { User } = require('../config/db');
 
 const router = express.Router();
 
@@ -35,10 +35,8 @@ router.post('/avatar', verifyToken, upload.single('avatar'), async (req, res) =>
   try {
     if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
 
-    const { User } = require('../db/index');
+    // Using User from the top-level import
     const avatarUrl = `/uploads/${req.file.filename}`;
-
-    // Delete old avatar file if it was a local upload
     const user = await User.findById(req.user.userId).select('avatarUrl').lean();
     if (user?.avatarUrl?.startsWith('/uploads/')) {
       const oldPath = path.join(__dirname, '..', '..', 'frontend', user.avatarUrl);

@@ -94,6 +94,7 @@ module.exports = {
   CommunityMember: require('../models/CommunityMember'),
   Event: require('../models/Event'),
   EventRsvp: require('../models/EventRsvp'),
+  Notification: require('../models/Notification'),
   mongoose,
   connectDB
 };

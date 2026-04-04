@@ -1,5 +1,5 @@
 const { v4: uuidv4 } = require('uuid');
-const { Connection, User } = require('../config/db');
+const { Connection, User, Notification } = require('../config/db');
 
 async function sendRequest(requesterId, addresseeId) {
   if (!addresseeId || addresseeId === 'undefined') {
@@ -35,6 +35,23 @@ async function sendRequest(requesterId, addresseeId) {
   });
 
   await connection.save();
+  
+  // Create notification for the addressee
+  try {
+    const sender = await User.findById(requesterId).select('name');
+    const notification = new Notification({
+      _id: uuidv4(),
+      recipientId: addresseeId,
+      senderId: requesterId,
+      type: 'connection_request',
+      message: `${sender.name} sent you a connection request!`,
+      relatedId: connection._id
+    });
+    await notification.save();
+  } catch (err) {
+    console.error('Failed to create notification:', err);
+  }
+
   return connection.toObject();
 }
 
