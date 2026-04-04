@@ -6,6 +6,7 @@ import { useSocket } from '../hooks/useSocket';
 import { Send, Image, Plus, MoreVertical, Phone, Video, Search, ChevronLeft, Paperclip, Smile, MessageCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getAssetUrl, safeFormat } from '../utils/utils';
+import Avatar from '../components/Avatar';
 
 const Chat = () => {
   const { id } = useParams(); // Selected conversation ID or user ID
@@ -94,6 +95,29 @@ const Chat = () => {
 
   if (loading) return <div className="flex h-[calc(100vh-10rem)] items-center justify-center">Loading Chat...</div>;
 
+  const MediaRenderer = ({ url }) => {
+    if (!url) return null;
+    const resolvedUrl = getAssetUrl(url);
+    const lowUrl = url.toLowerCase();
+    
+    if (['.jpg', '.png', '.webp', '.jpeg'].some(ext => lowUrl.includes(ext))) {
+      return (
+        <img 
+          src={resolvedUrl} 
+          alt="Shared media" 
+          className="max-w-full rounded-xl cursor-pointer hover:opacity-90 transition-opacity" 
+          onClick={() => window.open(resolvedUrl, '_blank')}
+        />
+      );
+    }
+    
+    if (['.mp3', '.webm', '.ogg', '.wav'].some(ext => lowUrl.includes(ext))) {
+      return <audio controls src={resolvedUrl} className="max-w-full h-8" />;
+    }
+
+    return <span>{url}</span>;
+  };
+
   return (
     <div className="flex h-[calc(100vh-10rem)] bg-background/50 backdrop-blur-xl rounded-3xl overflow-hidden border border-border shadow-2xl shadow-black/50">
       {/* Sidebar: Conversations */}
@@ -128,9 +152,7 @@ const Chat = () => {
               }`}
             >
               <div className="relative">
-                <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-primary/20 to-blue-600/20 border border-border group-hover:border-primary transition-all p-0.5">
-                  <img src={getAssetUrl(conv.otherUser?.avatarUrl || conv.otherUser?.avatar_url)} className="h-full w-full object-cover rounded-xl" />
-                </div>
+                <Avatar src={conv.otherUser?.avatarUrl || conv.otherUser?.avatar_url} name={conv.otherUser?.name} size="14" className="ring-2 ring-primary/20" />
                 <div className="absolute -bottom-1 -right-1 h-4 w-4 bg-emerald-500 border-2 border-background rounded-full"></div>
               </div>
               <div className="flex-1 text-left min-w-0">
@@ -157,9 +179,7 @@ const Chat = () => {
                 <button onClick={() => setActiveChat(null)} className="md:hidden p-2 hover:bg-accent rounded-lg">
                   <ChevronLeft size={20} />
                 </button>
-                <div className="h-12 w-12 rounded-xl bg-accent p-0.5 border border-border">
-                  <img src={getAssetUrl(activeChat.otherUser?.avatarUrl || activeChat.otherUser?.avatar_url)} className="h-full w-full object-cover rounded-lg" />
-                </div>
+                <Avatar src={activeChat.otherUser?.avatarUrl || activeChat.otherUser?.avatar_url} name={activeChat.otherUser?.name} size="12" />
                 <div>
                   <h3 className="font-bold">{activeChat.otherUser?.name}</h3>
                   <p className="text-[10px] uppercase tracking-widest text-emerald-500 font-bold flex items-center gap-1">
@@ -181,6 +201,7 @@ const Chat = () => {
               <AnimatePresence initial={false}>
                 {messages.map((msg, idx) => {
                   const isMe = msg.senderId === (currentUser._id || currentUser.id);
+                  const isMedia = msg.text?.includes('uploads/') || msg.text?.startsWith('http');
                   return (
                     <motion.div
                       key={msg.id || idx}
@@ -189,12 +210,16 @@ const Chat = () => {
                       className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}
                     >
                       <div className={`max-w-[75%] space-y-1`}>
-                        <div className={`p-4 rounded-2xl text-sm font-medium shadow-xl ${
+                        <div className={`p-4 rounded-2xl shadow-xl ${
                           isMe 
                             ? 'bg-primary text-primary-foreground rounded-tr-none shadow-primary/20' 
                             : 'bg-accent/40 backdrop-blur-md rounded-tl-none border border-border shadow-black/20'
                         }`}>
-                          {msg.text}
+                          {isMedia ? (
+                             <MediaRenderer url={msg.text} />
+                          ) : (
+                             <p className="text-sm font-medium">{msg.text}</p>
+                          )}
                         </div>
                         <p className={`text-[10px] text-muted-foreground font-bold uppercase tracking-widest ${isMe ? 'text-right' : 'text-left'}`}>
                           {safeFormat(msg.sentAt)}

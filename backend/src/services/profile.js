@@ -111,21 +111,26 @@ async function addSkills(userId, skills) {
       if (profDoc) proficiencyId = profDoc._id;
     }
 
+    console.log(`[addSkills] Processing skill: ${skill.name} (${skill.subSkill}) for user: ${userId}`);
+
     try {
-      await UserSkill.findOneAndUpdate(
-        { userId, skillId: skillDoc._id },
+      const result = await UserSkill.findOneAndUpdate(
+        { userId, skillId: skillDoc._id, subSkill: skill.subSkill || null },
         { 
           userId, 
           skillId: skillDoc._id, 
+          subSkill: skill.subSkill || null,
           level: skill.level || skill.proficiency || 'Beginner', 
           yearsExp: skill.yearsExp || null, 
           proficiencyId 
         },
         { upsert: true, new: true }
       );
+      console.log(`[addSkills] Success: ${result._id}`);
     } catch (e) {
+      console.error(`[addSkills] Error saving skill: ${e.message}`);
       if (e.code === 11000) {
-        const err = new Error(`Skill already added: ${skill.name}`);
+        const err = new Error(`Skill already added: ${skill.name} ${skill.subSkill ? `(${skill.subSkill})` : ''}`);
         err.status = 409;
         throw err;
       }

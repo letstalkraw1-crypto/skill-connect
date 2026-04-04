@@ -134,8 +134,12 @@ export function renderProfile(u) {
   
   var avatarDisplay = document.getElementById('profile-avatar-display');
   if (avatarDisplay) {
-    if (u.avatar_url || u.avatarUrl) {
-      avatarDisplay.innerHTML = '<img src="' + (u.avatar_url || u.avatarUrl) + '" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" />';
+    var url = u.avatar_url || u.avatarUrl;
+    if (url) {
+      if (url.startsWith('uploads/') && typeof API !== 'undefined') {
+        url = API + '/' + url;
+      }
+      avatarDisplay.innerHTML = '<img src="' + url + '" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" onerror="this.style.display=\'none\';this.parentNode.textContent=avatarLetter(' + JSON.stringify(u) + ')" />';
     } else {
       avatarDisplay.textContent = avatarLetter(u);
     }

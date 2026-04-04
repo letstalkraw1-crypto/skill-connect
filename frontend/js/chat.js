@@ -76,13 +76,19 @@ export function appendBubble(m) {
   var bubbleWrap = document.createElement('div');
   bubbleWrap.className = 'bubble-wrap ' + (isMe ? 'mine' : 'theirs');
 
-  var content = esc(m.content || m.text || '');
-  if (typeof (m.content || m.text) === 'string' && (m.content || m.text).startsWith('http')) {
-    var url = (m.content || m.text);
-    if (['.jpg', '.png', '.webp', '.jpeg'].some(ext => url.toLowerCase().includes(ext))) {
-       content = '<img src="' + url + '" style="max-width:100%;border-radius:12px;" onclick="openMediaPreview(\'' + url + '\')"/>';
-    } else if (['.mp3', '.webm', '.ogg', '.wav'].some(ext => url.toLowerCase().includes(ext))) {
-       content = '<audio controls src="' + url + '" style="width:100%;height:32px;"></audio>';
+  var rawContent = m.content || m.text || '';
+  var content = esc(rawContent);
+
+  if (typeof rawContent === 'string') {
+    var isLocalUpload = rawContent.startsWith('uploads/');
+    var url = isLocalUpload ? (API + '/' + rawContent) : rawContent;
+    
+    if (rawContent.startsWith('http') || isLocalUpload) {
+      if (['.jpg', '.png', '.webp', '.jpeg'].some(ext => url.toLowerCase().includes(ext))) {
+         content = '<img src="' + url + '" style="max-width:100%;border-radius:12px;" onclick="openMediaPreview(\'' + url + '\')"/>';
+      } else if (['.mp3', '.webm', '.ogg', '.wav'].some(ext => url.toLowerCase().includes(ext))) {
+         content = '<audio controls src="' + url + '" style="width:100%;height:32px;"></audio>';
+      }
     }
   }
 

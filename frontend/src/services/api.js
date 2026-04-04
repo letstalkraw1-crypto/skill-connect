@@ -28,8 +28,14 @@ api.interceptors.response.use(
 );
 
 export const authService = {
-  login: (data) => api.post('/auth/login', data),
-  signup: (data) => api.post('/auth/signup', data),
+  login: (data) => api.post('/auth/login', { 
+    ...data, 
+    email: data.email?.toLowerCase().trim() 
+  }),
+  signup: (data) => api.post('/auth/signup', { 
+    ...data, 
+    email: data.email?.toLowerCase().trim() 
+  }),
   getMe: () => api.get('/auth/me'),
   updateAvatar: (formData) => api.post('/upload/avatar', formData, {
     headers: { 'Content-Type': 'multipart/form-data' }
@@ -39,6 +45,8 @@ export const authService = {
 export const userService = {
   getProfile: (id) => api.get(`/profile/${id}`),
   updateProfile: (data) => api.put('/profile', data),
+  getSkillsList: () => api.get('/profile/skills-list'),
+  addSkills: (skills) => api.post('/profile/skills', { skills }),
 };
 
 export const connectionService = {

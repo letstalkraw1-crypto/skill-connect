@@ -1,6 +1,6 @@
 import { format, formatDistanceToNow } from 'date-fns';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 
 /**
  * Normalizes and prefixes an asset path with the backend base URL.
@@ -11,9 +11,13 @@ export const getAssetUrl = (path, name) => {
   if (path.startsWith('http')) return path;
   if (path.startsWith('data:image')) return path;
   
-  // Clean up leading slashes
-  const cleanPath = path.startsWith('/') ? path : `/${path}`;
-  return `${API_BASE_URL}${cleanPath}`;
+  // For local uploads, use relative paths to work with proxy/same-origin
+  if (path.startsWith('uploads/') || path.startsWith('/uploads/')) {
+    const cleanPath = path.startsWith('/') ? path : `/${path}`;
+    return `${API_BASE_URL}${cleanPath}`;
+  }
+
+  return path;
 };
 
 /**

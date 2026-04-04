@@ -27,7 +27,8 @@ async function signup(name, email, password, location) {
     err.status = 400; throw err;
   }
 
-  const existing = await User.findOne({ email });
+  const normalizedEmail = email.toLowerCase().trim();
+  const existing = await User.findOne({ email: normalizedEmail });
   if (existing) {
     const err = new Error('Email already in use'); err.status = 409; throw err;
   }
@@ -36,38 +37,46 @@ async function signup(name, email, password, location) {
   const userId = uuidv4();
   const shortId = await generateShortId();
   
+  console.log(`📝 Signup attempt: ${email} (userId: ${userId})`);
   const user = new User({
     _id: userId,
     shortId,
     name,
-    email,
+    email: normalizedEmail,
     password: hashedPassword,
     location: location || null
   });
   
   await user.save();
+  console.log(`✅ User saved: ${userId}`);
   const userJson = user.toObject();
   delete userJson.password;
 
   const token = jwt.sign({ userId }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
-  return { user: userJson, token };
+  return { userId, user: userJson, token };
 }
 
 // ── Email + Password login ───────────────────────────────────────────────────
 async function login(email, password) {
-  const user = await User.findOne({ email }).select('+password');
+  console.log(`🔐 Login attempt for: ${email}`);
+  const normalizedEmail = (email || '').toLowerCase().trim();
+  const user = await User.findOne({ email: normalizedEmail }).select('+password');
   if (!user) {
+    console.log('❌ User not found');
     const err = new Error('Invalid credentials'); err.status = 401; throw err;
   }
+  console.log(`👤 User found: ${user._id}`);
   const match = await bcrypt.compare(password, user.password);
   if (!match) {
+    console.log('❌ Password mismatch');
     const err = new Error('Invalid credentials'); err.status = 401; throw err;
   }
+  console.log('✅ Login successful');
   const userJson = user.toObject();
   delete userJson.password;
 
   const token = jwt.sign({ userId: user._id }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
-  return { user: userJson, token };
+  return { userId: user._id, user: userJson, token };
 }
 
 // ── Phone signup ─────────────────────────────────────────────────────────────

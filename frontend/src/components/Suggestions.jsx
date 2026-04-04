@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { discoveryService, userService } from '../services/api';
 import { UserPlus, Check } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import Avatar from './Avatar';
 
 const Suggestions = () => {
   const [suggestions, setSuggestions] = useState([]);
@@ -58,9 +59,7 @@ const Suggestions = () => {
                 onClick={() => window.location.href=`/profile/${person.id}`}
                 className="flex items-center gap-3 cursor-pointer"
               >
-                <div className="h-10 w-10 rounded-xl bg-accent p-0.5 border border-border group-hover:border-primary transition-colors">
-                  <img src={person.avatarUrl || '/logo.png'} className="h-full w-full object-cover rounded-lg" alt={person.name} />
-                </div>
+                <Avatar src={person.avatarUrl} name={person.name} size="10" />
                 <div className="flex-1 min-w-0">
                   <h4 className="text-sm font-bold truncate group-hover:text-primary transition-colors">{person.name}</h4>
                   <p className="text-[10px] text-muted-foreground truncate">{person.location || 'Coimbatore'}</p>

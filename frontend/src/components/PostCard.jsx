@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { getAssetUrl, safeDistanceToNow } from '../utils/utils';
+import Avatar from './Avatar';
 
 const PostCard = ({ post, onLikeUpdate }) => {
   const { user } = useAuth();
@@ -72,13 +73,9 @@ const PostCard = ({ post, onLikeUpdate }) => {
         <div className="flex items-center gap-3">
           <div 
             onClick={() => navigate(`/profile/${post.author_id || post.userId?._id}`)}
-            className="h-10 w-10 rounded-xl bg-primary/20 p-0.5 cursor-pointer hover:ring-2 hover:ring-primary transition-all"
+            className="cursor-pointer hover:ring-2 hover:ring-primary rounded-xl transition-all"
           >
-            <img 
-              src={getAssetUrl(post.author_avatar || post.authorAvatar)} 
-              className="h-full w-full object-cover rounded-lg" 
-              alt={post.author_name}
-            />
+            <Avatar src={post.author_avatar || post.authorAvatar} name={post.author_name} size="10" />
           </div>
           <div>
             <h3 
@@ -157,7 +154,7 @@ const PostCard = ({ post, onLikeUpdate }) => {
               ) : (
                 comments.map((comment, idx) => (
                   <div key={idx} className="flex gap-3">
-                    <img src={getAssetUrl(comment.authorAvatar || comment.author_avatar)} className="h-8 w-8 rounded-lg object-cover" />
+                    <Avatar src={comment.authorAvatar || comment.author_avatar} name={comment.authorName} size="8" />
                     <div className="flex-1 bg-background/50 rounded-xl p-2 border border-border/30">
                       <div className="flex justify-between items-center mb-1">
                         <span className="font-bold text-xs">{comment.authorName}</span>

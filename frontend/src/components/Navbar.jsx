@@ -2,8 +2,10 @@ import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Home, Search, MessageSquare, User, LogOut, Bell, X } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { getAssetUrl } from '../utils/utils';
+import { getAssetUrl, safeDistanceToNow } from '../utils/utils';
 import { motion, AnimatePresence } from 'framer-motion';
+import Avatar from './Avatar';
+import api from '../services/api';
 
 const NavItem = ({ to, icon: Icon, label, active }) => (
   <Link
@@ -105,9 +107,7 @@ const Navbar = () => {
                   ) : (
                     notifications.map((n) => (
                       <div key={n._id || n.id} className="flex gap-3 p-3 rounded-xl hover:bg-accent/50 transition-colors cursor-pointer group border border-transparent hover:border-border/50">
-                        <div className="h-10 w-10 rounded-full bg-primary/10 overflow-hidden ring-2 ring-background">
-                          <img src={getAssetUrl(n.senderId?.avatarUrl, n.senderId?.name)} className="h-full w-full object-cover" />
-                        </div>
+                        <Avatar src={n.senderId?.avatarUrl} name={n.senderId?.name} size="10" />
                         <div className="flex-1">
                           <p className="text-sm font-medium">{n.message || 'New activity on your profile'}</p>
                           <p className="text-[10px] text-muted-foreground font-bold mt-1 uppercase tracking-tight">{safeDistanceToNow(n.createdAt)}</p>

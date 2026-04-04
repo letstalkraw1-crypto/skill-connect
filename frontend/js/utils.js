@@ -70,8 +70,12 @@ export function avatarLetter(u) {
 }
 
 export function avatarEl(u) {
-  if (u.avatar_url || u.avatarUrl || u.author_avatar) {
-    return '<img src="' + (u.avatar_url || u.avatarUrl || u.author_avatar) + '" onerror="this.src=\'https://ui-avatars.com/api/?name=' + encodeURIComponent(u.name || u.author_name || '?') + '&background=random\'" />';
+  var url = u.avatar_url || u.avatarUrl || u.author_avatar;
+  if (url) {
+    if (url.startsWith('uploads/') && typeof API !== 'undefined') {
+      url = API + '/' + url;
+    }
+    return '<img src="' + url + '" onerror="this.src=\'https://ui-avatars.com/api/?name=' + encodeURIComponent(u.name || u.author_name || '?') + '&background=random\'" />';
   }
   return avatarLetter(u);
 }

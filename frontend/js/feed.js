@@ -22,7 +22,9 @@ export function renderFeed(posts) {
       try {
         var urls = typeof p.image_urls === 'string' ? JSON.parse(p.image_urls) : p.image_urls;
         images = urls.map(function(url) { 
-          var src = url.startsWith('/') ? API + url : url; 
+          var src = url;
+          if (url.startsWith('uploads/')) src = API + '/' + url;
+          else if (url.startsWith('/')) src = API + url;
           return '<img src="' + src + '" style="width:100%;border-radius:12px;margin-top:10px;cursor:pointer;" onclick="openMediaPreview(\'' + src + '\')"/>'; 
         }).join('');
       } catch(e){}
