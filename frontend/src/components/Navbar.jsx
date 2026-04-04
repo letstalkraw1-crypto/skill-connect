@@ -28,13 +28,22 @@ const Navbar = () => {
   const [unreadCount, setUnreadCount] = React.useState(0);
   const location = useLocation();
 
+  const isFetchingBus = React.useRef(false);
+  const [consecutiveErrors, setConsecutiveErrors] = React.useState(0);
+
   const fetchNotifications = async () => {
+    if (isFetchingBus.current) return;
+    isFetchingBus.current = true;
     try {
       const { data } = await api.get('/notifications');
       setNotifications(data);
       setUnreadCount(data.filter(n => !n.isRead).length);
+      setConsecutiveErrors(0); // Reset on success
     } catch (err) {
       console.error('Failed to fetch notifications:', err);
+      setConsecutiveErrors(prev => prev + 1);
+    } finally {
+      isFetchingBus.current = false;
     }
   };
 
@@ -52,10 +61,21 @@ const Navbar = () => {
   React.useEffect(() => {
     if (user) {
       fetchNotifications();
-      const interval = setInterval(fetchNotifications, 30000); // Poll every 30s
+      
+      // Stop polling after 5 consecutive errors to prevent spamming
+      if (consecutiveErrors >= 5) {
+        console.warn('[Notifications] Polling stopped due to repeated failures.');
+        return;
+      }
+
+      // Exponential backoff: base 60s, increases with errors
+      const baseInterval = 60000;
+      const intervalDelay = baseInterval * Math.pow(2, Math.min(consecutiveErrors, 3)); 
+      
+      const interval = setInterval(fetchNotifications, intervalDelay);
       return () => clearInterval(interval);
     }
-  }, [user]);
+  }, [user, consecutiveErrors]);
 
   if (!user) return null;
 
