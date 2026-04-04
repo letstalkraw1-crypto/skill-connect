@@ -17,12 +17,14 @@ const Profile = () => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [connections, setConnections] = useState([]);
-  const [activeTab, setActiveTab] = useState('skills');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'skills');
+  const [notifications, setNotifications] = useState([]);
+  const [notificationsLoading, setNotificationsLoading] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showAddSkillModal, setShowAddSkillModal] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const [notifications, setNotifications] = useState([]);
-  const [unreadCount, setUnreadCount] = useState(0);
   const fileInputRef = React.useRef(null);
 
   const fetchProfile = async () => {
@@ -351,6 +353,41 @@ const Profile = () => {
                   ))}
                   {connections.length === 0 && (
                     <div className="col-span-full py-20 text-center text-muted-foreground">No connections yet</div>
+                  )}
+                </motion.div>
+              )}
+
+              {activeTab === 'activity' && (
+                <motion.div
+                  key="activity"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  className="space-y-4"
+                >
+                  {notificationsLoading ? (
+                    <div className="py-20 text-center animate-pulse text-primary font-bold tracking-widest uppercase text-xs">Synchronizing Activity...</div>
+                  ) : notifications.length === 0 ? (
+                    <div className="py-20 text-center text-muted-foreground flex flex-col items-center gap-4">
+                      <div className="h-16 w-16 rounded-2xl bg-accent flex items-center justify-center opacity-20">
+                         <Calendar size={32} />
+                      </div>
+                      <p className="font-bold text-sm">No recent activity found.</p>
+                      <p className="text-xs text-muted-foreground -mt-2 italic text-center">Follow people or interact with posts to see updates here.</p>
+                    </div>
+                  ) : (
+                    notifications.map((n, idx) => (
+                      <div key={n._id || n.id || idx} className="glass-card p-4 rounded-2xl flex items-center gap-4 hover:bg-accent/30 transition-all group">
+                        <Avatar src={n.senderId?.avatarUrl} name={n.senderId?.name} size="10" className="group-hover:ring-2 ring-primary transition-all" />
+                        <div className="flex-1">
+                          <p className="text-sm font-bold group-hover:text-primary transition-colors">{n.message || 'System Notification'}</p>
+                          <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest mt-1 opacity-60">{safeFormat(n.createdAt)}</p>
+                        </div>
+                        {n.type === 'connection_request' && (
+                          <div className="h-2 w-2 rounded-full bg-primary animate-pulse" title="Pending Action"></div>
+                        )}
+                      </div>
+                    ))
                   )}
                 </motion.div>
               )}

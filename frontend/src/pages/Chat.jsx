@@ -28,8 +28,25 @@ const Chat = () => {
     try {
       const { data } = await chatService.listConversations();
       setConversations(data);
-      if (id && data.find(c => c.id === id)) {
-        setActiveChat(data.find(c => c.id === id));
+      
+      if (id) {
+        const existing = data.find(c => c.id === id || c.otherUser?.id === id || c.otherUser?._id === id);
+        if (existing) {
+          setActiveChat(existing);
+        } else {
+          // If no existing conversation matches, try to create/fetch one with this User ID
+          try {
+            const res = await chatService.createConversation([id]);
+            const newConv = res.data;
+            setConversations(prev => {
+              const exists = prev.find(p => p.id === newConv.id);
+              return exists ? prev : [newConv, ...prev];
+            });
+            setActiveChat(newConv);
+          } catch (createErr) {
+            console.error('Failed to auto-create conversation:', createErr);
+          }
+        }
       }
     } catch (err) {
       console.error(err);
