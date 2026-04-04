@@ -1,6 +1,6 @@
 const { Server } = require('socket.io');
 const jwt = require('jsonwebtoken');
-const { Conversation, User } = require('../db/index');
+const { Conversation, User } = require('../config/db');
 const { persistMessage } = require('../services/messaging');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'changeme';

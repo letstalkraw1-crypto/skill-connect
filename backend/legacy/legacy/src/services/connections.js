@@ -1,5 +1,5 @@
 const { v4: uuidv4 } = require('uuid');
-const { Connection, User } = require('../db/index');
+const { Connection, User } = require('../config/db');
 
 async function sendRequest(requesterId, addresseeId) {
   if (!addresseeId || addresseeId === 'undefined') {

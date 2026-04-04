@@ -1,7 +1,7 @@
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const { v4: uuidv4 } = require('uuid');
-const { User, OTP } = require('../db/index');
+const { User, OTP } = require('../config/db');
 
 const SALT_ROUNDS = 10;
 const JWT_SECRET = process.env.JWT_SECRET || 'changeme';
@@ -136,40 +136,5 @@ async function verifyOtp(phone, code) {
   return { userId: user._id, token };
 }
 
-// ── JWT middleware ───────────────────────────────────────────────────────────
-async function verifyToken(req, res, next) {
-  const authHeader = req.headers['authorization'];
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return res.status(401).json({ error: 'Missing or invalid Authorization header' });
-  }
-  const token = authHeader.slice(7);
-  try {
-    const payload = jwt.verify(token, JWT_SECRET);
-    req.user = { userId: payload.userId };
-    next();
-  } catch {
-    return res.status(401).json({ error: 'Invalid or expired token' });
-  }
-}
-
-// ── Optional JWT middleware ────────────────────────────────────────────────────────
-async function optionalVerifyToken(req, res, next) {
-  const authHeader = req.headers['authorization'];
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return next();
-  }
-  const token = authHeader.slice(7);
-  try {
-    const payload = jwt.verify(token, JWT_SECRET);
-    const user = await User.findById(payload.userId);
-    if (user) {
-      req.user = { userId: payload.userId };
-    }
-  } catch (e) {
-    // Ignore invalid tokens for optional auth
-  }
-  next();
-}
-
-module.exports = { signup, login, signupPhone, generateOtp, verifyOtp, verifyToken, optionalVerifyToken };
+module.exports = { signup, login, signupPhone, generateOtp, verifyOtp };
 

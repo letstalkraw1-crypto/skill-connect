@@ -1,4 +1,4 @@
-const { User, UserSkill, Skill, ProficiencyLevel, SkillEndorsement, SkillVerification, Connection } = require('../db/index');
+const { User, UserSkill, Skill, ProficiencyLevel, SkillEndorsement, SkillVerification, Connection } = require('../config/db');
 
 async function getProfile(userId) {
   const user = await User.findById(userId).lean();

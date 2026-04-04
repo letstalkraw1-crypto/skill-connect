@@ -1,4 +1,4 @@
-const { User, UserSkill, Skill, ProficiencyLevel, Connection } = require('../db/index');
+const { User, UserSkill, Skill, ProficiencyLevel, Connection } = require('../config/db');
 
 const EARTH_RADIUS_KM = 6371;
 

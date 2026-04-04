@@ -1,5 +1,5 @@
 const { v4: uuidv4 } = require('uuid');
-const { Conversation, Message, User } = require('../db/index');
+const { Conversation, Message, User } = require('../config/db');
 
 async function createConversation(creatorId, participantIds) {
   // Ensure all participant IDs are valid and include the creator
