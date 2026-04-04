@@ -83,10 +83,8 @@ const Navbar = () => {
     <nav className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-16 items-center justify-between px-4">
         <Link to="/" className="flex items-center gap-2 transition-transform hover:scale-105">
-          <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
-            <span className="text-xl font-bold text-primary-foreground">S</span>
-          </div>
-          <span className="text-xl font-bold tracking-tight hidden sm:inline">SkillConnect</span>
+          <img src="/logo.png" alt="Collabro Logo" className="h-8 w-8 object-contain" />
+          <span className="text-xl font-bold tracking-tight hidden sm:inline">Collabro</span>
         </Link>
 
         <div className="flex items-center gap-1 md:gap-4">

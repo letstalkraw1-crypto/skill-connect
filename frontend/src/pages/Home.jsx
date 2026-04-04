@@ -52,7 +52,7 @@ const Home = () => {
         <div className="sticky top-24 space-y-6">
           <Suggestions />
           <div className="glass-card p-4 rounded-xl text-center text-xs text-muted-foreground">
-            <p>© 2026 SkillConnect. All rights reserved.</p>
+            <p>© 2026 Collabro. All rights reserved.</p>
             <div className="flex justify-center gap-2 mt-2">
               <button className="hover:text-primary">About</button>
               <button className="hover:text-primary">Privacy</button>

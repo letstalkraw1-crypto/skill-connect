@@ -58,7 +58,7 @@ const Auth = () => {
             <Lock className="text-primary-foreground h-8 w-8" />
           </motion.div>
           <h1 className="text-3xl font-bold tracking-tight mb-2">
-            {isLogin ? 'Welcome Back' : 'Join SkillConnect'}
+            {isLogin ? 'Welcome Back' : 'Join Collabro'}
           </h1>
           <p className="text-muted-foreground">
             {isLogin ? 'Enter your credentials to access your account' : 'Start your journey of skill sharing today'}
