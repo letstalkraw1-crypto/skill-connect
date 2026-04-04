@@ -33,17 +33,17 @@ async function signup(name, email, password, location) {
     const err = new Error('Email already in use'); err.status = 409; throw err;
   }
 
-  const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
+  // No manual hashing here - the model's pre('save') hook handles it!
   const userId = uuidv4();
   const shortId = await generateShortId();
   
-  console.log(`📝 Signup attempt: ${email} (userId: ${userId})`);
+  console.log(`📝 Signup attempt: ${normalizedEmail} (userId: ${userId})`);
   const user = new User({
     _id: userId,
     shortId,
     name,
     email: normalizedEmail,
-    password: hashedPassword,
+    password, // Passed as plain text, hashed by pre-save hook
     location: location || null
   });
   
@@ -66,7 +66,23 @@ async function login(email, password) {
     const err = new Error('Invalid credentials'); err.status = 401; throw err;
   }
   console.log(`👤 User found: ${user._id}`);
-  const match = await bcrypt.compare(password, user.password);
+  
+  // Auto-migration logic for legacy plain-text passwords
+  let match = false;
+  const isBcryptHash = user.password.startsWith('$2b$') || user.password.startsWith('$2a$');
+
+  if (isBcryptHash) {
+    match = await user.matchPassword(password);
+  } else {
+    // Legacy plain-text comparison
+    match = (password === user.password);
+    if (match) {
+      console.log('🔄 Migrating plain-text password to hash...');
+      user.password = password; // pre-save hook will hash this
+      await user.save();
+    }
+  }
+
   if (!match) {
     console.log('❌ Password mismatch');
     const err = new Error('Invalid credentials'); err.status = 401; throw err;
