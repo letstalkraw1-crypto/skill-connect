@@ -4,6 +4,7 @@ import { userService, connectionService } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Edit3, MapPin, Calendar, Link as LinkIcon, Instagram, Github, Chrome, MessageCircle, UserPlus, Check, X, Shield, Star } from 'lucide-react';
+import { getAssetUrl } from '../utils/utils';
 
 const Profile = () => {
   const { id } = useParams();
@@ -53,7 +54,7 @@ const Profile = () => {
           >
             <div className="h-40 w-40 rounded-3xl bg-gradient-to-br from-primary to-blue-600 p-1 mb-6 shadow-2xl shadow-primary/30">
               <img 
-                src={user.avatarUrl || '/logo.png'} 
+                src={getAssetUrl(user.avatarUrl)} 
                 className="h-full w-full object-cover rounded-2xl border-4 border-background"
                 alt={user.name} 
               />
@@ -128,7 +129,7 @@ const Profile = () => {
             {!isOwnProfile && (
               <div className="flex gap-2">
                 <button 
-                  onClick={() => window.location.href=`/chat/${user._id || user.id}`}
+                  onClick={() => navigate(`/chat/${user._id || user.id}`)}
                   className="flex-1 flex items-center justify-center gap-2 py-3 bg-primary text-primary-foreground rounded-2xl font-bold font-sm shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all"
                 >
                   <MessageCircle size={18} />
@@ -213,12 +214,12 @@ const Profile = () => {
                   {connections.map((conn, idx) => (
                     <div key={idx} className="glass-card p-4 rounded-2xl flex flex-col items-center text-center group">
                       <div className="h-16 w-16 bg-accent rounded-2xl mb-3 border border-border group-hover:border-primary transition-colors p-1">
-                        <img src={conn.avatarUrl || '/logo.png'} className="h-full w-full object-cover rounded-xl" />
+                        <img src={getAssetUrl(conn.avatarUrl)} className="h-full w-full object-cover rounded-xl" />
                       </div>
                       <h5 className="text-sm font-bold truncate w-full px-2">{conn.name}</h5>
                       <p className="text-[10px] text-muted-foreground mt-1">{conn.location || 'Coimbatore'}</p>
                       <button 
-                        onClick={() => window.location.href=`/profile/${conn.id}`}
+                        onClick={() => navigate(`/profile/${conn._id || conn.id}`)}
                         className="mt-4 px-4 py-1.5 bg-accent/50 hover:bg-primary hover:text-primary-foreground rounded-xl text-[10px] font-bold tracking-wider transition-all"
                       >
                         VIEW PROFILE

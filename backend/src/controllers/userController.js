@@ -56,6 +56,15 @@ const updateProfile = async (req, res) => {
   }
 };
 
+const updateMyProfile = async (req, res) => {
+  try {
+    const profile = await profileService.updateProfile(req.user.userId, req.body);
+    res.status(200).json(profile);
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
+};
+
 const completeOnboarding = async (req, res) => {
   try {
     const { skills, lookingFor, verificationLinks } = req.body;
@@ -240,7 +249,7 @@ const getShareData = async (req, res) => {
 };
 
 module.exports = {
-  getProfile, getProfileByShortId, updateProfile, completeOnboarding, 
+  getProfile, getProfileByShortId, updateProfile, updateMyProfile, completeOnboarding, 
   getSkillsList, addSkills, deleteSkill, submitVerification, getVerifications,
   addEndorsement, getEndorsements, addFeedback, getFeedback, getShareData
 };

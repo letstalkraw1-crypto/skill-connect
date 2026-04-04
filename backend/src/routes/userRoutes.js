@@ -17,6 +17,7 @@ router.post('/feedback', verifyToken, userController.addFeedback);
 router.get('/feedback', verifyToken, userController.getFeedback);
 router.get('/:userId/share', userController.getShareData);
 router.get('/:userId', optionalVerifyToken, userController.getProfile);
+router.put('/', verifyToken, userController.updateMyProfile);
 router.put('/:userId', verifyToken, userController.updateProfile);
 
 module.exports = router;

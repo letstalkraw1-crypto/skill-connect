@@ -3,11 +3,13 @@ import PostCard from './PostCard';
 import { postService } from '../services/api';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AlertCircle, RefreshCw } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 const Feed = () => {
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const navigate = useNavigate();
 
   const fetchPosts = async () => {
     setLoading(true);
@@ -74,7 +76,7 @@ const Feed = () => {
       {!loading && posts.length === 0 && (
         <div className="text-center py-20 bg-accent/20 rounded-2xl border-2 border-dashed border-border/50">
           <p className="text-muted-foreground text-lg mb-4">No posts yet. Start by connecting with others!</p>
-          <button onClick={() => window.location.href='/discovery'} className="bg-primary px-6 py-2 rounded-xl font-bold">Discover People</button>
+          <button onClick={() => navigate('/discovery')} className="bg-primary px-6 py-2 rounded-xl font-bold">Discover People</button>
         </div>
       )}
     </div>

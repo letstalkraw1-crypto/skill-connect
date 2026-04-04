@@ -1,13 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { discoveryService, connectionService } from '../services/api';
-import { Search, MapPin, UserPlus, Check, MessageCircle, Filter } from 'lucide-react';
+import { Search, MapPin, UserPlus, Check, MessageCircle, Filter, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
+import { getAssetUrl } from '../utils/utils';
 
 const Discovery = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
   const [connecting, setConnecting] = useState(null);
+  const [showFilters, setShowFilters] = useState(false);
+  const [filterType, setFilterType] = useState('all'); // all, learn, collaborate, compete
+  const navigate = useNavigate();
+  const [originalResults, setOriginalResults] = useState([]);
 
   const handleSearch = async (e) => {
     e.preventDefault();
@@ -16,6 +22,7 @@ const Discovery = () => {
     try {
       const { data } = await discoveryService.search(searchTerm);
       setResults(data);
+      setOriginalResults(data);
     } catch (err) {
       console.error(err);
     } finally {
@@ -41,12 +48,21 @@ const Discovery = () => {
     try {
       const { data } = await discoveryService.getSuggestions();
       setResults(data);
+      setOriginalResults(data);
     } catch (err) {
       console.error(err);
     } finally {
       setLoading(false);
     }
   };
+  
+  useEffect(() => {
+    if (filterType === 'all') {
+      setResults(originalResults);
+    } else {
+      setResults(originalResults.filter(r => r.lookingFor === filterType));
+    }
+  }, [filterType, originalResults]);
 
   useEffect(() => {
     fetchSuggestions();
@@ -74,11 +90,36 @@ const Discovery = () => {
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </form>
-        <div className="flex gap-2 p-1">
-          <button className="flex items-center gap-2 px-6 py-2 rounded-xl bg-accent hover:bg-accent/80 transition-colors">
+        <div className="flex gap-2 p-1 relative">
+          <button 
+            onClick={() => setShowFilters(!showFilters)}
+            className={`flex items-center gap-2 px-6 py-2 rounded-xl transition-colors ${showFilters ? 'bg-primary text-primary-foreground' : 'bg-accent hover:bg-accent/80'}`}
+          >
             <Filter size={18} />
-            <span>Filters</span>
+            <span>{filterType === 'all' ? 'Filters' : filterType.charAt(0).toUpperCase() + filterType.slice(1)}</span>
           </button>
+          
+          <AnimatePresence>
+            {showFilters && (
+              <motion.div 
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 10 }}
+                className="absolute top-full right-0 mt-2 w-48 glass-card p-2 rounded-xl border border-border z-20 shadow-xl"
+              >
+                {['all', 'learn', 'collaborate', 'compete'].map((t) => (
+                  <button
+                    key={t}
+                    onClick={() => { setFilterType(t); setShowFilters(false); }}
+                    className={`w-full text-left px-4 py-2 rounded-lg text-sm font-medium transition-colors ${filterType === t ? 'bg-primary/20 text-primary' : 'hover:bg-accent'}`}
+                  >
+                    {t.charAt(0).toUpperCase() + t.slice(1)}
+                  </button>
+                ))}
+              </motion.div>
+            )}
+          </AnimatePresence>
+
           <button 
             onClick={handleSearch}
             className="flex items-center gap-2 px-8 py-2 rounded-xl bg-primary text-primary-foreground font-bold shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all"
@@ -119,7 +160,7 @@ const Discovery = () => {
                 <div className="flex gap-4 mb-4">
                   <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-primary/20 to-blue-500/20 p-0.5 border border-border group-hover:border-primary transition-all">
                     <img 
-                      src={person.avatarUrl || person.avatar_url || '/logo.png'} 
+                      src={getAssetUrl(person.avatarUrl || person.avatar_url)} 
                       className="h-full w-full object-cover rounded-xl"
                       alt={person.name} 
                     />
@@ -170,7 +211,7 @@ const Discovery = () => {
                       )}
                     </button>
                     <button 
-                      onClick={() => window.location.href=`/chat/${person.id || person._id}`}
+                      onClick={() => navigate(`/chat/${person.id || person._id}`)}
                       className="p-2.5 rounded-xl bg-accent text-foreground hover:bg-accent/80 transition-all border border-border"
                     >
                       <MessageCircle size={20} />

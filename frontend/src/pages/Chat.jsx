@@ -3,9 +3,9 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { chatService, userService } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../hooks/useSocket';
-import { Send, Image, Plus, MoreVertical, Phone, Video, Search, ChevronLeft, Paperclip, Smile } from 'lucide-react';
+import { Send, Image, Plus, MoreVertical, Phone, Video, Search, ChevronLeft, Paperclip, Smile, MessageCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { format } from 'date-fns';
+import { getAssetUrl, safeFormat } from '../utils/utils';
 
 const Chat = () => {
   const { id } = useParams(); // Selected conversation ID or user ID
@@ -129,14 +129,14 @@ const Chat = () => {
             >
               <div className="relative">
                 <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-primary/20 to-blue-600/20 border border-border group-hover:border-primary transition-all p-0.5">
-                  <img src={conv.otherUser?.avatarUrl || '/logo.png'} className="h-full w-full object-cover rounded-xl" />
+                  <img src={getAssetUrl(conv.otherUser?.avatarUrl || conv.otherUser?.avatar_url)} className="h-full w-full object-cover rounded-xl" />
                 </div>
                 <div className="absolute -bottom-1 -right-1 h-4 w-4 bg-emerald-500 border-2 border-background rounded-full"></div>
               </div>
               <div className="flex-1 text-left min-w-0">
                 <div className="flex justify-between items-center mb-1">
                   <h4 className="font-bold truncate group-hover:text-primary transition-colors">{conv.otherUser?.name}</h4>
-                  <span className="text-[10px] text-muted-foreground font-bold">{format(new Date(conv.lastAt), 'h:mm a')}</span>
+                  <span className="text-[10px] text-muted-foreground font-bold">{safeFormat(conv.lastAt)}</span>
                 </div>
                 <p className="text-xs text-muted-foreground truncate font-medium">
                   {conv.lastMessage || 'No messages yet'}
@@ -158,7 +158,7 @@ const Chat = () => {
                   <ChevronLeft size={20} />
                 </button>
                 <div className="h-12 w-12 rounded-xl bg-accent p-0.5 border border-border">
-                  <img src={activeChat.otherUser?.avatarUrl || '/logo.png'} className="h-full w-full object-cover rounded-lg" />
+                  <img src={getAssetUrl(activeChat.otherUser?.avatarUrl || activeChat.otherUser?.avatar_url)} className="h-full w-full object-cover rounded-lg" />
                 </div>
                 <div>
                   <h3 className="font-bold">{activeChat.otherUser?.name}</h3>
@@ -197,7 +197,7 @@ const Chat = () => {
                           {msg.text}
                         </div>
                         <p className={`text-[10px] text-muted-foreground font-bold uppercase tracking-widest ${isMe ? 'text-right' : 'text-left'}`}>
-                          {format(new Date(msg.sentAt), 'h:mm a')}
+                          {safeFormat(msg.sentAt)}
                         </p>
                       </div>
                     </motion.div>

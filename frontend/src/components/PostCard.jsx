@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { Heart, MessageSquare, Share2, MoreVertical, Trash2, Send } from 'lucide-react';
-import { formatDistanceToNow } from 'date-fns';
+import { Heart, MessageSquare, Share2, MoreVertical, Trash2, Send, Check } from 'lucide-react';
 import { postService } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
+import { getAssetUrl, safeDistanceToNow } from '../utils/utils';
 
 const PostCard = ({ post, onLikeUpdate }) => {
   const { user } = useAuth();
@@ -13,6 +14,8 @@ const PostCard = ({ post, onLikeUpdate }) => {
   const [commentText, setCommentText] = useState('');
   const [comments, setComments] = useState([]);
   const [loadingComments, setLoadingComments] = useState(false);
+  const [isSharing, setIsSharing] = useState(false);
+  const navigate = useNavigate();
 
   const handleLike = async () => {
     try {
@@ -56,29 +59,36 @@ const PostCard = ({ post, onLikeUpdate }) => {
     }
   };
 
+  const handleShare = () => {
+    const shareUrl = `${window.location.origin}/post/${post.id || post._id}`;
+    navigator.clipboard.writeText(shareUrl);
+    setIsSharing(true);
+    setTimeout(() => setIsSharing(false), 2000);
+  };
+
   return (
     <div className="glass-card rounded-2xl overflow-hidden mb-6">
       <div className="p-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div 
-            onClick={() => window.location.href=`/profile/${post.author_id || post.userId?._id}`}
+            onClick={() => navigate(`/profile/${post.author_id || post.userId?._id}`)}
             className="h-10 w-10 rounded-xl bg-primary/20 p-0.5 cursor-pointer hover:ring-2 hover:ring-primary transition-all"
           >
             <img 
-              src={post.author_avatar || post.authorAvatar || '/logo.png'} 
+              src={getAssetUrl(post.author_avatar || post.authorAvatar)} 
               className="h-full w-full object-cover rounded-lg" 
               alt={post.author_name}
             />
           </div>
           <div>
             <h3 
-              onClick={() => window.location.href=`/profile/${post.author_id || post.userId?._id}`}
+              onClick={() => navigate(`/profile/${post.author_id || post.userId?._id}`)}
               className="font-bold text-sm cursor-pointer hover:text-primary transition-colors"
             >
               {post.author_name || post.authorName}
             </h3>
             <p className="text-xs text-muted-foreground">
-              {formatDistanceToNow(new Date(post.createdAt || post.created_at))} ago
+              {safeDistanceToNow(post.createdAt || post.created_at)}
             </p>
           </div>
         </div>
@@ -93,11 +103,11 @@ const PostCard = ({ post, onLikeUpdate }) => {
         {post.image_urls?.length > 0 ? (
           <div className={`grid gap-2 ${post.image_urls.length > 1 ? 'grid-cols-2' : 'grid-cols-1'}`}>
             {post.image_urls.map((url, idx) => (
-              <img key={idx} src={url} className="w-full h-auto max-h-[500px] object-cover rounded-xl border border-border/50" alt="post" />
+              <img key={idx} src={getAssetUrl(url)} className="w-full h-auto max-h-[500px] object-cover rounded-xl border border-border/50" alt="post" />
             ))}
           </div>
         ) : post.imageUrl ? (
-          <img src={post.imageUrl} className="w-full h-auto max-h-[500px] object-cover rounded-xl border border-border/50" alt="post" />
+          <img src={getAssetUrl(post.imageUrl)} className="w-full h-auto max-h-[500px] object-cover rounded-xl border border-border/50" alt="post" />
         ) : null}
       </div>
 
@@ -119,8 +129,12 @@ const PostCard = ({ post, onLikeUpdate }) => {
             <MessageSquare size={20} />
             <span className="text-sm font-bold">{post.comments_count || comments.length}</span>
           </button>
-          <button className="flex items-center gap-1.5 text-muted-foreground hover:text-emerald-500 transition-colors">
-            <Share2 size={20} />
+          <button 
+            onClick={handleShare}
+            className={`flex items-center gap-1.5 transition-colors ${isSharing ? 'text-emerald-500' : 'text-muted-foreground hover:text-emerald-500'}`}
+          >
+            {isSharing ? <Check size={20} /> : <Share2 size={20} />}
+            <span className="text-sm font-bold">{isSharing ? 'Copied!' : ''}</span>
           </button>
         </div>
       </div>
@@ -143,12 +157,12 @@ const PostCard = ({ post, onLikeUpdate }) => {
               ) : (
                 comments.map((comment, idx) => (
                   <div key={idx} className="flex gap-3">
-                    <img src={comment.authorAvatar || '/logo.png'} className="h-8 w-8 rounded-lg object-cover" />
+                    <img src={getAssetUrl(comment.authorAvatar || comment.author_avatar)} className="h-8 w-8 rounded-lg object-cover" />
                     <div className="flex-1 bg-background/50 rounded-xl p-2 border border-border/30">
                       <div className="flex justify-between items-center mb-1">
                         <span className="font-bold text-xs">{comment.authorName}</span>
                         <span className="text-[10px] text-muted-foreground">
-                          {formatDistanceToNow(new Date(comment.createdAt))} ago
+                          {safeDistanceToNow(comment.createdAt)}
                         </span>
                       </div>
                       <p className="text-sm">{comment.text}</p>
