@@ -7,7 +7,7 @@ const router = express.Router();
 // GET /resources - List all resources, with optional filters
 router.get('/', async (req, res) => {
   try {
-    const { Resource, Skill, User } = require('../db/index');
+    const { Resource, Skill, User } = require('../config/db');
     const { skill, category, type } = req.query;
     let query = {};
     
@@ -32,7 +32,7 @@ router.get('/', async (req, res) => {
 // POST /resources - Create a new resource (auth required)
 router.post('/', verifyToken, async (req, res) => {
   try {
-    const { Resource } = require('../db/index');
+    const { Resource } = require('../config/db');
     const { title, description, type, url, category, skillId } = req.body;
     if (!title || !type) return res.status(400).json({ error: 'title and type required' });
     
@@ -56,7 +56,7 @@ router.post('/', verifyToken, async (req, res) => {
 // GET /resources/:id - Get specific resource
 router.get('/:id', async (req, res) => {
   try {
-    const { Resource } = require('../db/index');
+    const { Resource } = require('../config/db');
     const resource = await Resource.findById(req.params.id)
       .populate('userId', 'name')
       .lean();
@@ -70,7 +70,7 @@ router.get('/:id', async (req, res) => {
 // POST /resources/:id/favorite - Favorite a resource (auth required)
 router.post('/:id/favorite', verifyToken, async (req, res) => {
   try {
-    const { Resource, ResourceFavorite } = require('../db/index');
+    const { Resource, ResourceFavorite } = require('../config/db');
     const resourceId = req.params.id;
     const resource = await Resource.findById(resourceId);
     if (!resource) return res.status(404).json({ error: 'Resource not found' });
@@ -92,7 +92,7 @@ router.post('/:id/favorite', verifyToken, async (req, res) => {
 // DELETE /resources/:id/favorite - Unfavorite
 router.delete('/:id/favorite', verifyToken, async (req, res) => {
   try {
-    const { ResourceFavorite } = require('../db/index');
+    const { ResourceFavorite } = require('../config/db');
     await ResourceFavorite.deleteOne({ userId: req.user.userId, resourceId: req.params.id });
     res.json({ ok: true });
   } catch (err) {

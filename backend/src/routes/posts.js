@@ -4,7 +4,7 @@ const path = require('path');
 const fs = require('fs');
 const { v4: uuidv4 } = require('uuid');
 const { verifyToken } = require('../services/auth');
-const { Post, PostLike, PostComment, PostInteraction, User, Connection } = require('../db/index');
+const { Post, PostLike, PostComment, PostInteraction, User, Connection } = require('../config/db');
 
 const router = express.Router();
 

@@ -7,7 +7,7 @@ const router = express.Router();
 // GET /documents - List documents, optional skill filter
 router.get('/', async (req, res) => {
   try {
-    const { Document, Skill } = require('../db/index');
+    const { Document, Skill } = require('../config/db');
     const { skill } = req.query;
     let query = {};
     
@@ -30,7 +30,7 @@ router.get('/', async (req, res) => {
 // POST /documents - Create a document (auth required)
 router.post('/', verifyToken, async (req, res) => {
   try {
-    const { Document } = require('../db/index');
+    const { Document } = require('../config/db');
     const { skillId, title, content } = req.body;
     if (!title || !content) return res.status(400).json({ error: 'title and content required' });
     
@@ -51,7 +51,7 @@ router.post('/', verifyToken, async (req, res) => {
 // GET /documents/:id - Get specific document
 router.get('/:id', async (req, res) => {
   try {
-    const { Document } = require('../db/index');
+    const { Document } = require('../config/db');
     const document = await Document.findById(req.params.id)
       .populate('authorId', 'name')
       .lean();
@@ -65,7 +65,7 @@ router.get('/:id', async (req, res) => {
 // PUT /documents/:id - Update document (author only)
 router.put('/:id', verifyToken, async (req, res) => {
   try {
-    const { Document } = require('../db/index');
+    const { Document } = require('../config/db');
     const { content } = req.body;
     const document = await Document.findById(req.params.id).select('authorId').lean();
     if (!document) return res.status(404).json({ error: 'Document not found' });

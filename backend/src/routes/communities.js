@@ -1,7 +1,7 @@
 const express = require('express');
 const { v4: uuidv4 } = require('uuid');
 const { verifyToken } = require('../services/auth');
-const { Community, CommunityMember, User } = require('../db/index');
+const { Community, CommunityMember, User } = require('../config/db');
 
 const router = express.Router();
 

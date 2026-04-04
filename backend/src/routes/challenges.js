@@ -7,7 +7,7 @@ const router = express.Router();
 // GET /challenges - List all challenges
 router.get('/', async (req, res) => {
   try {
-    const { Challenge } = require('../db/index');
+    const { Challenge } = require('../config/db');
     const challenges = await Challenge.find()
       .populate('skillId', 'name')
       .sort({ createdAt: -1 })
@@ -21,7 +21,7 @@ router.get('/', async (req, res) => {
 // POST /challenges - Create a challenge (auth required, perhaps admin only)
 router.post('/', verifyToken, async (req, res) => {
   try {
-    const { Challenge } = require('../db/index');
+    const { Challenge } = require('../config/db');
     const { title, description, skillId, difficulty, startDate, endDate, points } = req.body;
     if (!title) return res.status(400).json({ error: 'title required' });
     
@@ -45,7 +45,7 @@ router.post('/', verifyToken, async (req, res) => {
 // POST /challenges/:id/submit - Submit to a challenge
 router.post('/:id/submit', verifyToken, async (req, res) => {
   try {
-    const { Challenge, ChallengeSubmission } = require('../db/index');
+    const { Challenge, ChallengeSubmission } = require('../config/db');
     const { submissionData, score } = req.body;
     const challengeId = req.params.id;
     const challenge = await Challenge.findById(challengeId);
@@ -71,7 +71,7 @@ router.post('/:id/submit', verifyToken, async (req, res) => {
 // GET /challenges/:id/submissions - Get submissions for a challenge
 router.get('/:id/submissions', verifyToken, async (req, res) => {
   try {
-    const { ChallengeSubmission } = require('../db/index');
+    const { ChallengeSubmission } = require('../config/db');
     const submissions = await ChallengeSubmission.find({ challengeId: req.params.id })
       .populate('userId', 'name')
       .sort({ score: -1 })

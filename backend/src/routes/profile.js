@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { verifyToken } = require('../services/auth');
 const { getProfile, updateProfile, addSkills, deleteSkill } = require('../services/profile');
-const { User, SkillVerification, Skill, SkillEndorsement, Feedback } = require('../db/index');
+const { User, SkillVerification, Skill, SkillEndorsement, Feedback } = require('../config/db');
 const { v4: uuidv4 } = require('uuid');
 
 // POST /profile/onboarding — complete onboarding with skills, sub-skills, level, lookingFor
@@ -13,7 +13,7 @@ router.post('/onboarding', verifyToken, async (req, res) => {
 
     // Save each skill with sub-skill and level
     if (skills && skills.length) {
-      const { UserSkill, Skill } = require('../db/index');
+      const { UserSkill, Skill } = require('../config/db');
       for (const s of skills) {
         const skillDoc = await Skill.findOne({ name: { $regex: new RegExp('^' + s.skillName + '$', 'i') } });
         if (!skillDoc) continue;
@@ -36,7 +36,7 @@ router.post('/onboarding', verifyToken, async (req, res) => {
       if (verificationLinks.portfolio || verificationLinks.portfolio_url) update.portfolioUrl = verificationLinks.portfolio || verificationLinks.portfolio_url;
     }
 
-    await require('../db/index').User.findByIdAndUpdate(userId, update);
+    await require('../config/db').User.findByIdAndUpdate(userId, update);
     const profile = await require('../services/profile').getProfile(userId);
     res.json(profile);
   } catch (err) {
@@ -263,7 +263,7 @@ router.get('/:userId/share', async (req, res) => {
 
 // GET /profile/:userId — public profile view
 const { optionalVerifyToken } = require('../services/auth');
-const { Connection } = require('../db/index');
+const { Connection } = require('../config/db');
 
 router.get('/:userId', optionalVerifyToken, async (req, res) => {
   try {

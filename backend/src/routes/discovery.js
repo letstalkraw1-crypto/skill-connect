@@ -1,7 +1,7 @@
 const express = require('express');
 const { verifyToken } = require('../services/auth');
 const { discoverUsers, getSuggestions } = require('../services/discovery');
-const { User, UserSkill, Skill, Connection, Event } = require('../db/index');
+const { User, UserSkill, Skill, Connection, Event } = require('../config/db');
 
 const router = express.Router();
 

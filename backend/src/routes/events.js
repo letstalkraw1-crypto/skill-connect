@@ -1,7 +1,7 @@
 const express = require('express');
 const { v4: uuidv4 } = require('uuid');
 const { verifyToken } = require('../services/auth');
-const { Event, EventRsvp, User } = require('../db/index');
+const { Event, EventRsvp, User } = require('../config/db');
 
 const router = express.Router();
 

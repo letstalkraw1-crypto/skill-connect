@@ -1,6 +1,6 @@
 const express = require('express');
 const bcrypt = require('bcrypt');
-const { User, UserSkill, Connection, Message, Conversation, Skill, Event } = require('../db/index');
+const { User, UserSkill, Connection, Message, Conversation, Skill, Event } = require('../config/db');
 
 const router = express.Router();
 

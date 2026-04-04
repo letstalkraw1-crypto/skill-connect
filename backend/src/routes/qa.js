@@ -1,7 +1,7 @@
 const express = require('express');
 const { v4: uuidv4 } = require('uuid');
 const { verifyToken } = require('../services/auth');
-const { QARoom, QAQuestion, User, Skill } = require('../db/index');
+const { QARoom, QAQuestion, User, Skill } = require('../config/db');
 
 const router = express.Router();
 

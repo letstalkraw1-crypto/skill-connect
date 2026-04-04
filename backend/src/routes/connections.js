@@ -1,6 +1,6 @@
 const express = require('express');
 const { verifyToken, optionalVerifyToken } = require('../services/auth');
-const { User } = require('../db/index');
+const { User } = require('../config/db');
 const {
   sendRequest,
   acceptConnection,

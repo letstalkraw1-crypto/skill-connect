@@ -116,7 +116,7 @@ router.post('/change-password', require('../services/auth').verifyToken, async (
   }
   try {
     const bcrypt = require('bcrypt');
-    const { User } = require('../db/index');
+    const { User } = require('../config/db');
     const user = await User.findById(req.user.userId).select('password').lean();
     if (!user) return res.status(404).json({ error: 'User not found' });
     if (user.password) {
