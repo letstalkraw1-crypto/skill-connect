@@ -141,5 +141,42 @@ async function verifyOtp(phone, code) {
   return { userId: user._id, token };
 }
 
-module.exports = { signup, login, signupPhone, generateOtp, verifyOtp };
+// ── Middleware: Verify JWT Token ───────────────────────────────────────────
+function verifyToken(req, res, next) {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+
+  if (!token) {
+    const err = new Error('Access denied. No token provided.');
+    err.status = 401;
+    return res.status(401).json({ error: err.message });
+  }
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    req.user = decoded;
+    next();
+  } catch (err) {
+    res.status(401).json({ error: 'Invalid or expired token' });
+  }
+}
+
+// ── Middleware: Optional JWT Verification ──────────────────────────────────
+function optionalVerifyToken(req, res, next) {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+
+  if (!token) return next();
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    req.user = decoded;
+    next();
+  } catch (err) {
+    // If token is invalid, we just proceed without user info
+    next();
+  }
+}
+
+module.exports = { signup, login, signupPhone, generateOtp, verifyOtp, verifyToken, optionalVerifyToken };
 
