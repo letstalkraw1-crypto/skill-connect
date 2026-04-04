@@ -87,13 +87,6 @@ const Navbar = () => {
           <span className="text-xl font-bold tracking-tight hidden sm:inline">Collabro</span>
         </Link>
 
-        <div className="flex items-center gap-1 md:gap-4">
-          <NavItem to="/" icon={Home} label="Feed" active={location.pathname === '/'} />
-          <NavItem to="/discovery" icon={Search} label="Discover" active={location.pathname === '/discovery'} />
-          <NavItem to="/chat" icon={MessageSquare} label="Messages" active={location.pathname.startsWith('/chat')} />
-          <NavItem to={`/profile/${user._id || user.id}`} icon={User} label="Profile" active={location.pathname.startsWith('/profile')} />
-        </div>
-
         <div className="flex items-center gap-2 relative">
           <button 
             onClick={() => { setShowNotifications(!showNotifications); if (!showNotifications) markAsRead(); }}
@@ -124,13 +117,51 @@ const Navbar = () => {
                     <div className="py-8 text-center text-muted-foreground text-sm">No new notifications</div>
                   ) : (
                     notifications.map((n) => (
-                      <div key={n._id || n.id} className="flex gap-3 p-3 rounded-xl hover:bg-accent/50 transition-colors cursor-pointer group border border-transparent hover:border-border/50">
-                        <Avatar src={n.senderId?.avatarUrl} name={n.senderId?.name} size="10" />
-                        <div className="flex-1">
-                          <p className="text-sm font-medium">{n.message || 'New activity on your profile'}</p>
-                          <p className="text-[10px] text-muted-foreground font-bold mt-1 uppercase tracking-tight">{safeDistanceToNow(n.createdAt)}</p>
+                      <div key={n._id || n.id} className="p-3 rounded-xl hover:bg-accent/50 transition-colors border border-transparent hover:border-border/50">
+                        <div className="flex gap-3 mb-2">
+                          <Avatar src={n.senderId?.avatarUrl} name={n.senderId?.name} size="10" />
+                          <div className="flex-1">
+                            <p className="text-sm font-medium">{n.message || 'New activity'}</p>
+                            <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-tight">{safeDistanceToNow(n.createdAt)}</p>
+                          </div>
+                          {!n.isRead && <div className="h-2 w-2 rounded-full bg-primary self-center"></div>}
                         </div>
-                        {!n.isRead && <div className="h-2 w-2 rounded-full bg-primary self-center"></div>}
+                        
+                        {n.type === 'connection_request' && !n.data?.handled && (
+                          <div className="flex gap-2 ml-13 mt-2 pl-12">
+                            <button
+                              onClick={async (e) => {
+                                e.stopPropagation();
+                                try {
+                                  await api.put(`/connections/${n.relatedId}/accept`);
+                                  setNotifications(notifications.map(notif => 
+                                    notif._id === n._id ? { ...notif, message: 'Connection request accepted!', data: { handled: true } } : notif
+                                  ));
+                                } catch (err) {
+                                  console.error(err);
+                                  alert('Failed to accept request');
+                                }
+                              }}
+                              className="px-4 py-1.5 bg-primary text-primary-foreground rounded-lg text-[10px] font-bold tracking-wider hover:scale-105 active:scale-95 transition-all"
+                            >
+                              ACCEPT
+                            </button>
+                            <button
+                               onClick={async (e) => {
+                                e.stopPropagation();
+                                try {
+                                  await api.put(`/connections/${n.relatedId}/decline`);
+                                  setNotifications(notifications.filter(notif => notif._id !== n._id));
+                                } catch (err) {
+                                  console.error(err);
+                                }
+                              }}
+                              className="px-4 py-1.5 bg-accent text-foreground hover:bg-destructive hover:text-destructive-foreground rounded-lg text-[10px] font-bold tracking-wider hover:scale-105 active:scale-95 transition-all"
+                            >
+                              DECLINE
+                            </button>
+                          </div>
+                        )}
                       </div>
                     ))
                   )}

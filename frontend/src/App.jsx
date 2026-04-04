@@ -17,7 +17,7 @@ const PrivateRoute = ({ children }) => {
 const App = () => {
   return (
     <AuthProvider>
-      <div className="min-h-screen bg-background text-foreground transition-colors duration-300">
+      <div className="min-h-screen bg-background text-foreground transition-colors duration-300 pb-20 md:pb-0">
         <Navbar />
         <main className="container mx-auto px-4 py-8">
           <Routes>
@@ -29,6 +29,7 @@ const App = () => {
             <Route path="*" element={<Navigate to="/" />} />
           </Routes>
         </main>
+        <BottomNav />
       </div>
     </AuthProvider>
   );

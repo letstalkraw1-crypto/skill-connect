@@ -14,7 +14,8 @@ export const getAssetUrl = (path, name) => {
   // For local uploads, use relative paths to work with proxy/same-origin
   if (path.startsWith('uploads/') || path.startsWith('/uploads/')) {
     const cleanPath = path.startsWith('/') ? path : `/${path}`;
-    return `${API_BASE_URL}${cleanPath}`;
+    // Add cache-buster for fresh uploads to ensure immediate reflection
+    return `${API_BASE_URL}${cleanPath}?t=${Date.now()}`;
   }
 
   return path;
