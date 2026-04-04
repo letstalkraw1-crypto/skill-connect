@@ -1,5 +1,5 @@
 import { Edit3, MapPin, Calendar, Link as LinkIcon, Instagram, Github, Chrome, MessageCircle, UserPlus, Check, X, Shield, Star, Camera, Loader2, PlusCircle } from 'lucide-react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -63,11 +63,17 @@ const Profile = () => {
   };
 
   useEffect(() => {
-    fetchProfile();
-    if (currentUser?._id === id) {
+    if (id) {
+      fetchProfile();
+    }
+  }, [id]);
+
+  useEffect(() => {
+    // Only fetch notifications if it's the current user's profile
+    if (currentUser && (currentUser._id === id || currentUser.id === id)) {
       fetchNotifications();
     }
-  }, [id, currentUser]);
+  }, [id, currentUser?.id, currentUser?._id]);
 
   const handleAvatarUpload = async (e) => {
     const file = e.target.files[0];
