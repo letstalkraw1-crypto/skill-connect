@@ -135,6 +135,7 @@ const Profile = () => {
                 src={user.avatarUrl} 
                 name={user.name} 
                 size="40"
+                loading="eager"
                 className="h-full w-full rounded-2xl border-4 border-background"
               />
               {uploading && (

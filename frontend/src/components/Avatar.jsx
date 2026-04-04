@@ -8,8 +8,9 @@ import { getAssetUrl, getInitialsAvatar } from '../utils/utils';
  * @param {string} size - Tailwind height/width value (e.g. "10").
  * @param {string} className - Optional extra classes for the container.
  * @param {string} imgClassName - Optional extra classes for the img tag.
+ * @param {string} loading - Image loading strategy ("lazy" or "eager").
  */
-const Avatar = ({ src, name = 'User', size = '10', className = '', imgClassName = '' }) => {
+const Avatar = ({ src, name = 'User', size = '10', className = '', imgClassName = '', loading = 'lazy' }) => {
   const [imgSrc, setImgSrc] = useState(getAssetUrl(src, name));
   const [hasError, setHasError] = useState(false);
 
@@ -52,6 +53,7 @@ const Avatar = ({ src, name = 'User', size = '10', className = '', imgClassName 
       <img
         src={imgSrc}
         alt={name}
+        loading={loading}
         className={`h-full w-full object-cover transition-opacity duration-300 ${imgClassName} ${hasError ? 'opacity-90' : 'opacity-100'}`}
         onError={handleError}
       />
