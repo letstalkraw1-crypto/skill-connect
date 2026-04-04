@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: '', // Using relative paths for proxy
+  baseURL: '/api', // Using /api prefix to avoid routing conflicts
 });
 
 api.interceptors.request.use((config) => {

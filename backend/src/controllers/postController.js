@@ -28,7 +28,7 @@ const getFeed = async (req, res) => {
     }).select('postId');
     const hiddenPostIds = hiddenInteractions.map(i => i.postId);
     
-    const posts = await Post.find({
+    const matchQuery = {
       $and: [
         { _id: { $nin: hiddenPostIds } },
         {
@@ -39,38 +39,66 @@ const getFeed = async (req, res) => {
           ]
         }
       ]
-    })
-    .populate('userId', 'name avatarUrl shortId')
-    .sort({ createdAt: -1 })
-    .limit(50)
-    .lean();
+    };
+
+    const posts = await Post.aggregate([
+      { $match: matchQuery },
+      { $sort: { createdAt: -1 } },
+      { $limit: 50 },
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'userId',
+          foreignField: '_id',
+          as: 'author'
+        }
+      },
+      { $unwind: '$author' },
+      {
+        $lookup: {
+          from: 'postlikes',
+          localField: '_id',
+          foreignField: 'postId',
+          as: 'likes'
+        }
+      },
+      {
+        $lookup: {
+          from: 'postcomments',
+          localField: '_id',
+          foreignField: 'postId',
+          as: 'comments'
+        }
+      },
+      {
+        $addFields: {
+          id: '$_id',
+          likeCount: { $size: '$likes' },
+          likes_count: { $size: '$likes' },
+          commentCount: { $size: '$comments' },
+          comments_count: { $size: '$comments' },
+          isLiked: { $in: [userId, '$likes.userId'] },
+          is_liked: { $in: [userId, '$likes.userId'] },
+          authorName: '$author.name',
+          author_name: '$author.name',
+          authorAvatar: '$author.avatarUrl',
+          author_avatar: '$author.avatarUrl',
+          authorShortId: '$author.shortId',
+          author_short_id: '$author.shortId',
+          author_id: '$author._id',
+          image_urls: { $ifNull: ['$imageUrls', []] }
+        }
+      },
+      {
+        $project: {
+          likes: 0,
+          comments: 0,
+          author: 0
+        }
+      }
+    ]);
     
-    const postsWithCounts = await Promise.all(posts.map(async (post) => {
-      const likeCount = await PostLike.countDocuments({ postId: post._id });
-      const commentCount = await PostComment.countDocuments({ postId: post._id });
-      const isLiked = await PostLike.findOne({ postId: post._id, userId });
-      
-      return {
-        ...post,
-        id: post._id,
-        authorName: post.userId.name,
-        author_name: post.userId.name,
-        authorAvatar: post.userId.avatarUrl,
-        author_avatar: post.userId.avatarUrl,
-        authorShortId: post.userId.shortId,
-        author_short_id: post.userId.shortId,
-        author_id: post.userId._id,
-        likeCount,
-        likes_count: likeCount,
-        commentCount,
-        comments_count: commentCount,
-        isLiked: !!isLiked,
-        is_liked: !!isLiked,
-        image_urls: post.imageUrls || []
-      };
-    }));
-    
-    res.json(postsWithCounts);
+    res.json(posts);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

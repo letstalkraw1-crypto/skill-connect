@@ -13,19 +13,7 @@ export default defineConfig({
   server: {
     port: 3000,
     proxy: {
-      '/auth': 'http://localhost:5000',
-      '/profile': 'http://localhost:5000',
-      '/discover': 'http://localhost:5000',
-      '/connections': 'http://localhost:5000',
-      '/conversations': 'http://localhost:5000',
-      '/posts': 'http://localhost:5000',
-      '/events': 'http://localhost:5000',
-      '/communities': 'http://localhost:5000',
-      '/resources': 'http://localhost:5000',
-      '/challenges': 'http://localhost:5000',
-      '/qa': 'http://localhost:5000',
-      '/documents': 'http://localhost:5000',
-      '/admin': 'http://localhost:5000',
+      '/api': 'http://localhost:5000',
       '/uploads': 'http://localhost:5000',
       '/socket.io': {
         target: 'ws://localhost:5000',

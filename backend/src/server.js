@@ -31,21 +31,21 @@ app.get('/health', (req, res) => {
 });
 
 // API Routes
-app.use('/auth', require('./routes/authRoutes'));
-app.use('/profile', require('./routes/userRoutes'));
-app.use('/discover', require('./routes/discoveryRoutes'));
-app.use('/connections', require('./routes/connectionRoutes'));
-app.use('/conversations', require('./routes/chatRoutes'));
-app.use('/posts', require('./routes/postRoutes'));
-app.use('/events', require('./routes/eventRoutes'));
-app.use('/communities', require('./routes/communityRoutes'));
-app.use('/resources', require('./routes/resourceRoutes'));
-app.use('/challenges', require('./routes/challengeRoutes'));
-app.use('/qa', require('./routes/qaRoutes'));
-app.use('/documents', require('./routes/documentRoutes'));
-app.use('/admin', require('./routes/adminRoutes'));
-app.use('/notifications', require('./routes/notificationRoutes'));
-app.use('/upload', require('./routes/upload'));
+app.use('/api/auth', require('./routes/authRoutes'));
+app.use('/api/profile', require('./routes/userRoutes'));
+app.use('/api/discover', require('./routes/discoveryRoutes'));
+app.use('/api/connections', require('./routes/connectionRoutes'));
+app.use('/api/conversations', require('./routes/chatRoutes'));
+app.use('/api/posts', require('./routes/postRoutes'));
+app.use('/api/events', require('./routes/eventRoutes'));
+app.use('/api/communities', require('./routes/communityRoutes'));
+app.use('/api/resources', require('./routes/resourceRoutes'));
+app.use('/api/challenges', require('./routes/challengeRoutes'));
+app.use('/api/qa', require('./routes/qaRoutes'));
+app.use('/api/documents', require('./routes/documentRoutes'));
+app.use('/api/admin', require('./routes/adminRoutes'));
+app.use('/api/notifications', require('./routes/notificationRoutes'));
+app.use('/api/upload', require('./routes/upload'));
 
 // Socket.io
 const { initSocket } = require('./socket/index');

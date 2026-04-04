@@ -12,7 +12,7 @@ import React from 'react';
 
 const Profile = () => {
   const { id } = useParams();
-  const { user: currentUser } = useAuth();
+  const { user: currentUser, updateUser } = useAuth();
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -78,6 +78,7 @@ const Profile = () => {
     try {
       const { data } = await authService.updateAvatar(formData);
       setUser(prev => ({ ...prev, avatarUrl: data.avatarUrl }));
+      updateUser({ avatarUrl: data.avatarUrl });
     } catch (err) {
       console.error(err);
       alert('Failed to upload photo');
@@ -90,6 +91,7 @@ const Profile = () => {
     try {
       const { data } = await userService.updateProfile(formData);
       setUser(data);
+      updateUser(data);
     } catch (err) {
       console.error(err);
       throw err;
