@@ -112,6 +112,10 @@ const path = require('path');
 const distPath = path.join(__dirname, '..', 'frontend', 'dist');
 const uploadsPath = path.join(__dirname, '..', 'frontend', 'uploads');
 
+console.log('Static Paths initialized:');
+console.log(' - Dist:', distPath);
+console.log(' - Uploads:', uploadsPath);
+
 app.use('/uploads', express.static(uploadsPath));
 app.use(express.static(distPath, {
   etag: true,

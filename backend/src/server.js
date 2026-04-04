@@ -52,8 +52,13 @@ const { initSocket } = require('./socket/index');
 initSocket(server);
 
 // Static Files (Frontend)
-const distPath = path.join(process.cwd(), '..', 'frontend', 'dist');
-const uploadsPath = path.join(process.cwd(), '..', 'frontend', 'uploads');
+const distPath = path.join(__dirname, '..', '..', 'frontend', 'dist');
+const uploadsPath = path.join(__dirname, '..', '..', 'frontend', 'uploads');
+
+console.log('Static Paths initialized (Source):');
+console.log(' - Dist:', distPath);
+console.log(' - Uploads:', uploadsPath);
+
 app.use('/uploads', express.static(uploadsPath));
 app.use(express.static(distPath));
 
