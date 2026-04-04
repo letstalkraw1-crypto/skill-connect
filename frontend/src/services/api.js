@@ -31,6 +31,9 @@ export const authService = {
   login: (data) => api.post('/auth/login', data),
   signup: (data) => api.post('/auth/signup', data),
   getMe: () => api.get('/auth/me'),
+  updateAvatar: (formData) => api.post('/upload/avatar', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  }),
 };
 
 export const userService = {
@@ -66,6 +69,11 @@ export const chatService = {
   listConversations: () => api.get('/conversations'),
   getMessages: (id) => api.get(`/conversations/${id}/messages`),
   createConversation: (participantIds) => api.post('/conversations', { participantIds }),
+};
+
+export const notificationService = {
+  getNotifications: () => api.get('/notifications'),
+  markAsRead: () => api.post('/notifications/read'),
 };
 
 export default api;

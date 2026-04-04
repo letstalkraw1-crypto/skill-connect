@@ -1,18 +1,26 @@
-import React, { useState, useEffect } from 'react';
+import { Edit3, MapPin, Calendar, Link as LinkIcon, Instagram, Github, Chrome, MessageCircle, UserPlus, Check, X, Shield, Star, Camera, Loader2 } from 'lucide-react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { userService, connectionService } from '../services/api';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Edit3, MapPin, Calendar, Link as LinkIcon, Instagram, Github, Chrome, MessageCircle, UserPlus, Check, X, Shield, Star } from 'lucide-react';
-import { getAssetUrl } from '../utils/utils';
+import { getAssetUrl, safeFormat } from '../utils/utils';
+import EditProfileModal from '../components/EditProfileModal';
+import { userService, connectionService, authService, notificationService } from '../services/api';
+import React from 'react';
 
 const Profile = () => {
   const { id } = useParams();
   const { user: currentUser } = useAuth();
+  const navigate = useNavigate();
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [connections, setConnections] = useState([]);
   const [activeTab, setActiveTab] = useState('skills');
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const fileInputRef = React.useRef(null);
 
   const fetchProfile = async () => {
     setLoading(true);
@@ -28,9 +36,62 @@ const Profile = () => {
     }
   };
 
+  const fetchNotifications = async () => {
+    try {
+      const { data } = await notificationService.getNotifications();
+      setNotifications(data);
+      setUnreadCount(data.filter(n => !n.isRead).length);
+    } catch (err) {
+      console.error('Failed to fetch notifications:', err);
+    }
+  };
+
+  const markAsRead = async () => {
+    if (unreadCount === 0) return;
+    try {
+      await notificationService.markAsRead();
+      setUnreadCount(0);
+      setNotifications(notifications.map(n => ({ ...n, isRead: true })));
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   useEffect(() => {
     fetchProfile();
-  }, [id]);
+    if (currentUser?._id === id) {
+      fetchNotifications();
+    }
+  }, [id, currentUser]);
+
+  const handleAvatarUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append('avatar', file);
+
+    setUploading(true);
+    try {
+      const { data } = await authService.updateAvatar(formData);
+      setUser(prev => ({ ...prev, avatarUrl: data.avatarUrl }));
+    } catch (err) {
+      console.error(err);
+      alert('Failed to upload photo');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleUpdateProfile = async (formData) => {
+    try {
+      const { data } = await userService.updateProfile(formData);
+      setUser(data);
+    } catch (err) {
+      console.error(err);
+      throw err;
+    }
+  };
 
   if (loading) return <div className="flex h-screen items-center justify-center bg-background text-primary animate-pulse">Loading Profile...</div>;
   if (!user) return <div className="text-center py-20 text-muted-foreground">User not found</div>;
@@ -52,27 +113,45 @@ const Profile = () => {
             animate={{ scale: 1, opacity: 1 }}
             className="relative"
           >
-            <div className="h-40 w-40 rounded-3xl bg-gradient-to-br from-primary to-blue-600 p-1 mb-6 shadow-2xl shadow-primary/30">
+            <div className="h-40 w-40 rounded-3xl bg-gradient-to-br from-primary to-blue-600 p-1 mb-6 shadow-2xl shadow-primary/30 relative">
               <img 
-                src={getAssetUrl(user.avatarUrl)} 
+                src={getAssetUrl(user.avatarUrl, user.name)} 
                 className="h-full w-full object-cover rounded-2xl border-4 border-background"
                 alt={user.name} 
               />
+              {uploading && (
+                <div className="absolute inset-0 bg-black/40 rounded-2xl flex items-center justify-center backdrop-blur-sm">
+                  <Loader2 className="text-white animate-spin" size={32} />
+                </div>
+              )}
             </div>
             {isOwnProfile && (
-              <button className="absolute bottom-2 right-2 h-10 w-10 rounded-xl bg-background text-foreground flex items-center justify-center shadow-lg hover:bg-accent transition-colors">
-                <Edit3 size={18} />
-              </button>
+              <>
+                <button 
+                  onClick={() => fileInputRef.current?.click()}
+                  className="absolute bottom-2 right-2 h-10 w-10 rounded-xl bg-background text-foreground flex items-center justify-center shadow-lg hover:bg-accent transition-colors z-10"
+                >
+                  <Camera size={18} />
+                </button>
+                <input 
+                  type="file" 
+                  ref={fileInputRef} 
+                  onChange={handleAvatarUpload} 
+                  accept="image/*" 
+                  className="hidden" 
+                />
+              </>
             )}
           </motion.div>
 
           <motion.div
-            initial={{ y: 20, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
+            initial={{ y: 0, opacity: 1 }}
             className="text-center"
           >
             <h1 className="text-4xl font-extrabold tracking-tight text-white mb-2">{user.name}</h1>
-            <p className="text-primary-foreground font-medium text-lg mb-6">@{user.shortId}</p>
+            <p className="text-white font-black text-xl mb-6 bg-primary/20 backdrop-blur-md px-4 py-1 rounded-full border border-white/20 inline-block">
+              @{user.shortId || user.short_id}
+            </p>
             
             <div className="flex flex-wrap justify-center gap-4">
               <div className="flex items-center gap-1.5 text-white/80 bg-white/10 px-4 py-2 rounded-xl backdrop-blur-md">
@@ -81,7 +160,7 @@ const Profile = () => {
               </div>
               <div className="flex items-center gap-1.5 text-white/80 bg-white/10 px-4 py-2 rounded-xl backdrop-blur-md">
                 <Calendar size={16} />
-                <span className="text-sm">Joined April 2024</span>
+                <span className="text-sm">Joined {safeFormat(user.createdAt, 'MMMM yyyy')}</span>
               </div>
             </div>
           </motion.div>
@@ -111,6 +190,15 @@ const Profile = () => {
               <a href="#" className="h-10 w-10 flex items-center justify-center rounded-xl bg-accent text-blue-400 hover:scale-110 transition-all">
                 <Chrome size={20} />
               </a>
+              {isOwnProfile && (
+                <button 
+                  onClick={() => setShowEditModal(true)}
+                  className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-primary/10 text-primary border border-primary/20 rounded-xl font-bold text-xs hover:bg-primary/20 transition-all ml-auto"
+                >
+                  <Edit3 size={14} />
+                  Edit Profile
+                </button>
+              )}
             </div>
           </motion.div>
 
@@ -235,6 +323,16 @@ const Profile = () => {
           </div>
         </div>
       </div>
+
+      <AnimatePresence>
+        {showEditModal && (
+          <EditProfileModal 
+            user={user} 
+            onClose={() => setShowEditModal(false)} 
+            onSave={handleUpdateProfile} 
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 };

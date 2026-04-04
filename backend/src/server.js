@@ -44,6 +44,8 @@ app.use('/challenges', require('./routes/challengeRoutes'));
 app.use('/qa', require('./routes/qaRoutes'));
 app.use('/documents', require('./routes/documentRoutes'));
 app.use('/admin', require('./routes/adminRoutes'));
+app.use('/notifications', require('./routes/notificationRoutes'));
+app.use('/upload', require('./routes/upload'));
 
 // Socket.io
 const { initSocket } = require('./socket/index');

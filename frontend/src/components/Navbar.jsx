@@ -22,7 +22,38 @@ const NavItem = ({ to, icon: Icon, label, active }) => (
 const Navbar = () => {
   const { user, logout } = useAuth();
   const [showNotifications, setShowNotifications] = React.useState(false);
+  const [notifications, setNotifications] = React.useState([]);
+  const [unreadCount, setUnreadCount] = React.useState(0);
   const location = useLocation();
+
+  const fetchNotifications = async () => {
+    try {
+      const { data } = await api.get('/notifications');
+      setNotifications(data);
+      setUnreadCount(data.filter(n => !n.isRead).length);
+    } catch (err) {
+      console.error('Failed to fetch notifications:', err);
+    }
+  };
+
+  const markAsRead = async () => {
+    if (unreadCount === 0) return;
+    try {
+      await api.post('/notifications/read');
+      setUnreadCount(0);
+      setNotifications(notifications.map(n => ({ ...n, isRead: true })));
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  React.useEffect(() => {
+    if (user) {
+      fetchNotifications();
+      const interval = setInterval(fetchNotifications, 30000); // Poll every 30s
+      return () => clearInterval(interval);
+    }
+  }, [user]);
 
   if (!user) return null;
 
@@ -45,11 +76,13 @@ const Navbar = () => {
 
         <div className="flex items-center gap-2 relative">
           <button 
-            onClick={() => setShowNotifications(!showNotifications)}
+            onClick={() => { setShowNotifications(!showNotifications); if (!showNotifications) markAsRead(); }}
             className={`h-10 w-10 flex items-center justify-center rounded-full transition-colors relative ${showNotifications ? 'bg-primary text-primary-foreground' : 'hover:bg-accent hover:text-foreground'}`}
           >
             <Bell size={20} />
-            <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-destructive border-2 border-background"></span>
+            {unreadCount > 0 && (
+              <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-destructive border-2 border-background"></span>
+            )}
           </button>
 
           <AnimatePresence>
@@ -67,18 +100,25 @@ const Navbar = () => {
                   </button>
                 </div>
                 <div className="space-y-3 max-h-96 overflow-y-auto pr-2 custom-scrollbar">
-                  {[1, 2, 3].map((n) => (
-                    <div key={n} className="flex gap-3 p-3 rounded-xl hover:bg-accent/50 transition-colors cursor-pointer group border border-transparent hover:border-border/50">
-                      <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
-                        <User size={18} />
+                  {notifications.length === 0 ? (
+                    <div className="py-8 text-center text-muted-foreground text-sm">No new notifications</div>
+                  ) : (
+                    notifications.map((n) => (
+                      <div key={n._id || n.id} className="flex gap-3 p-3 rounded-xl hover:bg-accent/50 transition-colors cursor-pointer group border border-transparent hover:border-border/50">
+                        <div className="h-10 w-10 rounded-full bg-primary/10 overflow-hidden ring-2 ring-background">
+                          <img src={getAssetUrl(n.senderId?.avatarUrl, n.senderId?.name)} className="h-full w-full object-cover" />
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-sm font-medium">{n.message || 'New activity on your profile'}</p>
+                          <p className="text-[10px] text-muted-foreground font-bold mt-1 uppercase tracking-tight">{safeDistanceToNow(n.createdAt)}</p>
+                        </div>
+                        {!n.isRead && <div className="h-2 w-2 rounded-full bg-primary self-center"></div>}
                       </div>
-                      <div className="flex-1">
-                        <p className="text-sm font-medium">New connection request from a skilled peer!</p>
-                        <p className="text-[10px] text-muted-foreground font-bold mt-1 uppercase tracking-tight">2 hours ago</p>
-                      </div>
-                    </div>
-                  ))}
-                  <button className="w-full py-2 text-xs font-bold text-primary hover:underline uppercase tracking-widest">View All</button>
+                    ))
+                  )}
+                  {notifications.length > 0 && (
+                    <button className="w-full py-2 text-xs font-bold text-primary hover:underline uppercase tracking-widest">View All</button>
+                  )}
                 </div>
               </motion.div>
             )}
