@@ -46,9 +46,11 @@ async function signup(name, email, password, location) {
   });
   
   await user.save();
+  const userJson = user.toObject();
+  delete userJson.password;
 
   const token = jwt.sign({ userId }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
-  return { userId, token };
+  return { user: userJson, token };
 }
 
 // ── Email + Password login ───────────────────────────────────────────────────
@@ -61,8 +63,11 @@ async function login(email, password) {
   if (!match) {
     const err = new Error('Invalid credentials'); err.status = 401; throw err;
   }
+  const userJson = user.toObject();
+  delete userJson.password;
+
   const token = jwt.sign({ userId: user._id }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
-  return { userId: user._id, token };
+  return { user: userJson, token };
 }
 
 // ── Phone signup ─────────────────────────────────────────────────────────────

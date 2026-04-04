@@ -26,9 +26,13 @@ const Auth = () => {
       if (isLogin) {
         await login({ email: formData.email, password: formData.password });
       } else {
-        // Since useAuth doesn't have signup yet, I'll add it to AuthContext or just call api directly
-        // But for now let's assume it works or we'll update AuthContext.
-        // Actually, I'll update AuthContext to include signup.
+        await signup({
+          name: formData.name,
+          email: formData.email,
+          password: formData.password,
+          phone: formData.phone,
+          location: formData.location
+        });
       }
       navigate('/');
     } catch (err) {
