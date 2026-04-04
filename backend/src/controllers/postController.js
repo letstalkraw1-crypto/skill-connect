@@ -1,5 +1,6 @@
 const { Post, PostLike, PostComment, PostInteraction, User, Connection, Notification } = require('../config/db');
 const { v4: uuidv4 } = require('uuid');
+const { createNotification } = require('../utils/notification');
 const path = require('path');
 const fs = require('fs');
 
@@ -231,20 +232,18 @@ const likePost = async (req, res) => {
       // Create notification for the post author
       try {
         const post = await Post.findById(req.params.id).select('userId');
-        if (post && post.userId.toString() !== req.user.userId.toString()) {
+        if (post) {
           const sender = await User.findById(req.user.userId).select('name');
-          const notification = new Notification({
-            _id: uuidv4(),
+          await createNotification({
             recipientId: post.userId,
             senderId: req.user.userId,
             type: 'like',
             message: `${sender.name} liked your post!`,
             relatedId: req.params.id
           });
-          await notification.save();
         }
       } catch (err) {
-        console.error('Failed to create like notification:', err);
+        console.error('Failed to prepare like notification:', err);
       }
     }
     const likeCount = await PostLike.countDocuments({ postId: req.params.id });
@@ -277,20 +276,18 @@ const addComment = async (req, res) => {
     // Create notification for the post author
     try {
       const post = await Post.findById(req.params.id).select('userId');
-      if (post && post.userId.toString() !== req.user.userId.toString()) {
+      if (post) {
         const sender = await User.findById(req.user.userId).select('name');
-        const notification = new Notification({
-          _id: uuidv4(),
+        await createNotification({
           recipientId: post.userId,
           senderId: req.user.userId,
           type: 'comment',
           message: `${sender.name} commented on your post: "${text.substring(0, 20)}${text.length > 20 ? '...' : ''}"`,
           relatedId: req.params.id
         });
-        await notification.save();
       }
     } catch (err) {
-      console.error('Failed to create comment notification:', err);
+      console.error('Failed to prepare comment notification:', err);
     }
 
     res.status(201).json({ ...comment, authorName: comment.userId.name, authorAvatar: comment.userId.avatarUrl });

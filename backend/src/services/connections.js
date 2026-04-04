@@ -1,5 +1,6 @@
 const { v4: uuidv4 } = require('uuid');
 const { Connection, User, Notification } = require('../config/db');
+const { createNotification } = require('../utils/notification');
 
 async function sendRequest(requesterId, addresseeId) {
   if (!addresseeId || addresseeId === 'undefined') {
@@ -39,17 +40,17 @@ async function sendRequest(requesterId, addresseeId) {
   // Create notification for the addressee
   try {
     const sender = await User.findById(requesterId).select('name');
-    const notification = new Notification({
-      _id: uuidv4(),
-      recipientId: addresseeId,
-      senderId: requesterId,
-      type: 'connection_request',
-      message: `${sender.name} sent you a connection request!`,
-      relatedId: connection._id
-    });
-    await notification.save();
+    if (sender) {
+      await createNotification({
+        recipientId: addresseeId,
+        senderId: requesterId,
+        type: 'connection_request',
+        message: `${sender.name} sent you a connection request!`,
+        relatedId: connection._id
+      });
+    }
   } catch (err) {
-    console.error('Failed to create notification:', err);
+    console.error('Failed to prepare notification:', err);
   }
 
   return connection.toObject();
