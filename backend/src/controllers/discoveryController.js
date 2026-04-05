@@ -1,5 +1,6 @@
 const discoveryService = require('../services/discovery');
 const { User, UserSkill, Skill, Connection, Event } = require('../config/db');
+const { getCache, setCache } = require('../utils/cache');
 
 const search = async (req, res) => {
   try {
@@ -83,7 +84,12 @@ const search = async (req, res) => {
 
 const getSuggestions = async (req, res) => {
   try {
+    const cacheKey = `suggestions:${req.user.userId}`;
+    const cached = await getCache(cacheKey);
+    if (cached) return res.status(200).json(cached);
+
     const results = await discoveryService.getSuggestions(req.user.userId);
+    await setCache(cacheKey, results, 300); // 5 minutes
     return res.status(200).json(results);
   } catch (err) {
     return res.status(err.status || 500).json({ error: err.message });
@@ -101,7 +107,12 @@ const discover = async (req, res) => {
   }
 
   try {
+    const cacheKey = `discover:${req.user.userId}:${skill}:${latNum}:${lngNum}:${radiusNum}:${proficiency || 'any'}:${subSkill || 'any'}:${lookingFor || 'any'}`;
+    const cached = await getCache(cacheKey);
+    if (cached) return res.status(200).json(cached);
+
     const results = await discoveryService.discoverUsers(req.user.userId, skill, latNum, lngNum, radiusNum, proficiency, subSkill, lookingFor);
+    await setCache(cacheKey, results, 300); // 5 mins
     return res.status(200).json(results);
   } catch (err) {
     return res.status(err.status || 500).json({ error: err.message });

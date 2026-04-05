@@ -7,6 +7,7 @@ import { Send, Image, Plus, MoreVertical, Phone, Video, Search, ChevronLeft, Pap
 import { motion, AnimatePresence } from 'framer-motion';
 import { getAssetUrl, safeFormat } from '../utils/utils';
 import Avatar from '../components/Avatar';
+import ChatSkeleton from '../components/ChatSkeleton';
 
 const Chat = () => {
   const { id } = useParams(); // Selected conversation ID or user ID
@@ -110,7 +111,7 @@ const Chat = () => {
     scrollToBottom();
   };
 
-  if (loading) return <div className="flex h-[calc(100vh-10rem)] items-center justify-center">Loading Chat...</div>;
+  if (loading) return <ChatSkeleton />;
 
   const MediaRenderer = ({ url }) => {
     if (!url) return null;

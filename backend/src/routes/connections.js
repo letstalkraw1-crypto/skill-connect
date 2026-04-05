@@ -77,7 +77,8 @@ router.get('/:userId', optionalVerifyToken, async (req, res) => {
     const targetUser = await User.findById(targetUserId).select('accountType').lean();
     if (!targetUser) return res.status(404).json({ error: 'User not found' });
     
-    const connectionsData = await listConnections(targetUserId);
+    const { page = 1, limit = 10 } = req.query;
+    const connectionsData = await listConnections(targetUserId, limit, page);
     
     if (targetUser.accountType === 'private') {
       // Allow if viewing own profile

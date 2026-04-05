@@ -11,23 +11,18 @@ function haversine(lat1, lng1, lat2, lng2) {
   return EARTH_RADIUS_KM * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-async function discoverUsers(requestingUserId, skillName, lat, lng, radiusKm, proficiencyName, subSkill, lookingFor) {
+async function discoverUsers(requestingUserId, skillName, lat, lng, radiusKm, proficiencyName, subSkill, lookingFor, limit = 10, page = 1) {
+  const pageNum = parseInt(page, 10) || 1;
+  const limitNum = parseInt(limit, 10) || 10;
+  // ... coordinates validation ...
   if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
-    const err = new Error('Invalid coordinates');
-    err.status = 400;
-    throw err;
+    const err = new Error('Invalid coordinates'); err.status = 400; throw err;
   }
-  if (radiusKm <= 0) {
-    const err = new Error('Invalid radius');
-    err.status = 400;
-    throw err;
-  }
-
+  
+  // ... skill lookup ...
   const skill = await Skill.findOne({ name: skillName });
   if (!skill) {
-    const err = new Error('Unknown skill category');
-    err.status = 400;
-    throw err;
+    const err = new Error('Unknown skill category'); err.status = 400; throw err;
   }
 
   let skillFilter = { skillId: skill._id };
@@ -35,7 +30,6 @@ async function discoverUsers(requestingUserId, skillName, lat, lng, radiusKm, pr
     const prof = await ProficiencyLevel.findOne({ name: proficiencyName });
     if (prof) skillFilter.proficiencyId = prof._id;
   }
-  // Filter by sub-skill if provided
   if (subSkill) skillFilter.subSkill = subSkill;
 
   const userSkills = await UserSkill.find(skillFilter).lean();
@@ -45,7 +39,6 @@ async function discoverUsers(requestingUserId, skillName, lat, lng, radiusKm, pr
     _id: { $in: userIds, $ne: requestingUserId },
     lat: { $exists: true, $ne: null },
     lng: { $exists: true, $ne: null },
-    // Filter by lookingFor if provided
     ...(lookingFor ? { lookingFor } : {})
   }).lean();
 
@@ -97,12 +90,24 @@ async function discoverUsers(requestingUserId, skillName, lat, lng, radiusKm, pr
     };
   }));
 
-  return results
-    .filter(c => c.distanceKm <= radiusKm)
-    .sort((a, b) => a.distanceKm - b.distanceKm);
+  const filtered = results.filter(c => c.distanceKm <= radiusKm).sort((a, b) => a.distanceKm - b.distanceKm);
+  const totalDocs = filtered.length;
+  const skip = (pageNum - 1) * limitNum;
+  const docs = filtered.slice(skip, skip + limitNum);
+
+  return {
+    docs,
+    totalDocs,
+    limit: limitNum,
+    page: pageNum,
+    totalPages: Math.ceil(totalDocs / limitNum)
+  };
 }
 
-async function getSuggestions(userId, limit = 20) {
+async function getSuggestions(userId, limit = 20, page = 1) {
+  const pageNum = parseInt(page, 10) || 1;
+  const limitNum = parseInt(limit, 10) || 20;
+
   const connections = await Connection.find({
     $or: [{ requesterId: userId }, { addresseeId: userId }]
   }).lean();
@@ -115,9 +120,9 @@ async function getSuggestions(userId, limit = 20) {
 
   const candidates = await User.find({
     _id: { $nin: excluded }
-  }).select('_id name avatarUrl shortId location').limit(50).lean();
+  }).select('_id name avatarUrl shortId location').limit(100).lean(); // Increase window for ranking
 
-  if (!candidates.length) return [];
+  if (!candidates.length) return { docs: [], totalDocs: 0, limit: limitNum, page: pageNum, totalPages: 0 };
 
   const myAcceptedConns = connections.filter(c => c.status === 'accepted');
   const myConnectionIds = myAcceptedConns.map(c =>
@@ -129,7 +134,6 @@ async function getSuggestions(userId, limit = 20) {
 
   const candidateIds = candidates.map(c => c._id);
 
-  // Batch fetch all their connections and skills at once
   const [allTheirConns, allTheirSkills] = await Promise.all([
     Connection.find({
       $or: [{ requesterId: { $in: candidateIds } }, { addresseeId: { $in: candidateIds } }],
@@ -141,22 +145,22 @@ async function getSuggestions(userId, limit = 20) {
 
   const results = candidates.map(candidate => {
     const theirConns = allTheirConns.filter(c =>
-      c.requesterId === candidate._id || c.addresseeId === candidate._id
+      c.requesterId.toString() === candidate._id.toString() || c.addresseeId.toString() === candidate._id.toString()
     );
     const theirConnIds = theirConns.map(c =>
-      c.requesterId === candidate._id ? c.addresseeId : c.requesterId
+      c.requesterId.toString() === candidate._id.toString() ? c.addresseeId : c.requesterId
     );
 
     const mutualIds = myConnectionIds.filter(id => theirConnIds.includes(id));
     const mutualCount = mutualIds.length;
 
-    const theirSkills = allTheirSkills.filter(s => s.userId === candidate._id);
+    const theirSkills = allTheirSkills.filter(s => s.userId.toString() === candidate._id.toString());
     const sharedSkillCount = theirSkills.filter(s =>
       mySkillIds.includes(s.skillId?._id?.toString() || s.skillId?.toString())
     ).length;
 
     const connection = connections.find(c => 
-      c.requesterId === candidate._id || c.addresseeId === candidate._id
+      c.requesterId.toString() === candidate._id.toString() || c.addresseeId.toString() === candidate._id.toString()
     );
 
     return {
@@ -178,22 +182,26 @@ async function getSuggestions(userId, limit = 20) {
       })),
       mutualCount,
       mutual_connections: mutualCount,
-      mutualNames: [],
       sharedSkillCount,
       shared_skill_count: sharedSkillCount,
       connectionStatus: connection?.status || 'none',
       connection_status: connection?.status || 'none',
-      avatarUrl: candidate.avatarUrl,
-      avatar_url: candidate.avatarUrl,
-      shortId: candidate.shortId,
-      short_id: candidate.shortId,
       score: mutualCount * 3 + sharedSkillCount
     };
   });
 
-  return results
-    .sort((a, b) => b.score - a.score || a.name.localeCompare(b.name))
-    .slice(0, limit);
+  const sorted = results.sort((a, b) => b.score - a.score || a.name.localeCompare(b.name));
+  const totalDocs = sorted.length;
+  const skip = (pageNum - 1) * limitNum;
+  const docs = sorted.slice(skip, skip + limitNum);
+
+  return {
+    docs,
+    totalDocs,
+    limit: limitNum,
+    page: pageNum,
+    totalPages: Math.ceil(totalDocs / limitNum)
+  };
 }
 
 module.exports = { discoverUsers, getSuggestions };

@@ -1,7 +1,8 @@
 const authService = require('../services/auth');
-const { validationResult } = require('express-validator');
 const { User } = require('../config/db');
 const bcrypt = require('bcrypt');
+const { validationResult } = require('express-validator');
+const { getCache, setCache, delCache } = require('../utils/cache');
 
 const signup = async (req, res) => {
   const errors = validationResult(req);
@@ -71,8 +72,14 @@ const verifyOtp = async (req, res) => {
 
 const getMe = async (req, res) => {
   try {
+    const cacheKey = `user:${req.user.userId}`;
+    const cachedUser = await getCache(cacheKey);
+    if (cachedUser) return res.status(200).json({ user: cachedUser });
+
     const user = await User.findById(req.user.userId).select('-password').lean();
     if (!user) return res.status(404).json({ error: 'User not found' });
+    
+    await setCache(cacheKey, user, 3600); // 1 hour TTL
     return res.status(200).json({ user });
   } catch (err) {
     return res.status(500).json({ error: err.message });
@@ -93,6 +100,8 @@ const changePassword = async (req, res) => {
     }
     const hashed = await bcrypt.hash(newPassword, 10);
     await User.findByIdAndUpdate(req.user.userId, { password: hashed });
+    
+    await delCache(`user:${req.user.userId}`);
     return res.json({ ok: true });
   } catch (err) {
     return res.status(500).json({ error: err.message });

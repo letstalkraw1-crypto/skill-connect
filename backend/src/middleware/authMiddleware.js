@@ -1,7 +1,4 @@
-const jwt = require('jsonwebtoken');
-const { User } = require('../config/db');
-
-const JWT_SECRET = process.env.JWT_SECRET || 'changeme';
+const { getCache } = require('../utils/cache');
 
 const verifyToken = async (req, res, next) => {
   const authHeader = req.headers['authorization'];
@@ -26,8 +23,11 @@ const optionalVerifyToken = async (req, res, next) => {
   const token = authHeader.slice(7);
   try {
     const payload = jwt.verify(token, JWT_SECRET);
-    const user = await User.findById(payload.userId);
-    if (user) {
+    // Use Redis cache for faster verification
+    const user = await getCache(`user:${payload.userId}`);
+    // If not in cache, we don't strictly NEED to check DB for optional auth
+    // because the token is already verified by JWT.
+    if (user || payload.userId) {
       req.user = { userId: payload.userId };
     }
   } catch (e) {

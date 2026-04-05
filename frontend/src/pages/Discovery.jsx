@@ -1,9 +1,4 @@
-import React, { useState, useEffect } from 'react';
-import { discoveryService, connectionService } from '../services/api';
-import { Search, MapPin, UserPlus, Check, MessageCircle, Filter, X } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
-import { getAssetUrl } from '../utils/utils';
+import DiscoverySkeleton from '../components/DiscoverySkeleton';
 
 const Discovery = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -12,17 +7,28 @@ const Discovery = () => {
   const [connecting, setConnecting] = useState(null);
   const [showFilters, setShowFilters] = useState(false);
   const [filterType, setFilterType] = useState('all'); // all, learn, collaborate, compete
+  const [pagination, setPagination] = useState(null);
   const navigate = useNavigate();
   const [originalResults, setOriginalResults] = useState([]);
 
-  const handleSearch = async (e) => {
-    e.preventDefault();
+  const handleSearch = async (e, page = 1) => {
+    if (e) e.preventDefault();
     if (!searchTerm.trim()) return;
     setLoading(true);
     try {
-      const { data } = await discoveryService.search(searchTerm);
-      setResults(data);
-      setOriginalResults(data);
+      const { data } = await discoveryService.search(searchTerm, page);
+      if (data.docs) {
+        setResults(data.docs);
+        setOriginalResults(data.docs);
+        setPagination({
+          page: data.page,
+          totalPages: data.totalPages,
+          totalDocs: data.totalDocs
+        });
+      } else {
+        setResults(data);
+        setOriginalResults(data);
+      }
     } catch (err) {
       console.error(err);
     } finally {
@@ -43,12 +49,22 @@ const Discovery = () => {
     }
   };
 
-  const fetchSuggestions = async () => {
+  const fetchSuggestions = async (page = 1) => {
     setLoading(true);
     try {
-      const { data } = await discoveryService.getSuggestions();
-      setResults(data);
-      setOriginalResults(data);
+      const { data } = await discoveryService.getSuggestions(page);
+      if (data.docs) {
+        setResults(data.docs);
+        setOriginalResults(data.docs);
+        setPagination({
+          page: data.page,
+          totalPages: data.totalPages,
+          totalDocs: data.totalDocs
+        });
+      } else {
+        setResults(data);
+        setOriginalResults(data);
+      }
     } catch (err) {
       console.error(err);
     } finally {
@@ -133,9 +149,10 @@ const Discovery = () => {
         <AnimatePresence>
           {loading ? (
             Array.from({ length: 6 }).map((_, idx) => (
-              <div key={idx} className="glass-card h-[280px] rounded-2xl animate-pulse bg-accent/20" />
+              <DiscoverySkeleton key={idx} />
             ))
           ) : results.length === 0 ? (
+// ... rest of empty state ...
             <div className="col-span-full py-20 text-center space-y-4">
               <div className="text-muted-foreground">No matches found for "{searchTerm}"</div>
               <button 
@@ -147,6 +164,7 @@ const Discovery = () => {
             </div>
           ) : (
             results.map((person, idx) => (
+// ... rest of map ...
               <motion.div
                 key={person.id || person._id || idx}
                 initial={{ opacity: 0, y: 20 }}
@@ -222,6 +240,24 @@ const Discovery = () => {
             ))
           )}
         </AnimatePresence>
+
+        {pagination && pagination.totalPages > 1 && (
+          <div className="col-span-full flex justify-center gap-2 py-8">
+            {Array.from({ length: pagination.totalPages }, (_, i) => i + 1).map(pageNum => (
+              <button
+                key={pageNum}
+                onClick={() => searchTerm ? handleSearch(null, pageNum) : fetchSuggestions(pageNum)}
+                className={`h-10 w-10 rounded-xl text-sm font-bold transition-all ${
+                  pagination.page === pageNum 
+                    ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/20' 
+                    : 'bg-accent hover:bg-accent/80 shadow-sm'
+                }`}
+              >
+                {pageNum}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

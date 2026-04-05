@@ -91,7 +91,10 @@ async function deleteConnection(connectionId, userId) {
   return { ok: true };
 }
 
-async function listConnections(userId) {
+async function listConnections(userId, limit = 10, page = 1) {
+  const pageNum = parseInt(page, 10) || 1;
+  const limitNum = parseInt(limit, 10) || 10;
+
   const connections = await Connection.find({
     $or: [{ requesterId: userId }, { addresseeId: userId }]
   }).lean();
@@ -139,7 +142,19 @@ async function listConnections(userId) {
       };
     });
 
-  return { pending, outgoing, connections: accepted };
+  const totalDocs = accepted.length;
+  const skip = (pageNum - 1) * limitNum;
+  const docs = accepted.slice(skip, skip + limitNum);
+
+  return {
+    pending,
+    outgoing,
+    connections: docs,
+    totalConnections: totalDocs,
+    limit: limitNum,
+    page: pageNum,
+    totalPages: Math.ceil(totalDocs / limitNum)
+  };
 }
 
 module.exports = { sendRequest, acceptConnection, declineConnection, deleteConnection, listConnections };

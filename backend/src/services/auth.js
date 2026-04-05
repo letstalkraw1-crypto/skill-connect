@@ -3,10 +3,13 @@ const jwt = require('jsonwebtoken');
 const { v4: uuidv4 } = require('uuid');
 const { User, OTP } = require('../config/db');
 
-const SALT_ROUNDS = 10;
-const JWT_SECRET = process.env.JWT_SECRET || 'changeme';
-const JWT_EXPIRES_IN = '30d';
-const OTP_EXPIRY_MINUTES = 10;
+const SALT_ROUNDS = parseInt(process.env.SALT_ROUNDS) || 12;
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  throw new Error('FATAL: JWT_SECRET not found in environment');
+}
+const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '30d';
+const OTP_EXPIRY_MINUTES = parseInt(process.env.OTP_EXPIRY_MINUTES) || 10;
 
 // ── Generate unique 8-digit short ID ────────────────────────────────────────
 async function generateShortId() {

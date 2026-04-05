@@ -8,7 +8,7 @@ import EditProfileModal from '../components/EditProfileModal';
 import AddSkillModal from '../components/AddSkillModal';
 import Avatar from '../components/Avatar';
 import { userService, connectionService, authService, notificationService } from '../services/api';
-import React from 'react';
+import ProfileSkeleton from '../components/ProfileSkeleton';
 
 const Profile = () => {
   const { id } = useParams();
@@ -17,8 +17,10 @@ const Profile = () => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [connections, setConnections] = useState([]);
+  const [connPagination, setConnPagination] = useState(null);
   const [searchParams, setSearchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'skills');
+// ... rest of state ...
   const [notifications, setNotifications] = useState([]);
   const [notificationsLoading, setNotificationsLoading] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -27,13 +29,18 @@ const Profile = () => {
   const [uploading, setUploading] = useState(false);
   const fileInputRef = React.useRef(null);
 
-  const fetchProfile = async () => {
-    setLoading(true);
+  const fetchProfile = async (connPage = 1) => {
+    if (connPage === 1) setLoading(true);
     try {
       const { data } = await userService.getProfile(id);
       setUser(data);
-      const connData = await connectionService.getConnections(id);
-      setConnections(connData.connections || []);
+      const connRes = await connectionService.getConnections(id, connPage);
+      setConnections(connRes.data.connections || []);
+      setConnPagination({
+        page: connRes.data.page,
+        totalPages: connRes.data.totalPages,
+        totalConnections: connRes.data.totalConnections
+      });
     } catch (err) {
       console.error(err);
     } finally {
@@ -116,10 +123,14 @@ const Profile = () => {
     }
   };
 
-  if (loading) return <div className="flex h-screen items-center justify-center bg-background text-primary animate-pulse">Loading Profile...</div>;
+  if (loading && !user) return <ProfileSkeleton />;
   if (!user) return <div className="text-center py-20 text-muted-foreground">User not found</div>;
 
   const isOwnProfile = currentUser?._id === id || currentUser?.id === id;
+
+  const handleFetchConnections = (page) => {
+    fetchProfile(page);
+  };
 
   return (
     <div className="max-w-6xl mx-auto space-y-8 pb-12">
@@ -360,6 +371,24 @@ const Profile = () => {
                   ))}
                   {connections.length === 0 && (
                     <div className="col-span-full py-20 text-center text-muted-foreground">No connections yet</div>
+                  )}
+
+                  {connPagination && connPagination.totalPages > 1 && (
+                    <div className="col-span-full flex justify-center gap-2 py-4">
+                      {Array.from({ length: connPagination.totalPages }, (_, i) => i + 1).map(pageNum => (
+                        <button
+                          key={pageNum}
+                          onClick={() => handleFetchConnections(pageNum)}
+                          className={`h-8 w-8 rounded-lg text-xs font-bold transition-all ${
+                            connPagination.page === pageNum 
+                              ? 'bg-primary text-primary-foreground' 
+                              : 'bg-accent hover:bg-accent/80'
+                          }`}
+                        >
+                          {pageNum}
+                        </button>
+                      ))}
+                    </div>
                   )}
                 </motion.div>
               )}

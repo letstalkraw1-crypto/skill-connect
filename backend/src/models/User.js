@@ -10,9 +10,11 @@ const userSchema = new mongoose.Schema({
   password: { type: String, select: false },
   bio: String,
   avatarUrl: String,
-  lat: Number,
-  lng: Number,
   location: String,
+  location_geo: {
+    type: { type: String, default: 'Point' },
+    coordinates: { type: [Number], default: [0, 0] }
+  },
   stravaId: String,
   garminId: String,
   instagramId: String,
@@ -46,6 +48,7 @@ userSchema.methods.matchPassword = async function(enteredPassword) {
   return await bcrypt.compare(enteredPassword, this.password);
 };
 
+userSchema.index({ location_geo: '2dsphere' });
 userSchema.index({ lat: 1, lng: 1 });
 
 module.exports = mongoose.model('User', userSchema);

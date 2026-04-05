@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { discoveryService, userService } from '../services/api';
+import { discoveryService, connectionService } from '../services/api';
 import { UserPlus, Check } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Avatar from './Avatar';
+import DiscoverySkeleton from './DiscoverySkeleton';
 
 const Suggestions = () => {
   const [suggestions, setSuggestions] = useState([]);
@@ -11,8 +12,8 @@ const Suggestions = () => {
 
   const fetchSuggestions = async () => {
     try {
-      const { data } = await discoveryService.getSuggestions();
-      setSuggestions(data.slice(0, 5));
+      const { data } = await discoveryService.getSuggestions(1, 5);
+      setSuggestions(data.docs || []);
     } catch (err) {
       console.error(err);
     } finally {
@@ -23,12 +24,8 @@ const Suggestions = () => {
   const handleConnect = async (targetUserId) => {
     setConnecting(targetUserId);
     try {
-      // Since connections logic is in connectionService, let's use discoveryService for now
-      // Actually, I'll need a connections service in the api.js.
-      // I'll update api.js to include connection service.
-      // For now, let's assume api.post('/connections/request')
-      await discoveryService.search(targetUserId); // This is just a placeholder, I'll fix it.
-      setSuggestions(suggestions.map(s => s.id === targetUserId ? { ...s, connectionStatus: 'pending' } : s));
+      await connectionService.sendRequest(targetUserId);
+      setSuggestions(suggestions.map(s => s._id === targetUserId ? { ...s, connectionStatus: 'pending' } : s));
     } catch (err) {
       console.error(err);
     } finally {
@@ -40,7 +37,14 @@ const Suggestions = () => {
     fetchSuggestions();
   }, []);
 
-  if (loading && !suggestions.length) return null;
+  if (loading && !suggestions.length) {
+    return (
+      <div className="glass-card p-6 rounded-2xl">
+        <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground mb-4">Recommended for you</h2>
+        <DiscoverySkeleton count={3} />
+      </div>
+    );
+  }
 
   return (
     <div className="glass-card p-6 rounded-2xl">

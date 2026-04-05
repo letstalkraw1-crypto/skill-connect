@@ -108,8 +108,8 @@ const getFeed = async (req, res) => {
 const createPost = async (req, res) => {
   try {
     const { caption, visibility, verificationLink, note } = req.body;
-    const imageUrl = (req.files && req.files.length > 0) ? `/uploads/${req.files[0].filename}` : null;
-    const imageUrls = req.files ? req.files.map(f => `/uploads/${f.filename}`) : [];
+    const imageUrl = (req.files && req.files.length > 0) ? (req.files[0].path || req.files[0].secure_url) : null;
+    const imageUrls = req.files ? req.files.map(f => f.path || f.secure_url) : [];
     
     if (!caption && !imageUrl && !note) {
       return res.status(400).json({ error: 'Post needs a caption, note, or image' });
@@ -183,14 +183,16 @@ const deletePost = async (req, res) => {
     if (post.userId.toString() !== req.user.userId) return res.status(403).json({ error: 'Forbidden' });
     
     const uploadBase = path.join(process.cwd(), '..', 'frontend');
-    if (post.imageUrls && post.imageUrls.length > 0) {
-      post.imageUrls.forEach(url => {
-        const filePath = path.join(uploadBase, url);
-        if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
-      });
-    } else if (post.imageUrl) {
-      const filePath = path.join(uploadBase, post.imageUrl);
+    const deleteLocal = (url) => {
+      if (url && (url.startsWith('http://') || url.startsWith('https://'))) return;
+      const filePath = path.join(uploadBase, url);
       if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+    };
+
+    if (post.imageUrls && post.imageUrls.length > 0) {
+      post.imageUrls.forEach(url => deleteLocal(url));
+    } else if (post.imageUrl) {
+      deleteLocal(post.imageUrl);
     }
     
     await Post.deleteOne({ _id: req.params.id });

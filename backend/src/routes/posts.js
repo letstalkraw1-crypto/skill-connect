@@ -5,26 +5,15 @@ const fs = require('fs');
 const { v4: uuidv4 } = require('uuid');
 const { verifyToken } = require('../services/auth');
 const { Post, PostLike, PostComment, PostInteraction, User, Connection } = require('../config/db');
+const { paginate } = require('../utils/pagination');
+const { getCache, setCache, clearCachePattern } = require('../utils/cache');
+const { storage } = require('../config/cloudinary');
 
 const router = express.Router();
 
-const uploadDir = path.join(__dirname, '..', '..', 'frontend', 'uploads');
-if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
-
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, uploadDir),
-  filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname).toLowerCase();
-    cb(null, `post-${uuidv4()}${ext}`);
-  },
-});
 const upload = multer({
   storage,
-  limits: { fileSize: 10 * 1024 * 1024 },
-  fileFilter: (req, file, cb) => {
-    const allowed = ['.jpg','.jpeg','.png','.gif','.webp','.mp4','.mov'];
-    cb(null, allowed.includes(path.extname(file.originalname).toLowerCase()));
-  },
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB max
 });
 
 // Helper function to get user's connected user IDs
@@ -44,12 +33,15 @@ async function getConnectedUserIds(userId) {
   }, []);
 }
 
-// GET /posts — feed (all posts from connections + self)
 router.get('/', verifyToken, async (req, res) => {
   try {
     const cId = req.user.userId;
+    const { page = 1, limit = 10 } = req.query;
     
-    // Get connected user IDs
+    const cacheKey = `feed:${cId}:p:${page}:l:${limit}`;
+    const cachedFeed = await getCache(cacheKey);
+    if (cachedFeed) return res.json(cachedFeed);
+
     const connectedIds = await getConnectedUserIds(cId);
     
     // Get hidden/not interested post IDs
@@ -60,7 +52,7 @@ router.get('/', verifyToken, async (req, res) => {
     const hiddenPostIds = hiddenInteractions.map(i => i.postId);
     
     // Query posts with visibility rules
-    const posts = await Post.find({
+    const query = {
       $and: [
         { _id: { $nin: hiddenPostIds } },
         {
@@ -71,45 +63,59 @@ router.get('/', verifyToken, async (req, res) => {
           ]
         }
       ]
-    })
-      .populate({
+    };
+
+    const result = await paginate(Post, query, {
+      page,
+      limit,
+      populate: {
         path: 'userId',
         select: 'name avatarUrl shortId',
         model: User
-      })
-      .sort({ createdAt: -1 })
-      .limit(50)
-      .lean();
+      },
+      sort: { createdAt: -1 },
+      lean: true
+    });
+
+    const posts = result.docs;
     
-    // Add like counts and comment counts
-    const postsWithCounts = await Promise.all(
-      posts.map(async (post) => {
-        const likeCount = await PostLike.countDocuments({ postId: post._id });
-        const commentCount = await PostComment.countDocuments({ postId: post._id });
-        const isLiked = await PostLike.findOne({ postId: post._id, userId: cId });
-        
-        return {
-          ...post,
-          id: post._id,
-          authorName: post.userId.name,
-          author_name: post.userId.name,
-          authorAvatar: post.userId.avatarUrl,
-          author_avatar: post.userId.avatarUrl,
-          authorShortId: post.userId.shortId,
-          author_short_id: post.userId.shortId,
-          author_id: post.userId._id,
-          likeCount,
-          likes_count: likeCount,
-          commentCount,
-          comments_count: commentCount,
-          isLiked: !!isLiked,
-          is_liked: !!isLiked,
-          image_urls: post.imageUrls || []
-        };
-      })
-    );
+    // Batch fetch likes for the current user to avoid N+1
+    const postIds = posts.map(p => p._id);
+    const userLikes = await PostLike.find({
+      userId: cId,
+      postId: { $in: postIds }
+    }).select('postId');
+    const likedPostIds = new Set(userLikes.map(l => l.postId));
+
+    const docs = posts.map((post) => {
+      const isLiked = likedPostIds.has(post._id);
+      return {
+        ...post,
+        id: post._id,
+        authorName: post.userId?.name || 'Deleted User',
+        author_name: post.userId?.name || 'Deleted User',
+        authorAvatar: post.userId?.avatarUrl || null,
+        author_avatar: post.userId?.avatarUrl || null,
+        authorShortId: post.userId?.shortId || '',
+        author_short_id: post.userId?.shortId || '',
+        author_id: post.userId?._id || null,
+        likeCount: post.likesCount || 0,
+        likes_count: post.likesCount || 0,
+        commentCount: post.commentsCount || 0,
+        comments_count: post.commentsCount || 0,
+        isLiked,
+        is_liked: isLiked,
+        image_urls: post.imageUrls || []
+      };
+    });
     
-    res.json(postsWithCounts);
+    const data = {
+      ...result,
+      docs
+    };
+    
+    await setCache(cacheKey, data, 120); // 120s TTL
+    res.json(data);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Internal server error' });
@@ -120,8 +126,8 @@ router.get('/', verifyToken, async (req, res) => {
 router.post('/', verifyToken, upload.array('images', 10), async (req, res) => {
   try {
     const { caption, visibility, verificationLink, note } = req.body;
-    const imageUrl = (req.files && req.files.length > 0) ? `/uploads/${req.files[0].filename}` : null;
-    const imageUrls = req.files ? req.files.map(f => `/uploads/${f.filename}`) : [];
+    const imageUrl = (req.files && req.files.length > 0) ? (req.files[0].path || req.files[0].secure_url) : null;
+    const imageUrls = req.files ? req.files.map(f => f.path || f.secure_url) : [];
     
     if (!caption && !imageUrl && !note) {
       return res.status(400).json({ error: 'Post needs a caption, note, or image' });
@@ -166,6 +172,9 @@ router.post('/', verifyToken, upload.array('images', 10), async (req, res) => {
     
     await newPost.save();
     
+    // Invalidate author's feed cache
+    await clearCachePattern(`feed:${req.user.userId}:*`);
+
     const post = await Post.findById(newPost._id)
       .populate({
         path: 'userId',
@@ -270,6 +279,7 @@ router.post('/:id/like', verifyToken, async (req, res) => {
     
     if (existing) {
       await PostLike.deleteOne({ _id: existing._id });
+      await Post.findByIdAndUpdate(postId, { $inc: { likesCount: -1 } });
     } else {
       const newLike = new PostLike({
         _id: uuidv4(),
@@ -277,10 +287,11 @@ router.post('/:id/like', verifyToken, async (req, res) => {
         userId
       });
       await newLike.save();
+      await Post.findByIdAndUpdate(postId, { $inc: { likesCount: 1 } });
     }
     
-    const likeCount = await PostLike.countDocuments({ postId });
-    res.json({ liked: !existing, likeCount });
+    const updatedPost = await Post.findById(postId).select('likesCount');
+    res.json({ liked: !existing, likeCount: updatedPost.likesCount });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Internal server error' });
@@ -332,6 +343,7 @@ router.post('/:id/comments', verifyToken, async (req, res) => {
     });
     
     await newComment.save();
+    await Post.findByIdAndUpdate(postId, { $inc: { commentsCount: 1 } });
     
     const comment = await PostComment.findById(newComment._id)
       .populate({

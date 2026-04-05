@@ -9,6 +9,8 @@ const postSchema = new mongoose.Schema({
   visibility: { type: String, default: 'everyone' },
   verificationLink: String,
   note: String,
+  likesCount: { type: Number, default: 0 },
+  commentsCount: { type: Number, default: 0 },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now }
 });

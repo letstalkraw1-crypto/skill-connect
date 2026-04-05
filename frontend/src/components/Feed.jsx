@@ -1,21 +1,34 @@
 import React, { useState, useEffect } from 'react';
-import PostCard from './PostCard';
-import { postService } from '../services/api';
-import { motion, AnimatePresence } from 'framer-motion';
-import { AlertCircle, RefreshCw } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { postService } from '../services/api';
+import { AnimatePresence, motion } from 'framer-motion';
+import { AlertCircle, RefreshCw } from 'lucide-react';
+import PostCard from './PostCard';
+import PostSkeleton from './PostSkeleton';
+
 
 const Feed = () => {
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [pagination, setPagination] = useState(null);
   const navigate = useNavigate();
 
-  const fetchPosts = async () => {
+  const fetchPosts = async (page = 1) => {
     setLoading(true);
     try {
-      const { data } = await postService.getFeed();
-      setPosts(data);
+      const { data } = await postService.getFeed(page);
+      // Backend now returns { docs, totalDocs, page, totalPages }
+      if (data.docs) {
+        setPosts(data.docs);
+        setPagination({
+          page: data.page,
+          totalPages: data.totalPages,
+          totalDocs: data.totalDocs
+        });
+      } else {
+        setPosts(data);
+      }
     } catch (err) {
       setError('Failed to load feed. Please try again.');
     } finally {
@@ -30,18 +43,7 @@ const Feed = () => {
   if (loading && !posts.length) {
     return (
       <div className="space-y-6">
-        {[1, 2, 3].map(i => (
-          <div key={i} className="glass-card p-6 rounded-2xl animate-pulse">
-            <div className="flex gap-4 mb-4">
-              <div className="h-12 w-12 rounded-xl bg-accent"></div>
-              <div className="space-y-2 flex-1">
-                <div className="h-4 w-1/4 bg-accent rounded"></div>
-                <div className="h-3 w-1/6 bg-accent rounded"></div>
-              </div>
-            </div>
-            <div className="h-20 w-full bg-accent rounded-xl"></div>
-          </div>
-        ))}
+        {[1, 2, 3].map(i => <PostSkeleton key={i} />)}
       </div>
     );
   }
@@ -54,7 +56,7 @@ const Feed = () => {
             <AlertCircle size={18} />
             {error}
           </div>
-          <button onClick={fetchPosts} className="p-2 hover:bg-destructive/20 rounded-lg transition-colors">
+          <button onClick={() => fetchPosts()} className="p-2 hover:bg-destructive/20 rounded-lg transition-colors">
             <RefreshCw size={18} />
           </button>
         </div>
@@ -63,15 +65,33 @@ const Feed = () => {
       <AnimatePresence>
         {posts.map((post, idx) => (
           <motion.div
-            key={post._id || idx}
+            key={post.id || post._id || idx}
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: idx * 0.05 }}
+            transition={{ delay: Math.min(idx * 0.05, 0.5) }}
           >
-            <PostCard post={post} onLikeUpdate={fetchPosts} />
+            <PostCard post={post} onLikeUpdate={() => fetchPosts(pagination?.page || 1)} />
           </motion.div>
         ))}
       </AnimatePresence>
+
+      {pagination && pagination.totalPages > 1 && (
+        <div className="flex justify-center gap-2 py-4">
+          {Array.from({ length: pagination.totalPages }, (_, i) => i + 1).map(pageNum => (
+            <button
+              key={pageNum}
+              onClick={() => fetchPosts(pageNum)}
+              className={`h-8 w-8 rounded-lg text-xs font-bold transition-all ${
+                pagination.page === pageNum 
+                  ? 'bg-primary text-primary-foreground' 
+                  : 'bg-accent hover:bg-accent/80'
+              }`}
+            >
+              {pageNum}
+            </button>
+          ))}
+        </div>
+      )}
 
       {!loading && posts.length === 0 && (
         <div className="text-center py-20 bg-accent/20 rounded-2xl border-2 border-dashed border-border/50">

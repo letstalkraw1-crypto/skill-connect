@@ -1,6 +1,7 @@
 const profileService = require('../services/profile');
 const { User, SkillVerification, Skill, SkillEndorsement, Feedback, Connection, UserSkill } = require('../config/db');
 const { v4: uuidv4 } = require('uuid');
+const { delCache } = require('../utils/cache');
 
 const getProfile = async (req, res) => {
   try {
@@ -50,6 +51,7 @@ const updateProfile = async (req, res) => {
 
   try {
     const profile = await profileService.updateProfile(req.params.userId, req.body);
+    await delCache(`user:${req.params.userId}`);
     res.status(200).json(profile);
   } catch (err) {
     res.status(err.status || 500).json({ error: err.message });
@@ -59,6 +61,7 @@ const updateProfile = async (req, res) => {
 const updateMyProfile = async (req, res) => {
   try {
     const profile = await profileService.updateProfile(req.user.userId, req.body);
+    await delCache(`user:${req.user.userId}`);
     res.status(200).json(profile);
   } catch (err) {
     res.status(err.status || 500).json({ error: err.message });
@@ -93,6 +96,7 @@ const completeOnboarding = async (req, res) => {
     }
 
     await User.findByIdAndUpdate(userId, update);
+    await delCache(`user:${userId}`);
     const profile = await profileService.getProfile(userId);
     res.json(profile);
   } catch (err) {

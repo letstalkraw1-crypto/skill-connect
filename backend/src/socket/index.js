@@ -1,11 +1,11 @@
 const { Server } = require('socket.io');
+const { createAdapter } = require('@socket.io/redis-adapter');
 const jwt = require('jsonwebtoken');
 const { Conversation, User } = require('../config/db');
 const { persistMessage } = require('../services/messaging');
+const { redisClient, subClient } = require('../config/redis');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'changeme';
-
-const onlineUsers = new Map();
 
 async function getParticipants(conversationId) {
   const conv = await Conversation.findById(conversationId).select('participants').lean();
@@ -21,6 +21,9 @@ function initSocket(httpServer) {
   const io = new Server(httpServer, {
     cors: { origin: '*' }
   });
+
+  // Redis Adapter for scalability
+  io.adapter(createAdapter(redisClient, subClient));
 
   io.on('connection', async (socket) => {
     // --- Authentication ---
@@ -45,7 +48,8 @@ function initSocket(httpServer) {
     }
 
     socket.userId = userId;
-    onlineUsers.set(userId, socket.id);
+    // Join a room named after the userId for direct messaging scalability
+    socket.join(userId);
 
     // --- send_message ---
     socket.on('send_message', async ({ conversationId, text, content, replyToMessageId }) => {
@@ -69,11 +73,9 @@ function initSocket(httpServer) {
           reply_to: message.replyToMessageId
         };
 
+        // Emit to the room of each participant
         for (const participantId of participants) {
-          const recipientSocketId = onlineUsers.get(participantId);
-          if (recipientSocketId) {
-            io.to(recipientSocketId).emit('receive_message', payload);
-          }
+          io.to(participantId.toString()).emit('receive_message', payload);
         }
       } catch (err) {
         socket.emit('error', err.message || 'Failed to send message');
@@ -85,16 +87,13 @@ function initSocket(httpServer) {
       try {
         const participants = await getParticipants(conversationId);
         for (const participantId of participants) {
-          if (participantId !== socket.userId) {
-            const recipientSocketId = onlineUsers.get(participantId);
-            if (recipientSocketId) {
-              io.to(recipientSocketId).emit('typing', {
-                conversationId,
-                conversation_id: conversationId,
-                userId: socket.userId,
-                user_id: socket.userId
-              });
-            }
+          if (participantId.toString() !== socket.userId.toString()) {
+            io.to(participantId.toString()).emit('typing', {
+              conversationId,
+              conversation_id: conversationId,
+              userId: socket.userId,
+              user_id: socket.userId
+            });
           }
         }
       } catch {
@@ -107,15 +106,12 @@ function initSocket(httpServer) {
       try {
         const participants = await getParticipants(conversationId);
         for (const participantId of participants) {
-          if (participantId !== socket.userId) {
-            const recipientSocketId = onlineUsers.get(participantId);
-            if (recipientSocketId) {
-              io.to(recipientSocketId).emit('wallpaper_updated', {
-                conversationId,
-                conversation_id: conversationId,
-                wallpaper
-              });
-            }
+          if (participantId.toString() !== socket.userId.toString()) {
+            io.to(participantId.toString()).emit('wallpaper_updated', {
+              conversationId,
+              conversation_id: conversationId,
+              wallpaper
+            });
           }
         }
       } catch {
@@ -125,11 +121,11 @@ function initSocket(httpServer) {
 
     // --- disconnect ---
     socket.on('disconnect', () => {
-      onlineUsers.delete(socket.userId);
+      // Socket.io automatically leaves rooms on disconnect
     });
   });
 
   return io;
 }
 
-module.exports = { initSocket, onlineUsers };
+module.exports = { initSocket };

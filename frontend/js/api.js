@@ -1,7 +1,5 @@
 // API Configuration
-export var API = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
-    ? 'http://localhost:5000' 
-    : window.location.origin;
+export var API = window.location.origin + '/api';
 
 export var token = localStorage.getItem('sc_token') || '';
 export var userId = localStorage.getItem('sc_userId') || '';

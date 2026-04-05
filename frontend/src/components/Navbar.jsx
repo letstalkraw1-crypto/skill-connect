@@ -83,7 +83,13 @@ const Navbar = () => {
     <nav className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-16 items-center justify-between px-4">
         <Link to="/" className="flex items-center gap-2 transition-transform hover:scale-105">
-          <img src="/logo.png" alt="Collabro Logo" className="h-8 w-8 object-contain" />
+          <img 
+            src="/logo.png" 
+            alt="Collabro Logo" 
+            className="h-8 w-8 object-contain" 
+            fetchpriority="high"
+            loading="eager"
+          />
           <span className="text-xl font-bold tracking-tight hidden sm:inline">Collabro</span>
         </Link>
 

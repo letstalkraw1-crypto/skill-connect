@@ -50,7 +50,7 @@ export const userService = {
 };
 
 export const connectionService = {
-  getConnections: (userId) => api.get(`/connections/${userId}`),
+  getConnections: (userId, page = 1, limit = 10) => api.get(`/connections/${userId}`, { params: { page, limit } }),
   sendRequest: (targetUserId) => api.post('/connections/request', { targetUserId }),
   acceptRequest: (id) => api.put(`/connections/${id}/accept`),
   declineRequest: (id) => api.put(`/connections/${id}/decline`),
@@ -58,7 +58,7 @@ export const connectionService = {
 };
 
 export const postService = {
-  getFeed: () => api.get('/posts'),
+  getFeed: (page = 1, limit = 10) => api.get('/posts', { params: { page, limit } }),
   createPost: (formData) => api.post('/posts', formData, {
     headers: { 'Content-Type': 'multipart/form-data' }
   }),
@@ -68,8 +68,8 @@ export const postService = {
 };
 
 export const discoveryService = {
-  getSuggestions: () => api.get('/discover/suggestions'),
-  search: (q) => api.get(`/discover/search?q=${q}`),
+  getSuggestions: (page = 1, limit = 20) => api.get('/discover/suggestions', { params: { page, limit } }),
+  search: (q, page = 1, limit = 10) => api.get(`/discover/search`, { params: { q, page, limit } }),
   discover: (params) => api.get('/discover', { params }),
 };
 

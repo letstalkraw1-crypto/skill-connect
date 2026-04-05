@@ -7,19 +7,32 @@ const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const compression = require('compression');
 const path = require('path');
+const morgan = require('morgan');
+const logger = require('./utils/logger');
 
 const app = express();
 const server = http.createServer(app);
 
 // Security
 app.use(helmet({ contentSecurityPolicy: false, crossOriginEmbedderPolicy: false }));
+
+const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 20, message: { error: 'Too many authentication attempts' } });
+app.use('/api/auth', authLimiter);
+
+// Main rate limit
 app.use(rateLimit({ windowMs: 15 * 60 * 1000, limit: 500, message: { error: 'Too many requests' } }));
-app.use(cors({ origin: '*', methods: ['GET', 'POST', 'PUT', 'DELETE'], allowedHeaders: ['Content-Type', 'Authorization', 'x-admin-token'] }));
+
+// CORS
+const allowedOrigins = process.env.NODE_ENV === 'production' 
+  ? [process.env.FRONTEND_URL || '*'] 
+  : ['http://localhost:5173', 'http://127.0.0.1:5173', '*'];
+
+app.use(cors({ origin: allowedOrigins, methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'], allowedHeaders: ['Content-Type', 'Authorization', 'x-admin-token'] }));
 app.use(compression());
 app.use(express.json());
 
 // Request Logger
-app.use((req, res, next) => { console.log(`${req.method} ${req.path}`); next(); });
+app.use(morgan('combined', { stream: { write: message => logger.info(message.trim()) } }));
 
 // Database Connection
 require('./config/db');
@@ -64,7 +77,7 @@ app.use(express.static(distPath));
 
 // Global Error Handler
 app.use((err, req, res, next) => {
-  console.error(`❌ Error: ${err.message}`);
+  logger.error(`Error: ${err.message}`, { stack: err.stack, path: req.path });
   res.status(err.status || 500).json({ error: err.message || 'Internal server error' });
 });
 
@@ -75,4 +88,4 @@ app.get('*', (req, res) => {
 });
 
 const PORT = process.env.PORT || 5000;
-server.listen(PORT, '0.0.0.0', () => { console.log(`✅ Server running on port ${PORT}`); });
+server.listen(PORT, '0.0.0.0', () => { logger.info(`✅ Server running on port ${PORT}`); });

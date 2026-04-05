@@ -75,21 +75,37 @@ app.get('/health', (req, res) => {
   res.status(dbConnected ? 200 : 503).json(status);
 });
 
-// Routes
-app.use('/auth', require('./routes/auth'));
-app.use('/profile', require('./routes/profile'));
-app.use('/discover', require('./routes/discovery'));
-app.use('/connections', require('./routes/connections'));
-app.use('/conversations', require('./routes/messaging'));
-app.use('/admin', require('./routes/admin'));
-app.use('/upload', require('./routes/upload'));
-app.use('/posts', require('./routes/posts'));
-app.use('/events', require('./routes/events'));
-app.use('/communities', require('./routes/communities'));
-app.use('/resources', require('./routes/resources'));
-app.use('/challenges', require('./routes/challenges'));
-app.use('/qa', require('./routes/qa'));
-app.use('/documents', require('./routes/documents'));
+// --- API Routes ---
+const apiRouter = express.Router();
+
+apiRouter.use('/auth', require('./routes/auth'));
+apiRouter.use('/profile', require('./routes/profile'));
+apiRouter.use('/discover', require('./routes/discovery'));
+apiRouter.use('/connections', require('./routes/connections'));
+apiRouter.use('/conversations', require('./routes/messaging'));
+apiRouter.use('/admin', require('./routes/admin'));
+apiRouter.use('/upload', require('./routes/upload'));
+apiRouter.use('/posts', require('./routes/posts'));
+apiRouter.use('/events', require('./routes/events'));
+apiRouter.use('/communities', require('./routes/communities'));
+apiRouter.use('/resources', require('./routes/resources'));
+apiRouter.use('/challenges', require('./routes/challenges'));
+apiRouter.use('/qa', require('./routes/qa'));
+apiRouter.use('/documents', require('./routes/documents'));
+
+// Support legacy /notifications hits (if needed) or move to /api/notifications
+apiRouter.use('/notifications', (req, res, next) => {
+  // If a dedicated notifications route exists, use it. For now, it might be in profile or elsewhere.
+  // Assuming it's a separate route file:
+  try {
+    return require('./routes/notifications')(req, res, next);
+  } catch (e) {
+    next();
+  }
+});
+
+// Register the API router
+app.use('/api', apiRouter);
 
 // Socket.io
 const { initSocket } = require('./socket/index');
@@ -99,7 +115,6 @@ initSocket(server);
 app.use((err, req, res, next) => {
   console.error('❌ Error on', req.method, req.path, ':', err.message);
   console.error(err.stack);
-  // Ensure we always return JSON, never HTML
   res.setHeader('Content-Type', 'application/json');
   res.status(err.status || 500).json({ 
     error: err.message || 'Internal server error',
@@ -107,12 +122,10 @@ app.use((err, req, res, next) => {
   });
 });
 
-// Serve frontend using Vite's optimized build directory
+// --- Static File Serving & Frontend ---
 const path = require('path');
-// Serve frontend using Vite's optimized build directory
-const path = require('path');
-const distPath = path.join(__dirname, '..', 'frontend', 'dist');
 const uploadsPath = path.join(__dirname, 'uploads');
+const distPath = path.join(__dirname, '..', 'frontend', 'dist');
 
 console.log('Static Paths initialized:');
 console.log(' - Dist:', distPath);
@@ -123,26 +136,17 @@ app.use(express.static(distPath, {
   etag: true,
   lastModified: true,
   setHeaders: (res, filePath) => {
-    // Aggressive caching for hashed assets (Vite generates these for JS/CSS/Images)
     if (filePath.match(/\.(js|css|webp|png|jpg|jpeg|gif|woff2?|svg)$/)) {
       res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
     } else if (filePath.endsWith('.html')) {
-      // Revalidate HTML every time to ensure users get the latest version
       res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
     }
   }
 }));
 
-app.get('*', (req, res, next) => {
-  // If request is not for API, serve index.html
-  if (req.path.startsWith('/auth') || req.path.startsWith('/profile') || 
-      req.path.startsWith('/discover') || req.path.startsWith('/connections') || 
-      req.path.startsWith('/conversations') || req.path.startsWith('/admin') || 
-      req.path.startsWith('/upload') || req.path.startsWith('/posts') || 
-      req.path.startsWith('/events') || req.path.startsWith('/communities') || 
-      req.path.startsWith('/resources') || req.path.startsWith('/challenges') || 
-      req.path.startsWith('/qa') || req.path.startsWith('/documents') ||
-      req.path === '/health') {
+// Catch-all: If not an API request, serve index.html
+app.use((req, res, next) => {
+  if (req.path.startsWith('/api') || req.path.startsWith('/uploads')) {
     return next();
   }
   res.sendFile(path.join(distPath, 'index.html'));
