@@ -23,11 +23,7 @@ app.use('/api/auth', authLimiter);
 app.use(rateLimit({ windowMs: 15 * 60 * 1000, limit: 500, message: { error: 'Too many requests' } }));
 
 // CORS
-const allowedOrigins = process.env.NODE_ENV === 'production' 
-  ? [process.env.FRONTEND_URL || '*'] 
-  : ['http://localhost:5173', 'http://127.0.0.1:5173', '*'];
-
-app.use(cors({ origin: allowedOrigins, methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'], allowedHeaders: ['Content-Type', 'Authorization', 'x-admin-token'] }));
+app.use(cors({ origin: '*', methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'], allowedHeaders: ['Content-Type', 'Authorization', 'x-admin-token'] }));
 app.use(compression());
 app.use(express.json());
 
