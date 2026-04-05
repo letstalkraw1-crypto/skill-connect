@@ -14,3 +14,14 @@ services:
         value: production
       - key: RENDER_EXTERNAL_URL
         value: https://collabro.onrender.com
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: skill-connect-redis
+          property: connectionString
+
+  - type: redis
+    name: skill-connect-redis
+    region: oregon
+    plan: free
+    ipAllowList: [] # only internal access
