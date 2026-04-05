@@ -5,22 +5,29 @@ dotenv.config();
 
 const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
 
-const redisClient = new Redis(redisUrl, {
+const redisOptions = {
   maxRetriesPerRequest: null,
   enableReadyCheck: true,
-});
+  retryStrategy: (times) => {
+    // Reconnect after 2, 4, 8 seconds max wait
+    return Math.min(times * 2000, 10000);
+  }
+};
+
+const redisClient = new Redis(redisUrl, redisOptions);
 
 redisClient.on('error', (err) => {
-  console.error('[Redis] Connection Error:', err);
+  console.error('[Redis] Connection Error:', err.message);
 });
 
 redisClient.on('connect', () => {
   console.log('[Redis] Connected successfully');
 });
 
-// Create secondary client for sub/pub if needed for Socket.io
-const subClient = new Redis(redisUrl, {
-  maxRetriesPerRequest: null,
+const subClient = new Redis(redisUrl, redisOptions);
+
+subClient.on('error', (err) => {
+  console.error('[Redis SubClient] Connection Error:', err.message);
 });
 
 module.exports = { redisClient, subClient };
