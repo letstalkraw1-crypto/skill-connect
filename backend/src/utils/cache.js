@@ -1,15 +1,25 @@
 const { redisClient } = require('../config/redis');
 
+// Helper for timing out Redis calls
+const timeout = (ms, promise) => {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error('Redis Timeout')), ms);
+    promise
+      .then(value => { clearTimeout(timer); resolve(value); })
+      .catch(err => { clearTimeout(timer); reject(err); });
+  });
+};
+
 /**
  * Get data from Redis cache
  * @param {string} key 
  */
 async function getCache(key) {
   try {
-    const data = await redisClient.get(key);
+    const data = await timeout(1500, redisClient.get(key));
     return data ? JSON.parse(data) : null;
   } catch (err) {
-    console.error(`[Redis] Cache Get Error (${key}):`, err);
+    console.error(`[Redis] Cache Get Error/Timeout (${key}):`, err.message);
     return null;
   }
 }
@@ -22,9 +32,9 @@ async function getCache(key) {
  */
 async function setCache(key, data, ttl = 3600) {
   try {
-    await redisClient.set(key, JSON.stringify(data), 'EX', ttl);
+    await timeout(1500, redisClient.set(key, JSON.stringify(data), 'EX', ttl));
   } catch (err) {
-    console.error(`[Redis] Cache Set Error (${key}):`, err);
+    console.error(`[Redis] Cache Set Error/Timeout (${key}):`, err.message);
   }
 }
 
