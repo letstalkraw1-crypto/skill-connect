@@ -44,9 +44,9 @@ async function setCache(key, data, ttl = 3600) {
  */
 async function delCache(key) {
   try {
-    await redisClient.del(key);
+    await timeout(1500, redisClient.del(key));
   } catch (err) {
-    console.error(`[Redis] Cache Del Error (${key}):`, err);
+    console.error(`[Redis] Cache Del Error/Timeout (${key}):`, err.message);
   }
 }
 
@@ -56,12 +56,12 @@ async function delCache(key) {
  */
 async function clearCachePattern(pattern) {
   try {
-    const keys = await redisClient.keys(pattern);
-    if (keys.length > 0) {
-      await redisClient.del(keys);
+    const keys = await timeout(1500, redisClient.keys(pattern));
+    if (keys && keys.length > 0) {
+      await timeout(1500, redisClient.del(keys));
     }
   } catch (err) {
-    console.error(`[Redis] Cache Clear Pattern Error (${pattern}):`, err);
+    console.error(`[Redis] Cache Clear Pattern Error/Timeout (${pattern}):`, err.message);
   }
 }
 
