@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Home, Search, MessageSquare, User, Bell } from 'lucide-react';
+import { Home, Search, MessageSquare, User, Bell, Calendar, Users } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 
@@ -30,7 +30,8 @@ const BottomNav = () => {
 
   const navItems = [
     { to: '/', icon: Home, label: 'Home' },
-    { to: '/discovery', icon: Search, label: 'Discover' },
+    { to: '/events', icon: Calendar, label: 'Events' },
+    { to: '/communities', icon: Users, label: 'Groups' },
     { to: '/chat', icon: MessageSquare, label: 'Messages' },
     { to: `/profile/${user._id || user.id}`, icon: User, label: 'Profile' },
   ];
@@ -50,12 +51,12 @@ const BottomNav = () => {
               }`}
             >
               <div className="relative">
-                <Icon size={24} />
+                <Icon size={22} />
                 {item.label === 'Messages' && (
                   <span className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-primary ring-2 ring-background"></span>
                 )}
               </div>
-              <span className="text-[10px] font-bold mt-1 uppercase tracking-tighter">{item.label}</span>
+              <span className="text-[9px] font-bold mt-1 uppercase tracking-tighter">{item.label}</span>
             </Link>
           );
         })}
@@ -67,14 +68,14 @@ const BottomNav = () => {
           }`}
         >
           <div className="relative">
-            <Bell size={24} />
+            <Bell size={22} />
             {unreadCount > 0 && (
-              <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-destructive text-[10px] text-white flex items-center justify-center border-2 border-background">
+              <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-destructive text-[9px] text-white flex items-center justify-center border-2 border-background font-bold">
                 {unreadCount > 9 ? '9+' : unreadCount}
               </span>
             )}
           </div>
-          <span className="text-[10px] font-bold mt-1 uppercase tracking-tighter">Activity</span>
+          <span className="text-[9px] font-bold mt-1 uppercase tracking-tighter">Activity</span>
         </Link>
       </div>
     </div>

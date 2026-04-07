@@ -168,32 +168,37 @@ const Chat = () => {
         </div>
 
         <div className="flex-1 overflow-y-auto p-4 space-y-2 custom-scrollbar">
-          {conversations.map((conv, idx) => (
-            <motion.button
-              key={conv.id || idx}
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: idx * 0.05 }}
-              onClick={() => { setActiveChat(conv); navigate(`/chat/${conv.id}`); }}
-              className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all group ${
-                activeChat?.id === conv.id ? 'bg-primary/20 border border-primary/30' : 'hover:bg-accent/50 hover:border-border/30 border border-transparent'
-              }`}
-            >
-              <div className="relative">
-                <Avatar src={conv.otherUser?.avatarUrl || conv.otherUser?.avatar_url} name={conv.otherUser?.name} size="14" className="ring-2 ring-primary/20" />
-                <div className="absolute -bottom-1 -right-1 h-4 w-4 bg-emerald-500 border-2 border-background rounded-full"></div>
-              </div>
-              <div className="flex-1 text-left min-w-0">
-                <div className="flex justify-between items-center mb-1">
-                  <h4 className="font-bold truncate group-hover:text-primary transition-colors">{conv.otherUser?.name}</h4>
-                  <span className="text-[10px] text-muted-foreground font-bold">{safeFormat(conv.lastAt)}</span>
+          {conversations.map((conv, idx) => {
+            const displayName = conv.isGroup ? conv.groupName : conv.otherUser?.name;
+            const displayAvatar = conv.isGroup ? conv.groupAvatar : (conv.otherUser?.avatarUrl || conv.otherUser?.avatar_url);
+            return (
+              <motion.button
+                key={conv.id || idx}
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: idx * 0.05 }}
+                onClick={() => { setActiveChat(conv); navigate(`/chat/${conv.id}`); }}
+                className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all group ${
+                  activeChat?.id === conv.id ? 'bg-primary/20 border border-primary/30' : 'hover:bg-accent/50 hover:border-border/30 border border-transparent'
+                }`}
+              >
+                <div className="relative">
+                  <Avatar src={displayAvatar} name={displayName} size="14" className="ring-2 ring-primary/20" />
+                  {!conv.isGroup && <div className="absolute -bottom-1 -right-1 h-4 w-4 bg-emerald-500 border-2 border-background rounded-full"></div>}
+                  {conv.isGroup && <div className="absolute -bottom-1 -right-1 h-4 w-4 bg-primary border-2 border-background rounded-full flex items-center justify-center"><span className="text-[6px] text-white font-black">G</span></div>}
                 </div>
-                <p className="text-xs text-muted-foreground truncate font-medium">
-                  {conv.lastMessage || 'No messages yet'}
-                </p>
-              </div>
-            </motion.button>
-          ))}
+                <div className="flex-1 text-left min-w-0">
+                  <div className="flex justify-between items-center mb-1">
+                    <h4 className="font-bold truncate group-hover:text-primary transition-colors">{displayName}</h4>
+                    <span className="text-[10px] text-muted-foreground font-bold">{safeFormat(conv.lastAt)}</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground truncate font-medium">
+                    {conv.lastMessage || 'No messages yet'}
+                  </p>
+                </div>
+              </motion.button>
+            );
+          })}
         </div>
       </div>
 
@@ -207,12 +212,16 @@ const Chat = () => {
                 <button onClick={() => setActiveChat(null)} className="md:hidden p-2 hover:bg-accent rounded-lg">
                   <ChevronLeft size={20} />
                 </button>
-                <Avatar src={activeChat.otherUser?.avatarUrl || activeChat.otherUser?.avatar_url} name={activeChat.otherUser?.name} size="12" />
+                <Avatar
+                  src={activeChat.isGroup ? activeChat.groupAvatar : (activeChat.otherUser?.avatarUrl || activeChat.otherUser?.avatar_url)}
+                  name={activeChat.isGroup ? activeChat.groupName : activeChat.otherUser?.name}
+                  size="12"
+                />
                 <div>
-                  <h3 className="font-bold">{activeChat.otherUser?.name}</h3>
+                  <h3 className="font-bold">{activeChat.isGroup ? activeChat.groupName : activeChat.otherUser?.name}</h3>
                   <p className="text-[10px] uppercase tracking-widest text-emerald-500 font-bold flex items-center gap-1">
                     <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                    Online
+                    {activeChat.isGroup ? 'Group Chat' : 'Online'}
                   </p>
                 </div>
               </div>

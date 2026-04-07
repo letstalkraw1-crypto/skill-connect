@@ -109,20 +109,24 @@ const rsvpEvent = async (req, res) => {
   try {
     const eventId = req.params.id;
     const userId = req.user.userId;
+    const { rsvpName, rsvpPhone } = req.body;
+
     const event = await Event.findById(eventId);
     if (!event) return res.status(404).json({ error: 'Event not found' });
-    if (event.creatorId.toString() === userId.toString()) return res.status(403).json({ error: 'Creator cannot cancel RSVP' });
+    if (event.creatorId.toString() === userId.toString()) {
+      return res.status(403).json({ error: 'You are the organiser of this event' });
+    }
+
     const existing = await EventRsvp.findOne({ eventId, userId });
     if (existing) {
-      if (existing.status === 'pending' || existing.status === 'accepted') {
-        await EventRsvp.deleteOne({ _id: existing._id });
-        return res.json({ rsvpStatus: null });
-      } else {
-        await EventRsvp.findByIdAndUpdate(existing._id, { status: 'pending' });
-        return res.json({ rsvpStatus: 'pending' });
-      }
+      // Cancel RSVP
+      await EventRsvp.deleteOne({ _id: existing._id });
+      return res.json({ rsvpStatus: null });
     } else {
-      await new EventRsvp({ _id: uuidv4(), eventId, userId, status: 'pending' }).save();
+      if (!rsvpName?.trim() || !rsvpPhone?.trim()) {
+        return res.status(400).json({ error: 'Name and mobile number are required to join' });
+      }
+      await new EventRsvp({ _id: uuidv4(), eventId, userId, status: 'pending', rsvpName: rsvpName.trim(), rsvpPhone: rsvpPhone.trim() }).save();
       return res.json({ rsvpStatus: 'pending' });
     }
   } catch (err) {

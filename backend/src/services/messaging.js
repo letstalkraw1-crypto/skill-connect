@@ -45,36 +45,38 @@ async function listConversations(userId) {
   }).sort({ createdAt: -1 }).lean();
 
   return Promise.all(conversations.map(async (conv) => {
-    // Get the other participant(s) - for 1:1, get the other user's info
-    const otherIds = conv.participants.filter(id => id !== userId);
-    const otherUser = otherIds.length > 0 
-      ? await User.findById(otherIds[0]).select('_id name avatarUrl').lean()
-      : { name: 'Unknown', avatarUrl: null };
-
-    // Get last message
     const lastMessage = await Message.findOne({ conversationId: conv._id })
       .sort({ sentAt: -1 })
       .lean();
 
+    if (conv.isGroup) {
+      return {
+        id: conv._id,
+        createdAt: conv.createdAt,
+        wallpaper: conv.wallpaper,
+        isGroup: true,
+        groupName: conv.groupName,
+        groupAvatar: conv.groupAvatar,
+        communityId: conv.communityId,
+        otherUser: { name: conv.groupName, avatarUrl: conv.groupAvatar },
+        lastMessage: lastMessage?.text || null,
+        lastAt: lastMessage?.sentAt || conv.createdAt,
+      };
+    }
+
+    const otherIds = conv.participants.filter(id => id !== userId);
+    const otherUser = otherIds.length > 0
+      ? await User.findById(otherIds[0]).select('_id name avatarUrl').lean()
+      : { name: 'Unknown', avatarUrl: null };
+
     return {
       id: conv._id,
       createdAt: conv.createdAt,
-      created_at: conv.createdAt,
       wallpaper: conv.wallpaper,
-      otherUser: {
-        ...otherUser,
-        id: otherUser?._id,
-        avatar_url: otherUser?.avatarUrl
-      },
-      other_user: {
-        ...otherUser,
-        id: otherUser?._id,
-        avatar_url: otherUser?.avatarUrl
-      },
+      isGroup: false,
+      otherUser: { ...otherUser, id: otherUser?._id, avatar_url: otherUser?.avatarUrl },
       lastMessage: lastMessage?.text || null,
-      last_message: lastMessage?.text || null,
       lastAt: lastMessage?.sentAt || conv.createdAt,
-      last_at: lastMessage?.sentAt || conv.createdAt
     };
   }));
 }
