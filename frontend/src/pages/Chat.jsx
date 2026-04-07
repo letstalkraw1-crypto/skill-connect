@@ -83,7 +83,10 @@ const Chat = () => {
       const apiModule = await import('../services/api');
       const { data } = await apiModule.default.get('/communities');
       const myId = currentUser?._id || currentUser?.id;
-      setCommunities((data || []).filter(c => c.isMember || c.is_member || c.creatorId === myId));
+      // Only show communities the user is a member of or created
+      setCommunities((data || []).filter(c =>
+        c.isMember || c.is_member || c.creatorId === myId || c.isCreator
+      ));
     } catch (err) {
       console.error(err);
     }
@@ -230,20 +233,24 @@ const Chat = () => {
               </div>
             ) : communities.map((community, idx) => {
               const convId = community.conversationId;
+              const handleOpen = () => {
+                if (!convId) {
+                  // No conversation yet — redirect to communities to join/trigger creation
+                  navigate('/communities');
+                  return;
+                }
+                const groupConv = {
+                  id: convId,
+                  isGroup: true,
+                  groupName: community.name,
+                  groupAvatar: null,
+                };
+                setActiveChat(groupConv);
+                navigate(`/chat/${convId}`);
+              };
               return (
                 <motion.button key={community._id || idx} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: idx * 0.04 }}
-                  onClick={() => {
-                    if (convId) {
-                      const groupConv = {
-                        id: convId,
-                        isGroup: true,
-                        groupName: community.name,
-                        groupAvatar: null,
-                      };
-                      setActiveChat(groupConv);
-                      navigate(`/chat/${convId}`);
-                    }
-                  }}
+                  onClick={handleOpen}
                   className={`w-full flex items-center gap-3 p-3 rounded-2xl transition-all group hover:bg-accent/50 border ${activeChat?.id === convId ? 'bg-primary/20 border-primary/30' : 'border-transparent'}`}>
                   <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-primary/30 to-blue-600/30 flex items-center justify-center flex-shrink-0 border border-primary/20">
                     <span className="text-primary font-black text-sm">{(community.name || 'G')[0].toUpperCase()}</span>

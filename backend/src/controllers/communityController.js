@@ -9,9 +9,27 @@ const listCommunities = async (req, res) => {
     const result = await Promise.all(communities.map(async (c) => {
       const members = await CommunityMember.find({ communityId: c._id }).lean();
       const creator = await User.findById(c.creatorId).select('name avatarUrl').lean();
+
+      // Auto-create conversation if missing
+      let conversationId = c.conversationId;
+      if (!conversationId) {
+        const allMemberIds = members.map(m => m.userId);
+        const conv = new Conversation({
+          _id: uuidv4(),
+          participants: allMemberIds.length ? allMemberIds : [c.creatorId],
+          isGroup: true,
+          groupName: c.name,
+          communityId: c._id,
+        });
+        await conv.save();
+        await Community.findByIdAndUpdate(c._id, { conversationId: conv._id });
+        conversationId = conv._id;
+      }
+
       return {
         ...c,
         id: c._id,
+        conversationId,
         memberCount: members.length,
         member_count: members.length,
         isMember: members.some(m => m.userId === userId),
@@ -119,41 +137,40 @@ const joinCommunity = async (req, res) => {
     const community = await Community.findById(req.params.id);
     if (!community) return res.status(404).json({ error: 'Community not found' });
 
+    // Auto-create conversation if missing (for communities created before this feature)
+    if (!community.conversationId) {
+      const conversation = new Conversation({
+        _id: uuidv4(),
+        participants: [community.creatorId],
+        isGroup: true,
+        groupName: community.name,
+        communityId: community._id,
+      });
+      await conversation.save();
+      community.conversationId = conversation._id;
+      await community.save();
+    }
+
     const existing = await CommunityMember.findOne({ communityId: req.params.id, userId });
 
     if (existing) {
-      // Leave — but creator cannot leave
       if (community.creatorId === userId) {
         return res.status(403).json({ error: 'Creator cannot leave their own community' });
       }
       await CommunityMember.deleteOne({ _id: existing._id });
-
-      // Remove from group conversation
-      if (community.conversationId) {
-        await Conversation.findByIdAndUpdate(community.conversationId, {
-          $pull: { participants: userId }
-        });
-      }
+      await Conversation.findByIdAndUpdate(community.conversationId, {
+        $pull: { participants: userId }
+      });
       return res.json({ joined: false });
     } else {
-      // Check max members
       const count = await CommunityMember.countDocuments({ communityId: req.params.id });
       if (count >= community.maxMembers) {
         return res.status(400).json({ error: 'Community is full' });
       }
-
-      await new CommunityMember({
-        communityId: req.params.id,
-        userId,
-        role: 'member'
-      }).save();
-
-      // Add to group conversation
-      if (community.conversationId) {
-        await Conversation.findByIdAndUpdate(community.conversationId, {
-          $addToSet: { participants: userId }
-        });
-      }
+      await new CommunityMember({ communityId: req.params.id, userId, role: 'member' }).save();
+      await Conversation.findByIdAndUpdate(community.conversationId, {
+        $addToSet: { participants: userId }
+      });
       return res.json({ joined: true, conversationId: community.conversationId });
     }
   } catch (err) {
