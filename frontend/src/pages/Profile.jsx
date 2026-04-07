@@ -85,6 +85,13 @@ const Profile = () => {
     }
   }, [id, currentUser?.id, currentUser?._id]);
 
+  useEffect(() => {
+    const tab = searchParams.get('tab');
+    if (tab) {
+      setActiveTab(tab);
+    }
+  }, [searchParams]);
+
   const handleAvatarUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -95,13 +102,17 @@ const Profile = () => {
     setUploading(true);
     try {
       const { data } = await authService.updateAvatar(formData);
-      setUser(prev => ({ ...prev, avatarUrl: data.avatarUrl }));
-      updateUser({ avatarUrl: data.avatarUrl });
+      const newAvatarUrl = data.avatarUrl || data.avatar_url || data.url;
+      setUser(prev => ({ ...prev, avatarUrl: newAvatarUrl }));
+      updateUser({ avatarUrl: newAvatarUrl });
     } catch (err) {
-      console.error(err);
-      alert('Failed to upload photo');
+      console.error('Avatar upload failed:', err);
+      const msg = err?.response?.data?.error || err.message || 'Failed to upload photo';
+      alert(`Upload failed: ${msg}`);
     } finally {
       setUploading(false);
+      // Reset file input so same file can be re-selected
+      if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
