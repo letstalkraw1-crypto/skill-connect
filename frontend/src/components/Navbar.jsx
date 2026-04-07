@@ -1,9 +1,8 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Home, Search, MessageSquare, User, LogOut, Plus, X } from 'lucide-react';
+import { Home, Search, MessageSquare, User, LogOut, Plus, Calendar, Users } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { motion, AnimatePresence } from 'framer-motion';
-import Avatar from './Avatar';
+import { AnimatePresence } from 'framer-motion';
 import CreateModal from './CreateModal';
 
 const NavItem = ({ to, icon: Icon, label, active }) => (
@@ -50,6 +49,20 @@ const Navbar = () => {
           </div>
 
           <div className="flex items-center gap-2">
+            {/* Events & Communities quick links */}
+            <Link
+              to="/events"
+              className={`hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${location.pathname === '/events' ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-accent hover:text-foreground'}`}
+            >
+              <Calendar size={16} /> Events
+            </Link>
+            <Link
+              to="/communities"
+              className={`hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${location.pathname === '/communities' ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-accent hover:text-foreground'}`}
+            >
+              <Users size={16} /> Groups
+            </Link>
+
             {/* + Create Button */}
             <button
               onClick={() => setShowCreate(true)}
