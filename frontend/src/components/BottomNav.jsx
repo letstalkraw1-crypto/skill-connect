@@ -59,11 +59,11 @@ const BottomNav = () => {
             </Link>
           );
         })}
-        {/* Simple Notification Indicator for Mobile Footer */}
+        {/* Notifications Bell */}
         <Link
-          to={`/profile/${user._id || user.id}?tab=activity`}
+          to="/notifications"
           className={`flex flex-col items-center justify-center flex-1 h-full transition-colors ${
-            location.search.includes('tab=activity') ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
+            location.pathname === '/notifications' ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
           }`}
         >
           <div className="relative">

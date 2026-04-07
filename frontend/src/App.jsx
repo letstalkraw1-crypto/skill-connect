@@ -10,6 +10,7 @@ const Auth = lazy(() => import('./pages/Auth'));
 const Profile = lazy(() => import('./pages/Profile'));
 const Chat = lazy(() => import('./pages/Chat'));
 const Discovery = lazy(() => import('./pages/Discovery'));
+const Notifications = lazy(() => import('./pages/Notifications'));
 
 // Lightweight loading fallback
 const LoadingFallback = () => (
@@ -40,6 +41,7 @@ const App = () => {
               <Route path="/profile/:id" element={<PrivateRoute><Profile /></PrivateRoute>} />
               <Route path="/chat/:id?" element={<PrivateRoute><Chat /></PrivateRoute>} />
               <Route path="/discovery" element={<PrivateRoute><Discovery /></PrivateRoute>} />
+              <Route path="/notifications" element={<PrivateRoute><Notifications /></PrivateRoute>} />
               <Route path="*" element={<Navigate to="/" />} />
             </Routes>
           </Suspense>
