@@ -9,3 +9,10 @@ build/
 !**/uploads/.gitkeep
 .vscode/
 .idea/
+audit.json
+audit.txt
+build_output.txt
+.prettierrc
+eslint.config.js
+.eslintrc.cjs
+

@@ -35,39 +35,69 @@ const login = async (req, res) => {
 };
 
 const sendOtp = async (req, res) => {
-  const { phone } = req.body;
-  if (!phone) return res.status(400).json({ error: 'Phone number required' });
+  const { email, phone } = req.body;
 
-  try {
-    const code = await authService.generateOtp(phone);
-
-    if (process.env.TWILIO_SID && process.env.TWILIO_TOKEN && process.env.TWILIO_FROM) {
-      const twilio = require('twilio')(process.env.TWILIO_SID, process.env.TWILIO_TOKEN);
-      twilio.messages.create({
-        body: `Your Collabro OTP is: ${code}. Valid for 10 minutes.`,
-        from: process.env.TWILIO_FROM,
-        to: phone,
-      }).catch(e => console.error('SMS error:', e.message));
-    } else {
-      console.log(`\n📱 OTP for ${phone}: ${code}\n`);
+  // Email OTP (primary)
+  if (email) {
+    try {
+      const result = await authService.generateEmailOtp(email);
+      return res.status(200).json(result);
+    } catch (err) {
+      return res.status(err.status || 500).json({ error: err.message });
     }
-
-    return res.status(200).json({ message: 'OTP sent', devMode: !process.env.TWILIO_SID });
-  } catch (err) {
-    return res.status(err.status || 500).json({ error: err.message });
   }
+
+  // Phone OTP (legacy fallback)
+  if (phone) {
+    try {
+      const code = await authService.generateOtp(phone);
+
+      if (process.env.TWILIO_SID && process.env.TWILIO_TOKEN && process.env.TWILIO_FROM) {
+        const twilio = require('twilio')(process.env.TWILIO_SID, process.env.TWILIO_TOKEN);
+        twilio.messages.create({
+          body: `Your SkillConnect OTP is: ${code}. Valid for 5 minutes.`,
+          from: process.env.TWILIO_FROM,
+          to: phone,
+        }).catch(e => console.error('SMS error:', e.message));
+      } else {
+        console.log(`\n📱 OTP for ${phone}: ${code}\n`);
+      }
+
+      return res.status(200).json({ message: 'OTP sent', devMode: !process.env.TWILIO_SID });
+    } catch (err) {
+      return res.status(err.status || 500).json({ error: err.message });
+    }
+  }
+
+  return res.status(400).json({ error: 'Email or phone number is required' });
 };
 
 const verifyOtp = async (req, res) => {
-  const { phone, code } = req.body;
-  if (!phone || !code) return res.status(400).json({ error: 'Phone and OTP code required' });
+  const { email, phone, code } = req.body;
 
-  try {
-    const result = await authService.verifyOtp(phone, code);
-    return res.status(200).json(result);
-  } catch (err) {
-    return res.status(err.status || 500).json({ error: err.message });
+  if (!code) return res.status(400).json({ error: 'OTP code is required' });
+
+  // Email OTP verification (primary)
+  if (email) {
+    try {
+      const result = await authService.verifyEmailOtp(email, code);
+      return res.status(200).json(result);
+    } catch (err) {
+      return res.status(err.status || 500).json({ error: err.message });
+    }
   }
+
+  // Phone OTP verification (legacy fallback)
+  if (phone) {
+    try {
+      const result = await authService.verifyOtp(phone, code);
+      return res.status(200).json(result);
+    } catch (err) {
+      return res.status(err.status || 500).json({ error: err.message });
+    }
+  }
+
+  return res.status(400).json({ error: 'Email or phone number is required' });
 };
 
 const getMe = async (req, res) => {
@@ -79,7 +109,7 @@ const getMe = async (req, res) => {
     const user = await User.findById(req.user.userId).select('-password').lean();
     if (!user) return res.status(404).json({ error: 'User not found' });
     
-    await setCache(cacheKey, user, 3600); // 1 hour TTL
+    await setCache(cacheKey, user, 3600);
     return res.status(200).json({ user });
   } catch (err) {
     return res.status(500).json({ error: err.message });

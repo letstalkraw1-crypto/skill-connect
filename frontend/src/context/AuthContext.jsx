@@ -21,6 +21,13 @@ export const AuthProvider = ({ children }) => {
     return data;
   };
 
+  const loginWithOtp = async (email, code) => {
+    const { data } = await authService.verifyOtp(email, code);
+    localStorage.setItem('token', data.token);
+    setUser(data.user);
+    return data;
+  };
+
   const logout = () => {
     localStorage.removeItem('token');
     setUser(null);
@@ -52,7 +59,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, signup, logout, loading, checkAuth, updateUser }}>
+    <AuthContext.Provider value={{ user, login, signup, loginWithOtp, logout, loading, checkAuth, updateUser }}>
       {children}
     </AuthContext.Provider>
   );

@@ -22,8 +22,10 @@ function initSocket(httpServer) {
     cors: { origin: '*' }
   });
 
-  // Redis Adapter for scalability
-  io.adapter(createAdapter(redisClient, subClient));
+  // Redis Adapter for scalability (Optional for local dev)
+  if (process.env.REDIS_URL) {
+    io.adapter(createAdapter(redisClient, subClient));
+  }
 
   io.on('connection', async (socket) => {
     // --- Authentication ---

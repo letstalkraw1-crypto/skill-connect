@@ -2,13 +2,12 @@ const express = require('express');
 const postController = require('../controllers/postController');
 const { verifyToken } = require('../middleware/authMiddleware');
 const multer = require('multer');
-const { storage } = require('../config/cloudinary');
 const path = require('path');
 
 const router = express.Router();
 
 const upload = multer({
-  storage,
+  storage: multer.memoryStorage(),
   limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
 });
 

@@ -36,6 +36,8 @@ export const authService = {
     ...data, 
     email: data.email?.toLowerCase().trim() 
   }),
+  sendOtp: (email) => api.post('/auth/send-otp', { email: email.toLowerCase().trim() }),
+  verifyOtp: (email, code) => api.post('/auth/verify-otp', { email: email.toLowerCase().trim(), code }),
   getMe: () => api.get('/auth/me'),
   updateAvatar: (formData) => api.post('/upload/avatar', formData, {
     headers: { 'Content-Type': 'multipart/form-data' }

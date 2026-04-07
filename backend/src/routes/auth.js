@@ -1,5 +1,5 @@
 const express = require('express');
-const { signup, login, signupPhone, generateOtp, verifyOtp } = require('../services/auth');
+const { signup, login, signupPhone, generateOtp, verifyOtp, generateEmailOtp, verifyEmailOtp } = require('../services/auth');
 const rateLimit = require('express-rate-limit');
 const { body, validationResult } = require('express-validator');
 
@@ -57,44 +57,69 @@ router.post('/login',
   }
 });
 
-// POST /auth/send-otp — send OTP to phone number
+// POST /auth/send-otp — send OTP via email (primary) or phone (legacy)
 router.post('/send-otp', async (req, res) => {
-  const { phone } = req.body;
-  if (!phone) return res.status(400).json({ error: 'Phone number required' });
+  const { email, phone } = req.body;
 
-  try {
-    const code = await generateOtp(phone);
-
-    // If Twilio is configured, send SMS — otherwise log to console (dev mode)
-    if (process.env.TWILIO_SID && process.env.TWILIO_TOKEN && process.env.TWILIO_FROM) {
-      const twilio = require('twilio')(process.env.TWILIO_SID, process.env.TWILIO_TOKEN);
-      twilio.messages.create({
-        body: `Your Collabro OTP is: ${code}. Valid for 10 minutes.`,
-        from: process.env.TWILIO_FROM,
-        to: phone,
-      }).catch(e => console.error('SMS error:', e.message));
-    } else {
-      // Dev mode — print OTP to server console
-      console.log(`\n📱 OTP for ${phone}: ${code}\n`);
+  // Email OTP (primary)
+  if (email) {
+    try {
+      const result = await generateEmailOtp(email);
+      return res.status(200).json(result);
+    } catch (err) {
+      return res.status(err.status || 500).json({ error: err.message });
     }
-
-    return res.status(200).json({ message: 'OTP sent', devMode: !process.env.TWILIO_SID });
-  } catch (err) {
-    return res.status(err.status || 500).json({ error: err.message });
   }
+
+  // Phone OTP (legacy fallback)
+  if (phone) {
+    try {
+      const code = await generateOtp(phone);
+      if (process.env.TWILIO_SID && process.env.TWILIO_TOKEN && process.env.TWILIO_FROM) {
+        const twilio = require('twilio')(process.env.TWILIO_SID, process.env.TWILIO_TOKEN);
+        twilio.messages.create({
+          body: `Your SkillConnect OTP is: ${code}. Valid for 5 minutes.`,
+          from: process.env.TWILIO_FROM,
+          to: phone,
+        }).catch(e => console.error('SMS error:', e.message));
+      } else {
+        console.log(`\n📱 OTP for ${phone}: ${code}\n`);
+      }
+      return res.status(200).json({ message: 'OTP sent', devMode: !process.env.TWILIO_SID });
+    } catch (err) {
+      return res.status(err.status || 500).json({ error: err.message });
+    }
+  }
+
+  return res.status(400).json({ error: 'Email or phone number is required' });
 });
 
 // POST /auth/verify-otp — verify OTP and get JWT
 router.post('/verify-otp', async (req, res) => {
-  const { phone, code } = req.body;
-  if (!phone || !code) return res.status(400).json({ error: 'Phone and OTP code required' });
+  const { email, phone, code } = req.body;
+  if (!code) return res.status(400).json({ error: 'OTP code is required' });
 
-  try {
-    const result = await verifyOtp(phone, code);
-    return res.status(200).json(result);
-  } catch (err) {
-    return res.status(err.status || 500).json({ error: err.message });
+  // Email OTP verification (primary)
+  if (email) {
+    try {
+      const result = await verifyEmailOtp(email, code);
+      return res.status(200).json(result);
+    } catch (err) {
+      return res.status(err.status || 500).json({ error: err.message });
+    }
   }
+
+  // Phone OTP verification (legacy fallback)
+  if (phone) {
+    try {
+      const result = await verifyOtp(phone, code);
+      return res.status(200).json(result);
+    } catch (err) {
+      return res.status(err.status || 500).json({ error: err.message });
+    }
+  }
+
+  return res.status(400).json({ error: 'Email or phone number is required' });
 });
 
 // POST /auth/signup-phone — register with phone + name

@@ -1,6 +1,6 @@
 const express = require('express');
 const multer = require('multer');
-const { storage } = require('../config/cloudinary');
+const { uploadToCloudinary } = require('../config/cloudinary');
 const { verifyToken } = require('../services/auth');
 const { User } = require('../config/db');
 const { delCache } = require('../utils/cache');
@@ -8,7 +8,7 @@ const { delCache } = require('../utils/cache');
 const router = express.Router();
 
 const upload = multer({
-  storage,
+  storage: multer.memoryStorage(),
   limits: { fileSize: 5 * 1024 * 1024 }, // 5MB max
 });
 
@@ -17,8 +17,9 @@ router.post('/avatar', verifyToken, upload.single('avatar'), async (req, res) =>
   try {
     if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
 
-    // Cloudinary provides the URL in path or secure_url
-    const avatarUrl = req.file.path || req.file.secure_url;
+    // Upload to Cloudinary via buffer stream
+    const result = await uploadToCloudinary(req.file.buffer);
+    const avatarUrl = result.secure_url;
     
     // Update user record
     const updatedUser = await User.findByIdAndUpdate(
@@ -41,15 +42,20 @@ router.post('/avatar', verifyToken, upload.single('avatar'), async (req, res) =>
 });
 
 const uploadChat = multer({
-  storage,
+  storage: multer.memoryStorage(),
   limits: { fileSize: 15 * 1024 * 1024 }, // 15MB max
 });
 
 // POST /upload/chat
-router.post('/chat', verifyToken, uploadChat.single('file'), (req, res) => {
-  if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
-  const url = req.file.path || req.file.secure_url;
-  res.json({ url });
+router.post('/chat', verifyToken, uploadChat.single('file'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+    const result = await uploadToCloudinary(req.file.buffer);
+    res.json({ url: result.secure_url });
+  } catch (err) {
+    console.error('Chat upload error:', err);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 module.exports = router;

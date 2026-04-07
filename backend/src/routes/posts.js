@@ -7,12 +7,12 @@ const { verifyToken } = require('../services/auth');
 const { Post, PostLike, PostComment, PostInteraction, User, Connection } = require('../config/db');
 const { paginate } = require('../utils/pagination');
 const { getCache, setCache, clearCachePattern } = require('../utils/cache');
-const { storage } = require('../config/cloudinary');
+const { uploadToCloudinary } = require('../config/cloudinary');
 
 const router = express.Router();
 
 const upload = multer({
-  storage,
+  storage: multer.memoryStorage(),
   limits: { fileSize: 10 * 1024 * 1024 }, // 10MB max
 });
 
@@ -126,8 +126,14 @@ router.get('/', verifyToken, async (req, res) => {
 router.post('/', verifyToken, upload.array('images', 10), async (req, res) => {
   try {
     const { caption, visibility, verificationLink, note } = req.body;
-    const imageUrl = (req.files && req.files.length > 0) ? (req.files[0].path || req.files[0].secure_url) : null;
-    const imageUrls = req.files ? req.files.map(f => f.path || f.secure_url) : [];
+    const imageUrls = [];
+    if (req.files && req.files.length > 0) {
+      for (const file of req.files) {
+        const result = await uploadToCloudinary(file.buffer);
+        imageUrls.push(result.secure_url);
+      }
+    }
+    const imageUrl = imageUrls.length > 0 ? imageUrls[0] : null;
     
     if (!caption && !imageUrl && !note) {
       return res.status(400).json({ error: 'Post needs a caption, note, or image' });

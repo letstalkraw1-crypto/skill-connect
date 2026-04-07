@@ -2,6 +2,7 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const { v4: uuidv4 } = require('uuid');
 const { User, OTP } = require('../config/db');
+const { sendOtpEmail } = require('./emailService');
 
 const SALT_ROUNDS = parseInt(process.env.SALT_ROUNDS) || 12;
 const JWT_SECRET = process.env.JWT_SECRET;
@@ -9,7 +10,8 @@ if (!JWT_SECRET) {
   throw new Error('FATAL: JWT_SECRET not found in environment');
 }
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '30d';
-const OTP_EXPIRY_MINUTES = parseInt(process.env.OTP_EXPIRY_MINUTES) || 10;
+const OTP_EXPIRY_MINUTES = parseInt(process.env.OTP_EXPIRY_MINUTES) || 5;
+const MAX_OTP_ATTEMPTS = 5;
 
 // ── Generate unique 8-digit short ID ────────────────────────────────────────
 async function generateShortId() {
@@ -36,7 +38,6 @@ async function signup(name, email, password, location) {
     const err = new Error('Email already in use'); err.status = 409; throw err;
   }
 
-  // No manual hashing here - the model's pre('save') hook handles it!
   const userId = uuidv4();
   const shortId = await generateShortId();
   
@@ -46,7 +47,7 @@ async function signup(name, email, password, location) {
     shortId,
     name,
     email: normalizedEmail,
-    password, // Passed as plain text, hashed by pre-save hook
+    password,
     location: location || null
   });
   
@@ -70,18 +71,16 @@ async function login(email, password) {
   }
   console.log(`👤 User found: ${user._id}`);
   
-  // Auto-migration logic for legacy plain-text passwords
   let match = false;
   const isBcryptHash = user.password.startsWith('$2b$') || user.password.startsWith('$2a$');
 
   if (isBcryptHash) {
     match = await user.matchPassword(password);
   } else {
-    // Legacy plain-text comparison
     match = (password === user.password);
     if (match) {
       console.log('🔄 Migrating plain-text password to hash...');
-      user.password = password; // pre-save hook will hash this
+      user.password = password;
       await user.save();
     }
   }
@@ -122,51 +121,134 @@ async function signupPhone(name, phone, location) {
   return { userId };
 }
 
-// ── Generate & store OTP ─────────────────────────────────────────────────────
+// ── Generate & store OTP (Phone) ─────────────────────────────────────────────
 async function generateOtp(phone) {
-  // Clean up old OTPs for this phone
   await OTP.deleteMany({ phone });
-
-  const code = Math.floor(100000 + Math.random() * 900000).toString(); // 6-digit
+  const code = Math.floor(100000 + Math.random() * 900000).toString();
   const expiresAt = new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000);
-  
   const otp = new OTP({ phone, code, expiresAt });
   await otp.save();
-
   return code;
 }
 
-// ── Verify OTP & return JWT ──────────────────────────────────────────────────
+// ── Verify OTP & return JWT (Phone) ──────────────────────────────────────────
 async function verifyOtp(phone, code) {
   const otp = await OTP.findOne({ phone, code, used: false }).sort({ _id: -1 });
-
   if (!otp) {
     const err = new Error('Invalid OTP'); err.status = 401; throw err;
   }
   if (new Date(otp.expiresAt) < new Date()) {
     const err = new Error('OTP expired'); err.status = 401; throw err;
   }
-
-  // Mark as used
   otp.used = true;
   await otp.save();
 
-  // Find or auto-create user for this phone
   let user = await User.findOne({ phone });
   if (!user) {
     const userId = uuidv4();
     const shortId = await generateShortId();
-    user = new User({
-      _id: userId,
-      shortId,
-      name: phone,
-      phone
-    });
+    user = new User({ _id: userId, shortId, name: phone, phone });
     await user.save();
   }
 
   const token = jwt.sign({ userId: user._id }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
   return { userId: user._id, token };
+}
+
+// ── Generate & Send OTP (Email) ──────────────────────────────────────────────
+async function generateEmailOtp(email) {
+  const normalizedEmail = (email || '').toLowerCase().trim();
+  if (!normalizedEmail) {
+    const err = new Error('Email is required'); err.status = 400; throw err;
+  }
+
+  // Clean up old unused OTPs for this email
+  await OTP.deleteMany({ email: normalizedEmail, used: false });
+
+  // Generate 6-digit OTP
+  const plainOtp = Math.floor(100000 + Math.random() * 900000).toString();
+  const expiresAt = new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000);
+
+  // Hash OTP before storing for security
+  const hashedOtp = await bcrypt.hash(plainOtp, 10);
+
+  const otp = new OTP({
+    email: normalizedEmail,
+    code: hashedOtp,
+    expiresAt,
+    attempts: 0
+  });
+  await otp.save();
+
+  // Send the plain OTP via email
+  await sendOtpEmail(normalizedEmail, plainOtp);
+
+  console.log(`📧 Email OTP generated for: ${normalizedEmail}`);
+  return { message: 'OTP sent to your email' };
+}
+
+// ── Verify OTP & return JWT (Email) ──────────────────────────────────────────
+async function verifyEmailOtp(email, code) {
+  const normalizedEmail = (email || '').toLowerCase().trim();
+  if (!normalizedEmail || !code) {
+    const err = new Error('Email and OTP code are required'); err.status = 400; throw err;
+  }
+
+  const otp = await OTP.findOne({ email: normalizedEmail, used: false }).sort({ _id: -1 });
+
+  if (!otp) {
+    const err = new Error('No OTP found. Please request a new one.'); err.status = 401; throw err;
+  }
+
+  // Check expiry
+  if (new Date(otp.expiresAt) < new Date()) {
+    await OTP.deleteOne({ _id: otp._id });
+    const err = new Error('OTP has expired. Please request a new one.'); err.status = 401; throw err;
+  }
+
+  // Check max attempts
+  if (otp.attempts >= MAX_OTP_ATTEMPTS) {
+    await OTP.deleteOne({ _id: otp._id });
+    const err = new Error('Too many attempts. Please request a new OTP.'); err.status = 429; throw err;
+  }
+
+  // Verify hashed OTP
+  const isMatch = await bcrypt.compare(code, otp.code);
+  if (!isMatch) {
+    otp.attempts += 1;
+    await otp.save();
+    const remaining = MAX_OTP_ATTEMPTS - otp.attempts;
+    const err = new Error(`Invalid OTP. ${remaining} attempt(s) remaining.`); err.status = 401; throw err;
+  }
+
+  // Mark as used
+  otp.used = true;
+  await otp.save();
+
+  // Find or auto-create user for this email
+  let user = await User.findOne({ email: normalizedEmail });
+  let isNewUser = false;
+
+  if (!user) {
+    isNewUser = true;
+    const userId = uuidv4();
+    const shortId = await generateShortId();
+    user = new User({
+      _id: userId,
+      shortId,
+      name: normalizedEmail.split('@')[0],
+      email: normalizedEmail
+    });
+    await user.save();
+    console.log(`✅ New user auto-created via Email OTP: ${userId}`);
+  }
+
+  const userJson = user.toObject();
+  delete userJson.password;
+
+  const token = jwt.sign({ userId: user._id }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
+  console.log(`✅ Email OTP verified for: ${normalizedEmail}`);
+  return { userId: user._id, user: userJson, token, isNewUser };
 }
 
 // ── Middleware: Verify JWT Token ───────────────────────────────────────────
@@ -201,10 +283,13 @@ function optionalVerifyToken(req, res, next) {
     req.user = decoded;
     next();
   } catch (err) {
-    // If token is invalid, we just proceed without user info
     next();
   }
 }
 
-module.exports = { signup, login, signupPhone, generateOtp, verifyOtp, verifyToken, optionalVerifyToken };
-
+module.exports = {
+  signup, login, signupPhone,
+  generateOtp, verifyOtp,
+  generateEmailOtp, verifyEmailOtp,
+  verifyToken, optionalVerifyToken
+};

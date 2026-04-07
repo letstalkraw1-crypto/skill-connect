@@ -3,6 +3,7 @@ const { v4: uuidv4 } = require('uuid');
 const { createNotification } = require('../utils/notification');
 const path = require('path');
 const fs = require('fs');
+const { uploadToCloudinary } = require('../config/cloudinary');
 
 // Helper to get connected user IDs
 async function getConnectedUserIds(userId) {
@@ -108,8 +109,14 @@ const getFeed = async (req, res) => {
 const createPost = async (req, res) => {
   try {
     const { caption, visibility, verificationLink, note } = req.body;
-    const imageUrl = (req.files && req.files.length > 0) ? (req.files[0].path || req.files[0].secure_url) : null;
-    const imageUrls = req.files ? req.files.map(f => f.path || f.secure_url) : [];
+    const imageUrls = [];
+    if (req.files && req.files.length > 0) {
+      for (const file of req.files) {
+        const result = await uploadToCloudinary(file.buffer);
+        imageUrls.push(result.secure_url);
+      }
+    }
+    const imageUrl = imageUrls.length > 0 ? imageUrls[0] : null;
     
     if (!caption && !imageUrl && !note) {
       return res.status(400).json({ error: 'Post needs a caption, note, or image' });
