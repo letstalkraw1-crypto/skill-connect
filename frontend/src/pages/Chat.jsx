@@ -79,16 +79,26 @@ const Chat = () => {
   useEffect(() => {
     if (socket) {
       socket.on('receive_message', (msg) => {
+        const myId = currentUser?._id || currentUser?.id;
+        const senderId = msg.senderId || msg.sender_id;
+
         if (activeChat && msg.conversationId === activeChat.id) {
-          setMessages(prev => [...prev, msg]);
-          scrollToBottom();
+          // Skip if this is our own message — we already added it optimistically
+          if (senderId?.toString() !== myId?.toString()) {
+            setMessages(prev => [...prev, msg]);
+            scrollToBottom();
+          }
         }
         // Update last message in sidebar
-        setConversations(prev => prev.map(c => c.id === msg.conversationId ? { ...c, lastMessage: msg.text, lastAt: msg.sentAt } : c));
+        setConversations(prev => prev.map(c =>
+          c.id === msg.conversationId
+            ? { ...c, lastMessage: msg.text || msg.content, lastAt: msg.timestamp || msg.sentAt }
+            : c
+        ));
       });
     }
     return () => socket?.off('receive_message');
-  }, [socket, activeChat]);
+  }, [socket, activeChat, currentUser]);
 
   const handleSendMessage = (e) => {
     e.preventDefault();
