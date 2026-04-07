@@ -33,20 +33,41 @@ const Chat = () => {
       setConversations(data);
 
       if (id) {
-        const existing = data.find(c => c.id === id || c.otherUser?.id === id || c.otherUser?._id === id);
+        // First try to find in loaded conversations (includes group convs since backend returns all)
+        const existing = data.find(c =>
+          c.id === id ||
+          c.otherUser?.id === id ||
+          c.otherUser?._id === id
+        );
         if (existing) {
           setActiveChat(existing);
         } else {
+          // Could be a group conversation ID — try to open it directly
           try {
-            const res = await chatService.createConversation([id]);
-            const newConv = res.data;
-            setConversations(prev => {
-              const exists = prev.find(p => p.id === newConv.id);
-              return exists ? prev : [newConv, ...prev];
-            });
-            setActiveChat(newConv);
-          } catch (createErr) {
-            console.error('Failed to auto-create conversation:', createErr);
+            const msgRes = await chatService.getMessages(id);
+            if (msgRes.data) {
+              // Build a minimal activeChat object so the chat window renders
+              const groupConv = {
+                id,
+                isGroup: true,
+                groupName: 'Group Chat',
+                groupAvatar: null,
+              };
+              setActiveChat(groupConv);
+            }
+          } catch {
+            // Not a group conv either — try creating 1:1
+            try {
+              const res = await chatService.createConversation([id]);
+              const newConv = res.data;
+              setConversations(prev => {
+                const exists = prev.find(p => p.id === newConv.id);
+                return exists ? prev : [newConv, ...prev];
+              });
+              setActiveChat(newConv);
+            } catch (createErr) {
+              console.error('Failed to auto-create conversation:', createErr);
+            }
           }
         }
       }
@@ -59,8 +80,8 @@ const Chat = () => {
 
   const fetchCommunities = async () => {
     try {
-      const { data } = await import('../services/api').then(m => m.default.get('/communities'));
-      // Only show communities the user is a member of
+      const apiModule = await import('../services/api');
+      const { data } = await apiModule.default.get('/communities');
       const myId = currentUser?._id || currentUser?.id;
       setCommunities((data || []).filter(c => c.isMember || c.is_member || c.creatorId === myId));
     } catch (err) {
@@ -211,8 +232,19 @@ const Chat = () => {
               const convId = community.conversationId;
               return (
                 <motion.button key={community._id || idx} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: idx * 0.04 }}
-                  onClick={() => convId && navigate(`/chat/${convId}`)}
-                  className={`w-full flex items-center gap-3 p-3 rounded-2xl transition-all group hover:bg-accent/50 border border-transparent`}>
+                  onClick={() => {
+                    if (convId) {
+                      const groupConv = {
+                        id: convId,
+                        isGroup: true,
+                        groupName: community.name,
+                        groupAvatar: null,
+                      };
+                      setActiveChat(groupConv);
+                      navigate(`/chat/${convId}`);
+                    }
+                  }}
+                  className={`w-full flex items-center gap-3 p-3 rounded-2xl transition-all group hover:bg-accent/50 border ${activeChat?.id === convId ? 'bg-primary/20 border-primary/30' : 'border-transparent'}`}>
                   <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-primary/30 to-blue-600/30 flex items-center justify-center flex-shrink-0 border border-primary/20">
                     <span className="text-primary font-black text-sm">{(community.name || 'G')[0].toUpperCase()}</span>
                   </div>
