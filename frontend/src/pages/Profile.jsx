@@ -49,12 +49,15 @@ const Profile = () => {
   };
 
   const fetchNotifications = async () => {
+    setNotificationsLoading(true);
     try {
       const { data } = await notificationService.getNotifications();
       setNotifications(data);
       setUnreadCount(data.filter(n => !n.isRead).length);
     } catch (err) {
       console.error('Failed to fetch notifications:', err);
+    } finally {
+      setNotificationsLoading(false);
     }
   };
 
@@ -401,7 +404,15 @@ const Profile = () => {
                   exit={{ opacity: 0, y: -10 }}
                   className="space-y-4"
                 >
-                  {notificationsLoading ? (
+                  {!isOwnProfile ? (
+                    <div className="py-20 text-center text-muted-foreground flex flex-col items-center gap-4">
+                      <div className="h-16 w-16 rounded-2xl bg-accent flex items-center justify-center opacity-20">
+                         <Shield size={32} />
+                      </div>
+                      <p className="font-bold text-sm">Activity is private</p>
+                      <p className="text-xs text-muted-foreground -mt-2 italic text-center">Only {user.name} can see their recent notifications.</p>
+                    </div>
+                  ) : notificationsLoading ? (
                     <div className="py-20 text-center animate-pulse text-primary font-bold tracking-widest uppercase text-xs">Synchronizing Activity...</div>
                   ) : notifications.length === 0 ? (
                     <div className="py-20 text-center text-muted-foreground flex flex-col items-center gap-4">

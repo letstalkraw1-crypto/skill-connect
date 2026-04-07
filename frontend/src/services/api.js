@@ -39,9 +39,7 @@ export const authService = {
   sendOtp: (email) => api.post('/auth/send-otp', { email: email.toLowerCase().trim() }),
   verifyOtp: (email, code) => api.post('/auth/verify-otp', { email: email.toLowerCase().trim(), code }),
   getMe: () => api.get('/auth/me'),
-  updateAvatar: (formData) => api.post('/upload/avatar', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' }
-  }),
+  updateAvatar: (formData) => api.post('/upload/avatar', formData),
 };
 
 export const userService = {
@@ -61,9 +59,7 @@ export const connectionService = {
 
 export const postService = {
   getFeed: (page = 1, limit = 10) => api.get('/posts', { params: { page, limit } }),
-  createPost: (formData) => api.post('/posts', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' }
-  }),
+  createPost: (formData) => api.post('/posts', formData),
   likePost: (id) => api.post(`/posts/${id}/like`),
   addComment: (id, text) => api.post(`/posts/${id}/comments`, { text }),
   getComments: (id) => api.get(`/posts/${id}/comments`),
