@@ -93,6 +93,13 @@ const Navbar = () => {
           <span className="text-xl font-bold tracking-tight hidden sm:inline">Collabro</span>
         </Link>
 
+        <div className="hidden md:flex items-center gap-2 ml-8 flex-1">
+          <NavItem to="/" icon={Home} label="Home" active={location.pathname === '/'} />
+          <NavItem to="/discovery" icon={Search} label="Discover" active={location.pathname.startsWith('/discovery')} />
+          <NavItem to="/chat" icon={MessageSquare} label="Messages" active={location.pathname.startsWith('/chat')} />
+          <NavItem to={`/profile/${user._id || user.id}`} icon={User} label="Profile" active={location.pathname.startsWith('/profile')} />
+        </div>
+
         <div className="flex items-center gap-2 relative">
           <button 
             onClick={() => { setShowNotifications(!showNotifications); if (!showNotifications) markAsRead(); }}

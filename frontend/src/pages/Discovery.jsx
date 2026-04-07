@@ -1,3 +1,9 @@
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Search, Filter, MapPin, Check, UserPlus, MessageCircle } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { discoveryService, connectionService } from '../services/api';
+import { getAssetUrl } from '../utils/utils';
 import DiscoverySkeleton from '../components/DiscoverySkeleton';
 
 const Discovery = () => {
