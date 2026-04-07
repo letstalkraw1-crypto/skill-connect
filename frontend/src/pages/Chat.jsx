@@ -10,14 +10,16 @@ import Avatar from '../components/Avatar';
 import ChatSkeleton from '../components/ChatSkeleton';
 
 const Chat = () => {
-  const { id } = useParams(); // Selected conversation ID or user ID
+  const { id } = useParams();
   const { user: currentUser } = useAuth();
   const { socket, isConnected } = useSocket(localStorage.getItem('token'));
   const [conversations, setConversations] = useState([]);
+  const [communities, setCommunities] = useState([]);
   const [messages, setMessages] = useState([]);
   const [inputText, setInputText] = useState('');
   const [activeChat, setActiveChat] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [sidebarTab, setSidebarTab] = useState('chats'); // 'chats' | 'groups'
   const messagesEndRef = useRef(null);
   const navigate = useNavigate();
 
@@ -29,13 +31,12 @@ const Chat = () => {
     try {
       const { data } = await chatService.listConversations();
       setConversations(data);
-      
+
       if (id) {
         const existing = data.find(c => c.id === id || c.otherUser?.id === id || c.otherUser?._id === id);
         if (existing) {
           setActiveChat(existing);
         } else {
-          // If no existing conversation matches, try to create/fetch one with this User ID
           try {
             const res = await chatService.createConversation([id]);
             const newConv = res.data;
@@ -56,6 +57,17 @@ const Chat = () => {
     }
   };
 
+  const fetchCommunities = async () => {
+    try {
+      const { data } = await import('../services/api').then(m => m.default.get('/communities'));
+      // Only show communities the user is a member of
+      const myId = currentUser?._id || currentUser?.id;
+      setCommunities((data || []).filter(c => c.isMember || c.is_member || c.creatorId === myId));
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   const fetchMessages = async (convId) => {
     try {
       const { data } = await chatService.getMessages(convId);
@@ -68,6 +80,7 @@ const Chat = () => {
 
   useEffect(() => {
     fetchConversations();
+    fetchCommunities();
   }, []);
 
   useEffect(() => {
@@ -150,55 +163,67 @@ const Chat = () => {
     <div className="flex h-[calc(100vh-10rem)] bg-background/50 backdrop-blur-xl rounded-3xl overflow-hidden border border-border shadow-2xl shadow-black/50">
       {/* Sidebar: Conversations */}
       <div className={`w-full md:w-80 lg:w-96 border-r border-border flex flex-col bg-accent/10 ${activeChat ? 'hidden md:flex' : 'flex'}`}>
-        <div className="p-6 border-b border-border space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-black tracking-tight text-primary">Messages</h2>
-            <button className="h-10 w-10 rounded-xl bg-primary text-primary-foreground flex items-center justify-center hover:scale-105 active:scale-95 transition-all">
-              <Plus size={20} />
+        <div className="p-4 border-b border-border space-y-3">
+          <h2 className="text-xl font-black tracking-tight text-primary px-2">Messages</h2>
+          {/* Chats / Groups toggle */}
+          <div className="flex gap-1 p-1 bg-accent/30 rounded-xl">
+            <button onClick={() => setSidebarTab('chats')}
+              className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${sidebarTab === 'chats' ? 'bg-primary text-primary-foreground shadow' : 'text-muted-foreground'}`}>
+              Chats
             </button>
-          </div>
-          <div className="relative">
-            <Search size={18} className="absolute left-3 top-3 text-muted-foreground" />
-            <input 
-              type="text" 
-              placeholder="Search conversations..." 
-              className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-background/50 border border-border focus:ring-2 focus:ring-primary/50 outline-none transition-all"
-            />
+            <button onClick={() => setSidebarTab('groups')}
+              className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${sidebarTab === 'groups' ? 'bg-primary text-primary-foreground shadow' : 'text-muted-foreground'}`}>
+              Groups
+            </button>
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-4 space-y-2 custom-scrollbar">
-          {conversations.map((conv, idx) => {
-            const displayName = conv.isGroup ? conv.groupName : conv.otherUser?.name;
-            const displayAvatar = conv.isGroup ? conv.groupAvatar : (conv.otherUser?.avatarUrl || conv.otherUser?.avatar_url);
-            return (
-              <motion.button
-                key={conv.id || idx}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: idx * 0.05 }}
-                onClick={() => { setActiveChat(conv); navigate(`/chat/${conv.id}`); }}
-                className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all group ${
-                  activeChat?.id === conv.id ? 'bg-primary/20 border border-primary/30' : 'hover:bg-accent/50 hover:border-border/30 border border-transparent'
-                }`}
-              >
-                <div className="relative">
-                  <Avatar src={displayAvatar} name={displayName} size="14" className="ring-2 ring-primary/20" />
-                  {!conv.isGroup && <div className="absolute -bottom-1 -right-1 h-4 w-4 bg-emerald-500 border-2 border-background rounded-full"></div>}
-                  {conv.isGroup && <div className="absolute -bottom-1 -right-1 h-4 w-4 bg-primary border-2 border-background rounded-full flex items-center justify-center"><span className="text-[6px] text-white font-black">G</span></div>}
-                </div>
-                <div className="flex-1 text-left min-w-0">
-                  <div className="flex justify-between items-center mb-1">
-                    <h4 className="font-bold truncate group-hover:text-primary transition-colors">{displayName}</h4>
-                    <span className="text-[10px] text-muted-foreground font-bold">{safeFormat(conv.lastAt)}</span>
+        <div className="flex-1 overflow-y-auto p-3 space-y-1 custom-scrollbar">
+          {sidebarTab === 'chats' ? (
+            conversations.filter(c => !c.isGroup).map((conv, idx) => {
+              const displayName = conv.otherUser?.name;
+              const displayAvatar = conv.otherUser?.avatarUrl || conv.otherUser?.avatar_url;
+              return (
+                <motion.button key={conv.id || idx} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: idx * 0.04 }}
+                  onClick={() => { setActiveChat(conv); navigate(`/chat/${conv.id}`); }}
+                  className={`w-full flex items-center gap-3 p-3 rounded-2xl transition-all group ${activeChat?.id === conv.id ? 'bg-primary/20 border border-primary/30' : 'hover:bg-accent/50 border border-transparent'}`}>
+                  <div className="relative">
+                    <Avatar src={displayAvatar} name={displayName} size="12" className="ring-2 ring-primary/10" />
+                    <div className="absolute -bottom-0.5 -right-0.5 h-3 w-3 bg-emerald-500 border-2 border-background rounded-full"></div>
                   </div>
-                  <p className="text-xs text-muted-foreground truncate font-medium">
-                    {conv.lastMessage || 'No messages yet'}
-                  </p>
-                </div>
-              </motion.button>
-            );
-          })}
+                  <div className="flex-1 text-left min-w-0">
+                    <div className="flex justify-between items-center">
+                      <h4 className="font-bold text-sm truncate group-hover:text-primary transition-colors">{displayName}</h4>
+                      <span className="text-[10px] text-muted-foreground">{safeFormat(conv.lastAt)}</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground truncate">{conv.lastMessage || 'No messages yet'}</p>
+                  </div>
+                </motion.button>
+              );
+            })
+          ) : (
+            communities.length === 0 ? (
+              <div className="py-12 text-center text-muted-foreground text-sm">
+                <p>No groups joined yet.</p>
+                <button onClick={() => navigate('/communities')} className="mt-2 text-primary text-xs font-bold hover:underline">Browse Communities</button>
+              </div>
+            ) : communities.map((community, idx) => {
+              const convId = community.conversationId;
+              return (
+                <motion.button key={community._id || idx} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: idx * 0.04 }}
+                  onClick={() => convId && navigate(`/chat/${convId}`)}
+                  className={`w-full flex items-center gap-3 p-3 rounded-2xl transition-all group hover:bg-accent/50 border border-transparent`}>
+                  <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-primary/30 to-blue-600/30 flex items-center justify-center flex-shrink-0 border border-primary/20">
+                    <span className="text-primary font-black text-sm">{(community.name || 'G')[0].toUpperCase()}</span>
+                  </div>
+                  <div className="flex-1 text-left min-w-0">
+                    <h4 className="font-bold text-sm truncate group-hover:text-primary transition-colors">{community.name}</h4>
+                    <p className="text-xs text-muted-foreground">{community.memberCount || community.member_count || 0} members</p>
+                  </div>
+                </motion.button>
+              );
+            })
+          )}
         </div>
       </div>
 

@@ -84,12 +84,8 @@ const search = async (req, res) => {
 
 const getSuggestions = async (req, res) => {
   try {
-    const cacheKey = `suggestions:${req.user.userId}`;
-    const cached = await getCache(cacheKey);
-    if (cached) return res.status(200).json(cached);
-
+    // No cache — always fresh so connection status is accurate
     const results = await discoveryService.getSuggestions(req.user.userId);
-    await setCache(cacheKey, results, 300); // 5 minutes
     return res.status(200).json(results);
   } catch (err) {
     return res.status(err.status || 500).json({ error: err.message });

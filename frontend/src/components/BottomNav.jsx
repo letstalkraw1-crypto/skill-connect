@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Home, Search, MessageSquare, User, Bell, Calendar, Users } from 'lucide-react';
+import { Home, Calendar, MessageSquare, Bell, User } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 
@@ -9,21 +9,17 @@ const BottomNav = () => {
   const location = useLocation();
   const [unreadCount, setUnreadCount] = React.useState(0);
 
-  const fetchUnreadCount = async () => {
-    try {
-      const { data } = await api.get('/notifications');
-      setUnreadCount(data.filter(n => !n.isRead).length);
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
   React.useEffect(() => {
-    if (user) {
-      fetchUnreadCount();
-      const interval = setInterval(fetchUnreadCount, 60000);
-      return () => clearInterval(interval);
-    }
+    if (!user) return;
+    const fetch = async () => {
+      try {
+        const { data } = await api.get('/notifications');
+        setUnreadCount(data.filter(n => !n.isRead).length);
+      } catch {}
+    };
+    fetch();
+    const interval = setInterval(fetch, 60000);
+    return () => clearInterval(interval);
   }, [user]);
 
   if (!user) return null;
@@ -31,8 +27,13 @@ const BottomNav = () => {
   const navItems = [
     { to: '/', icon: Home, label: 'Home' },
     { to: '/events', icon: Calendar, label: 'Events' },
-    { to: '/communities', icon: Users, label: 'Groups' },
     { to: '/chat', icon: MessageSquare, label: 'Messages' },
+    {
+      to: '/notifications',
+      icon: Bell,
+      label: 'Activity',
+      badge: unreadCount > 0 ? (unreadCount > 9 ? '9+' : unreadCount) : null,
+    },
     { to: `/profile/${user._id || user.id}`, icon: User, label: 'Profile' },
   ];
 
@@ -41,42 +42,29 @@ const BottomNav = () => {
       <div className="flex items-center justify-around h-16">
         {navItems.map((item) => {
           const Icon = item.icon;
-          const isActive = item.to === '/' ? location.pathname === '/' : location.pathname.startsWith(item.to);
+          const isActive = item.to === '/'
+            ? location.pathname === '/'
+            : location.pathname.startsWith(item.to);
           return (
             <Link
               key={item.to}
               to={item.to}
               className={`flex flex-col items-center justify-center flex-1 h-full transition-colors ${
-                isActive ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
+                isActive ? 'text-primary' : 'text-muted-foreground'
               }`}
             >
               <div className="relative">
                 <Icon size={22} />
-                {item.label === 'Messages' && (
-                  <span className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-primary ring-2 ring-background"></span>
+                {item.badge && (
+                  <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-destructive text-[9px] text-white flex items-center justify-center border-2 border-background font-bold">
+                    {item.badge}
+                  </span>
                 )}
               </div>
               <span className="text-[9px] font-bold mt-1 uppercase tracking-tighter">{item.label}</span>
             </Link>
           );
         })}
-        {/* Notifications Bell */}
-        <Link
-          to="/notifications"
-          className={`flex flex-col items-center justify-center flex-1 h-full transition-colors ${
-            location.pathname === '/notifications' ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
-          }`}
-        >
-          <div className="relative">
-            <Bell size={22} />
-            {unreadCount > 0 && (
-              <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-destructive text-[9px] text-white flex items-center justify-center border-2 border-background font-bold">
-                {unreadCount > 9 ? '9+' : unreadCount}
-              </span>
-            )}
-          </div>
-          <span className="text-[9px] font-bold mt-1 uppercase tracking-tighter">Activity</span>
-        </Link>
       </div>
     </div>
   );

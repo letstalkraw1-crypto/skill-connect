@@ -1,9 +1,11 @@
 import React from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { Home, Search, MessageSquare, User, LogOut, Plus, Calendar, Users } from 'lucide-react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Home, Search, MessageSquare, User, LogOut, Plus, Calendar, Users, X } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { AnimatePresence } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
+import Avatar from './Avatar';
 import CreateModal from './CreateModal';
+import api from '../services/api';
 
 const NavItem = ({ to, icon: Icon, label, active }) => (
   <Link
@@ -22,7 +24,34 @@ const NavItem = ({ to, icon: Icon, label, active }) => (
 const Navbar = () => {
   const { user, logout } = useAuth();
   const [showCreate, setShowCreate] = React.useState(false);
+  const [showSearch, setShowSearch] = React.useState(false);
+  const [searchQuery, setSearchQuery] = React.useState('');
+  const [searchResults, setSearchResults] = React.useState([]);
+  const [searching, setSearching] = React.useState(false);
+  const searchRef = React.useRef(null);
   const location = useLocation();
+  const navigate = useNavigate();
+
+  // Debounced search
+  React.useEffect(() => {
+    if (!searchQuery.trim() || searchQuery.length < 2) { setSearchResults([]); return; }
+    const timer = setTimeout(async () => {
+      setSearching(true);
+      try {
+        const { data } = await api.get(`/discover/search?q=${encodeURIComponent(searchQuery)}`);
+        setSearchResults(Array.isArray(data) ? data : []);
+      } catch { setSearchResults([]); }
+      finally { setSearching(false); }
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  // Close on outside click
+  React.useEffect(() => {
+    const handler = (e) => { if (searchRef.current && !searchRef.current.contains(e.target)) setShowSearch(false); };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
 
   if (!user) return null;
 
@@ -50,33 +79,66 @@ const Navbar = () => {
 
           <div className="flex items-center gap-2">
             {/* Events & Communities quick links */}
-            <Link
-              to="/events"
-              className={`hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${location.pathname === '/events' ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-accent hover:text-foreground'}`}
-            >
+            <Link to="/events"
+              className={`hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${location.pathname === '/events' ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-accent hover:text-foreground'}`}>
               <Calendar size={16} /> Events
             </Link>
-            <Link
-              to="/communities"
-              className={`hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${location.pathname === '/communities' ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-accent hover:text-foreground'}`}
-            >
+            <Link to="/communities"
+              className={`hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${location.pathname === '/communities' ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-accent hover:text-foreground'}`}>
               <Users size={16} /> Groups
             </Link>
 
+            {/* Search */}
+            <div className="relative" ref={searchRef}>
+              <button
+                onClick={() => { setShowSearch(s => !s); setTimeout(() => document.getElementById('global-search')?.focus(), 100); }}
+                className="h-10 w-10 flex items-center justify-center rounded-full hover:bg-accent transition-colors text-muted-foreground hover:text-foreground"
+                title="Search"
+              >
+                <Search size={20} />
+              </button>
+              <AnimatePresence>
+                {showSearch && (
+                  <motion.div initial={{ opacity: 0, y: 8, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 8, scale: 0.97 }}
+                    className="absolute top-full right-0 mt-2 w-80 glass-card rounded-2xl border border-border shadow-2xl z-50 overflow-hidden">
+                    <div className="flex items-center gap-2 p-3 border-b border-border">
+                      <Search size={16} className="text-muted-foreground flex-shrink-0" />
+                      <input id="global-search" type="text" placeholder="Search users, events, communities..."
+                        value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
+                        className="flex-1 bg-transparent outline-none text-sm" autoComplete="off" />
+                      {searchQuery && <button onClick={() => { setSearchQuery(''); setSearchResults([]); }}><X size={14} className="text-muted-foreground" /></button>}
+                    </div>
+                    <div className="max-h-72 overflow-y-auto">
+                      {searching ? (
+                        <div className="py-6 text-center text-xs text-muted-foreground animate-pulse">Searching...</div>
+                      ) : searchResults.length === 0 && searchQuery.length >= 2 ? (
+                        <div className="py-6 text-center text-xs text-muted-foreground">No results found</div>
+                      ) : searchResults.map((r, i) => (
+                        <button key={r._id || r.id || i} onClick={() => { navigate(`/profile/${r._id || r.id}`); setShowSearch(false); setSearchQuery(''); }}
+                          className="w-full flex items-center gap-3 px-4 py-3 hover:bg-accent/50 transition-colors text-left">
+                          <Avatar src={r.avatarUrl} name={r.name} size="10" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-bold truncate">{r.name}</p>
+                            <p className="text-xs text-muted-foreground truncate">{r.skills?.map(s => s.skillName || s.name).join(', ') || r.location || ''}</p>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
             {/* + Create Button */}
-            <button
-              onClick={() => setShowCreate(true)}
+            <button onClick={() => setShowCreate(true)}
               className="h-10 w-10 flex items-center justify-center rounded-full bg-primary text-primary-foreground hover:scale-105 active:scale-95 transition-all shadow-lg shadow-primary/20"
-              title="Create Event or Community"
-            >
+              title="Create Event or Community">
               <Plus size={22} />
             </button>
 
-            <div className="h-8 w-[1px] bg-border mx-2 hidden sm:block"></div>
-            <button
-              onClick={logout}
-              className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-destructive hover:bg-destructive/10 transition-colors"
-            >
+            <div className="h-8 w-[1px] bg-border mx-1 hidden sm:block"></div>
+            <button onClick={logout}
+              className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-destructive hover:bg-destructive/10 transition-colors">
               <LogOut size={18} />
               <span className="hidden sm:inline">Logout</span>
             </button>
