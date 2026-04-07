@@ -35,7 +35,7 @@ const App = () => {
     <AuthProvider>
       <div className="min-h-screen bg-background text-foreground transition-colors duration-300 pb-20 md:pb-0">
         <Navbar />
-        <main className="container mx-auto px-4 py-8">
+        <main className="container mx-auto px-4 py-4 md:py-8">
           <Suspense fallback={<LoadingFallback />}>
             <Routes>
               <Route path="/auth" element={<Auth />} />

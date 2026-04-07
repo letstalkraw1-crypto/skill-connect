@@ -51,12 +51,7 @@ export default function Notifications() {
   };
 
   return (
-    <div className="max-w-lg mx-auto pb-24">
-      <div className="flex items-center gap-3 mb-6">
-        <Bell size={24} className="text-primary" />
-        <h1 className="text-2xl font-black tracking-tight">Notifications</h1>
-      </div>
-
+    <div className="max-w-lg mx-auto pb-24 pt-2">
       {loading ? (
         <div className="space-y-3">
           {[1,2,3].map(i => (

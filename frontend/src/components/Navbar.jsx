@@ -100,7 +100,7 @@ const Navbar = () => {
               <AnimatePresence>
                 {showSearch && (
                   <motion.div initial={{ opacity: 0, y: 8, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 8, scale: 0.97 }}
-                    className="absolute top-full right-0 mt-2 w-80 glass-card rounded-2xl border border-border shadow-2xl z-50 overflow-hidden">
+                    className="fixed sm:absolute top-16 sm:top-full left-0 sm:left-auto right-0 sm:right-0 sm:mt-2 w-full sm:w-80 glass-card sm:rounded-2xl border-b sm:border border-border shadow-2xl z-50 overflow-hidden">
                     <div className="flex items-center gap-2 p-3 border-b border-border">
                       <Search size={16} className="text-muted-foreground flex-shrink-0" />
                       <input id="global-search" type="text" placeholder="Search users, events, communities..."

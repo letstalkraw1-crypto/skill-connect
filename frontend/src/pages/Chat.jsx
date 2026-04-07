@@ -184,7 +184,7 @@ const Chat = () => {
   };
 
   return (
-    <div className="flex h-[calc(100vh-10rem)] bg-background/50 backdrop-blur-xl rounded-3xl overflow-hidden border border-border shadow-2xl shadow-black/50">
+    <div className="flex h-[calc(100dvh-4rem)] md:h-[calc(100vh-10rem)] bg-background/50 backdrop-blur-xl md:rounded-3xl overflow-hidden border-0 md:border border-border md:shadow-2xl shadow-black/50 -mx-4 md:mx-0">
       {/* Sidebar: Conversations */}
       <div className={`w-full md:w-80 lg:w-96 border-r border-border flex flex-col bg-accent/10 ${activeChat ? 'hidden md:flex' : 'flex'}`}>
         <div className="p-4 border-b border-border space-y-3">
@@ -298,7 +298,7 @@ const Chat = () => {
             </div>
 
             {/* Messages Area */}
-            <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar relative">
+            <div className="flex-1 overflow-y-auto p-3 md:p-6 space-y-4 custom-scrollbar relative">
               <AnimatePresence initial={false}>
                 {messages.map((msg, idx) => {
                   const isMe = msg.senderId === (currentUser._id || currentUser.id);
@@ -334,16 +334,13 @@ const Chat = () => {
             </div>
 
             {/* Input Area */}
-            <div className="p-6 bg-background/40 backdrop-blur-md border-t border-border">
-              <form onSubmit={handleSendMessage} className="flex items-end gap-3 glass-card p-2 rounded-2xl">
-                <div className="flex gap-1 pb-1">
-                  <button type="button" className="p-2 hover:bg-accent rounded-xl transition-colors text-muted-foreground hover:text-primary"><Plus size={20} /></button>
-                  <button type="button" className="p-2 hover:bg-accent rounded-xl transition-colors text-muted-foreground hover:text-primary"><Smile size={20} /></button>
-                </div>
-                <textarea 
+            <div className="p-3 bg-background/40 backdrop-blur-md border-t border-border">
+              <form onSubmit={handleSendMessage} className="flex items-center gap-2 glass-card px-3 py-2 rounded-2xl">
+                <button type="button" className="p-1.5 hover:bg-accent rounded-xl transition-colors text-muted-foreground hover:text-primary flex-shrink-0"><Plus size={18} /></button>
+                <textarea
                   rows={1}
-                  placeholder="Type a message..." 
-                  className="flex-1 bg-transparent border-none outline-none py-2.5 px-2 text-sm resize-none custom-scrollbar max-h-32 focus:placeholder-primary/50 transition-all font-medium"
+                  placeholder="Type a message..."
+                  className="flex-1 bg-transparent border-none outline-none py-2 px-1 text-sm resize-none custom-scrollbar max-h-24 font-medium"
                   value={inputText}
                   onChange={(e) => setInputText(e.target.value)}
                   onKeyDown={(e) => {
@@ -353,19 +350,14 @@ const Chat = () => {
                     }
                   }}
                 />
-                <button 
+                <button
                   type="submit"
                   disabled={!inputText.trim() || !isConnected}
-                  className="h-11 w-11 rounded-xl bg-primary text-primary-foreground flex items-center justify-center hover:scale-105 active:scale-95 transition-all shadow-lg shadow-primary/30 disabled:opacity-50 disabled:hover:scale-100"
+                  className="h-9 w-9 rounded-xl bg-primary text-primary-foreground flex items-center justify-center hover:scale-105 active:scale-95 transition-all shadow-lg shadow-primary/30 disabled:opacity-50 disabled:hover:scale-100 flex-shrink-0"
                 >
-                  <Send size={20} />
+                  <Send size={18} />
                 </button>
               </form>
-              <div className="mt-2 flex justify-center">
-                <p className={`text-[10px] font-bold uppercase tracking-[0.2em] transition-colors ${isConnected ? 'text-emerald-500' : 'text-destructive'}`}>
-                  {isConnected ? 'Real-time Connection Encryption Active' : 'Disconnected - Reconnecting...'}
-                </p>
-              </div>
             </div>
           </>
         ) : (
