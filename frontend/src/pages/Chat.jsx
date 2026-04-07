@@ -184,7 +184,7 @@ const Chat = () => {
   };
 
   return (
-    <div className="flex h-[calc(100dvh-4rem)] md:h-[calc(100vh-10rem)] bg-background/50 backdrop-blur-xl md:rounded-3xl overflow-hidden border-0 md:border border-border md:shadow-2xl shadow-black/50 -mx-4 md:mx-0">
+    <div className="fixed inset-x-0 top-16 bottom-16 md:static md:h-[calc(100vh-10rem)] flex bg-background md:bg-background/50 md:backdrop-blur-xl md:rounded-3xl overflow-hidden border-0 md:border border-border md:shadow-2xl shadow-black/50">
       {/* Sidebar: Conversations */}
       <div className={`w-full md:w-80 lg:w-96 border-r border-border flex flex-col bg-accent/10 ${activeChat ? 'hidden md:flex' : 'flex'}`}>
         <div className="p-4 border-b border-border space-y-3">
@@ -267,38 +267,37 @@ const Chat = () => {
       </div>
 
       {/* Main: Chat Window */}
-      <div className={`flex-1 flex flex-col relative bg-background/20 ${activeChat ? 'flex' : 'hidden md:flex items-center justify-center opacity-50'}`}>
+      <div className={`flex-1 flex flex-col min-h-0 bg-background/20 ${activeChat ? 'flex' : 'hidden md:flex items-center justify-center opacity-50'}`}>
         {activeChat ? (
           <>
-            {/* Header */}
-            <div className="h-20 border-b border-border px-6 flex items-center justify-between backdrop-blur-md bg-background/60 z-10">
-              <div className="flex items-center gap-4">
-                <button onClick={() => setActiveChat(null)} className="md:hidden p-2 hover:bg-accent rounded-lg">
+            {/* Header — fixed, never scrolls */}
+            <div className="flex-shrink-0 h-16 border-b border-border px-4 flex items-center justify-between bg-background/95 backdrop-blur-md z-10">
+              <div className="flex items-center gap-3">
+                <button onClick={() => { setActiveChat(null); navigate('/chat'); }} className="md:hidden p-1.5 hover:bg-accent rounded-lg">
                   <ChevronLeft size={20} />
                 </button>
                 <Avatar
                   src={activeChat.isGroup ? activeChat.groupAvatar : (activeChat.otherUser?.avatarUrl || activeChat.otherUser?.avatar_url)}
                   name={activeChat.isGroup ? activeChat.groupName : activeChat.otherUser?.name}
-                  size="12"
+                  size="10"
                 />
                 <div>
-                  <h3 className="font-bold">{activeChat.isGroup ? activeChat.groupName : activeChat.otherUser?.name}</h3>
+                  <h3 className="font-bold text-sm leading-tight">{activeChat.isGroup ? activeChat.groupName : activeChat.otherUser?.name}</h3>
                   <p className="text-[10px] uppercase tracking-widest text-emerald-500 font-bold flex items-center gap-1">
                     <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
                     {activeChat.isGroup ? 'Group Chat' : 'Online'}
                   </p>
                 </div>
               </div>
-              <div className="flex gap-2">
-                <button className="p-2.5 hover:bg-accent rounded-xl transition-colors text-muted-foreground hover:text-foreground"><Phone size={20} /></button>
-                <button className="p-2.5 hover:bg-accent rounded-xl transition-colors text-muted-foreground hover:text-foreground"><Video size={20} /></button>
-                <div className="w-[1px] h-6 bg-border mx-2"></div>
-                <button className="p-2.5 hover:bg-accent rounded-xl transition-colors text-muted-foreground hover:text-foreground"><MoreVertical size={20} /></button>
+              <div className="flex gap-1">
+                <button className="p-2 hover:bg-accent rounded-xl transition-colors text-muted-foreground hover:text-foreground"><Phone size={18} /></button>
+                <button className="p-2 hover:bg-accent rounded-xl transition-colors text-muted-foreground hover:text-foreground"><Video size={18} /></button>
+                <button className="p-2 hover:bg-accent rounded-xl transition-colors text-muted-foreground hover:text-foreground"><MoreVertical size={18} /></button>
               </div>
             </div>
 
-            {/* Messages Area */}
-            <div className="flex-1 overflow-y-auto p-3 md:p-6 space-y-4 custom-scrollbar relative">
+            {/* Messages Area — only this scrolls */}
+            <div className="flex-1 overflow-y-auto p-3 md:p-6 space-y-4 custom-scrollbar min-h-0">
               <AnimatePresence initial={false}>
                 {messages.map((msg, idx) => {
                   const isMe = msg.senderId === (currentUser._id || currentUser.id);
@@ -306,23 +305,19 @@ const Chat = () => {
                   return (
                     <motion.div
                       key={msg.id || idx}
-                      initial={{ opacity: 0, y: 10, scale: 0.9 }}
+                      initial={{ opacity: 0, y: 10, scale: 0.95 }}
                       animate={{ opacity: 1, y: 0, scale: 1 }}
                       className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}
                     >
-                      <div className={`max-w-[75%] space-y-1`}>
-                        <div className={`p-4 rounded-2xl shadow-xl ${
-                          isMe 
-                            ? 'bg-primary text-primary-foreground rounded-tr-none shadow-primary/20' 
-                            : 'bg-accent/40 backdrop-blur-md rounded-tl-none border border-border shadow-black/20'
+                      <div className="max-w-[78%] space-y-0.5">
+                        <div className={`px-4 py-2.5 rounded-2xl shadow ${
+                          isMe
+                            ? 'bg-primary text-primary-foreground rounded-tr-sm'
+                            : 'bg-accent/60 rounded-tl-sm border border-border/50'
                         }`}>
-                          {isMedia ? (
-                             <MediaRenderer url={msg.text} />
-                          ) : (
-                             <p className="text-sm font-medium">{msg.text}</p>
-                          )}
+                          {isMedia ? <MediaRenderer url={msg.text} /> : <p className="text-sm">{msg.text}</p>}
                         </div>
-                        <p className={`text-[10px] text-muted-foreground font-bold uppercase tracking-widest ${isMe ? 'text-right' : 'text-left'}`}>
+                        <p className={`text-[10px] text-muted-foreground px-1 ${isMe ? 'text-right' : 'text-left'}`}>
                           {safeFormat(msg.sentAt)}
                         </p>
                       </div>
@@ -333,14 +328,16 @@ const Chat = () => {
               <div ref={messagesEndRef} />
             </div>
 
-            {/* Input Area */}
-            <div className="p-3 bg-background/40 backdrop-blur-md border-t border-border">
-              <form onSubmit={handleSendMessage} className="flex items-center gap-2 glass-card px-3 py-2 rounded-2xl">
-                <button type="button" className="p-1.5 hover:bg-accent rounded-xl transition-colors text-muted-foreground hover:text-primary flex-shrink-0"><Plus size={18} /></button>
+            {/* Input Area — fixed at bottom, never scrolls */}
+            <div className="flex-shrink-0 p-3 bg-background/95 backdrop-blur-md border-t border-border">
+              <form onSubmit={handleSendMessage} className="flex items-center gap-2 bg-accent/30 px-3 py-2 rounded-2xl border border-border/50">
+                <button type="button" className="p-1.5 hover:bg-accent rounded-xl transition-colors text-muted-foreground hover:text-primary flex-shrink-0">
+                  <Plus size={18} />
+                </button>
                 <textarea
                   rows={1}
                   placeholder="Type a message..."
-                  className="flex-1 bg-transparent border-none outline-none py-2 px-1 text-sm resize-none custom-scrollbar max-h-24 font-medium"
+                  className="flex-1 bg-transparent border-none outline-none py-1.5 px-1 text-sm resize-none max-h-24 font-medium"
                   value={inputText}
                   onChange={(e) => setInputText(e.target.value)}
                   onKeyDown={(e) => {
@@ -353,9 +350,9 @@ const Chat = () => {
                 <button
                   type="submit"
                   disabled={!inputText.trim() || !isConnected}
-                  className="h-9 w-9 rounded-xl bg-primary text-primary-foreground flex items-center justify-center hover:scale-105 active:scale-95 transition-all shadow-lg shadow-primary/30 disabled:opacity-50 disabled:hover:scale-100 flex-shrink-0"
+                  className="h-9 w-9 rounded-xl bg-primary text-primary-foreground flex items-center justify-center active:scale-95 transition-all shadow-lg shadow-primary/30 disabled:opacity-50 flex-shrink-0"
                 >
-                  <Send size={18} />
+                  <Send size={16} />
                 </button>
               </form>
             </div>
