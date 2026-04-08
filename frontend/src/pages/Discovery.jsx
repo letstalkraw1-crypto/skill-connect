@@ -12,8 +12,9 @@ const Discovery = () => {
   const [loading, setLoading] = useState(false);
   const [connecting, setConnecting] = useState(null);
   const [showFilters, setShowFilters] = useState(false);
-  const [filterType, setFilterType] = useState('all'); // all, learn, collaborate, compete
+  const [filterType, setFilterType] = useState('all');
   const [pagination, setPagination] = useState(null);
+  const [hasSearched, setHasSearched] = useState(false);
   const navigate = useNavigate();
   const [originalResults, setOriginalResults] = useState([]);
 
@@ -21,6 +22,7 @@ const Discovery = () => {
     if (e) e.preventDefault();
     if (!searchTerm.trim()) return;
     setLoading(true);
+    setHasSearched(true);
     try {
       const { data } = await discoveryService.search(searchTerm, page);
       if (data.docs) {
@@ -160,7 +162,9 @@ const Discovery = () => {
           ) : results.length === 0 ? (
 // ... rest of empty state ...
             <div className="col-span-full py-20 text-center space-y-4">
-              <div className="text-muted-foreground">No matches found for "{searchTerm}"</div>
+              <div className="text-muted-foreground">
+                {hasSearched ? `No matches found for "${searchTerm}"` : 'Start searching to find people'}
+              </div>
               <button 
                 onClick={() => { setSearchTerm(''); fetchSuggestions(); }}
                 className="text-primary hover:underline"

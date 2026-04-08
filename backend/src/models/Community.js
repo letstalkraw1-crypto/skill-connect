@@ -8,7 +8,8 @@ const CommunitySchema = new mongoose.Schema({
   type: { type: String, enum: ['community', 'group', 'forum'], default: 'community' },
   maxMembers: { type: Number, default: 100 },
   shortCode: { type: String, unique: true, sparse: true },
-  conversationId: { type: String, ref: 'Conversation' }, // group chat
+  conversationId: { type: String, ref: 'Conversation' },
+  messagingPolicy: { type: String, enum: ['everyone', 'admins_only'], default: 'everyone' },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now }
 });

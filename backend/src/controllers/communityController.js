@@ -137,14 +137,10 @@ const joinCommunity = async (req, res) => {
     const community = await Community.findById(req.params.id);
     if (!community) return res.status(404).json({ error: 'Community not found' });
 
-    // Auto-create conversation if missing (for communities created before this feature)
     if (!community.conversationId) {
       const conversation = new Conversation({
-        _id: uuidv4(),
-        participants: [community.creatorId],
-        isGroup: true,
-        groupName: community.name,
-        communityId: community._id,
+        _id: uuidv4(), participants: [community.creatorId],
+        isGroup: true, groupName: community.name, communityId: community._id,
       });
       await conversation.save();
       community.conversationId = conversation._id;
@@ -154,23 +150,28 @@ const joinCommunity = async (req, res) => {
     const existing = await CommunityMember.findOne({ communityId: req.params.id, userId });
 
     if (existing) {
-      if (community.creatorId === userId) {
-        return res.status(403).json({ error: 'Creator cannot leave their own community' });
-      }
+      if (community.creatorId === userId) return res.status(403).json({ error: 'Creator cannot leave their own community' });
       await CommunityMember.deleteOne({ _id: existing._id });
-      await Conversation.findByIdAndUpdate(community.conversationId, {
-        $pull: { participants: userId }
-      });
+      await Conversation.findByIdAndUpdate(community.conversationId, { $pull: { participants: userId } });
       return res.json({ joined: false });
     } else {
       const count = await CommunityMember.countDocuments({ communityId: req.params.id });
-      if (count >= community.maxMembers) {
-        return res.status(400).json({ error: 'Community is full' });
-      }
+      if (count >= community.maxMembers) return res.status(400).json({ error: 'Community is full' });
       await new CommunityMember({ communityId: req.params.id, userId, role: 'member' }).save();
-      await Conversation.findByIdAndUpdate(community.conversationId, {
-        $addToSet: { participants: userId }
-      });
+      await Conversation.findByIdAndUpdate(community.conversationId, { $addToSet: { participants: userId } });
+
+      // Notify community admin/creator
+      try {
+        const { emitToUser } = require('../socket/index');
+        const joiner = await User.findById(userId).select('name avatarUrl').lean();
+        emitToUser(community.creatorId, 'notification', {
+          type: 'community_join',
+          message: `${joiner?.name} joined your community "${community.name}"`,
+          senderId: { _id: userId, name: joiner?.name, avatarUrl: joiner?.avatarUrl },
+          createdAt: new Date()
+        });
+      } catch {}
+
       return res.json({ joined: true, conversationId: community.conversationId });
     }
   } catch (err) {
@@ -178,4 +179,57 @@ const joinCommunity = async (req, res) => {
   }
 };
 
-module.exports = { listCommunities, getCommunity, createCommunity, joinCommunity };
+// Admin: remove a member
+const removeMember = async (req, res) => {
+  try {
+    const { communityId, userId: targetUserId } = req.params;
+    const community = await Community.findById(communityId);
+    if (!community) return res.status(404).json({ error: 'Community not found' });
+    if (community.creatorId !== req.user.userId) {
+      const myMembership = await CommunityMember.findOne({ communityId, userId: req.user.userId });
+      if (myMembership?.role !== 'admin') return res.status(403).json({ error: 'Only admins can remove members' });
+    }
+    if (targetUserId === community.creatorId) return res.status(403).json({ error: 'Cannot remove the creator' });
+    await CommunityMember.deleteOne({ communityId, userId: targetUserId });
+    if (community.conversationId) {
+      await Conversation.findByIdAndUpdate(community.conversationId, { $pull: { participants: targetUserId } });
+    }
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// Admin: make a member admin
+const makeAdmin = async (req, res) => {
+  try {
+    const { communityId, userId: targetUserId } = req.params;
+    const community = await Community.findById(communityId);
+    if (!community) return res.status(404).json({ error: 'Community not found' });
+    if (community.creatorId !== req.user.userId) return res.status(403).json({ error: 'Only creator can assign admins' });
+    await CommunityMember.findOneAndUpdate({ communityId, userId: targetUserId }, { role: 'admin' });
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// Admin: update privacy (who can send messages)
+const updatePrivacy = async (req, res) => {
+  try {
+    const { communityId } = req.params;
+    const { messagingPolicy } = req.body; // 'everyone' | 'admins_only'
+    const community = await Community.findById(communityId);
+    if (!community) return res.status(404).json({ error: 'Community not found' });
+    if (community.creatorId !== req.user.userId) {
+      const myMembership = await CommunityMember.findOne({ communityId, userId: req.user.userId });
+      if (myMembership?.role !== 'admin') return res.status(403).json({ error: 'Only admins can change settings' });
+    }
+    await Community.findByIdAndUpdate(communityId, { messagingPolicy: messagingPolicy || 'everyone' });
+    res.json({ ok: true, messagingPolicy });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+module.exports = { listCommunities, getCommunity, createCommunity, joinCommunity, removeMember, makeAdmin, updatePrivacy };

@@ -144,6 +144,19 @@ const rsvpEvent = async (req, res) => {
         return res.status(402).json({ error: 'Payment required', requiresPayment: true, entryFee: event.entryFee });
       }
       await new EventRsvp({ _id: uuidv4(), eventId, userId, status: 'pending', rsvpName: rsvpName.trim(), rsvpPhone: rsvpPhone.trim() }).save();
+
+      // Notify organiser
+      try {
+        const { emitToUser } = require('../socket/index');
+        const joiner = await User.findById(userId).select('name').lean();
+        emitToUser(event.creatorId.toString(), 'notification', {
+          type: 'event_rsvp',
+          message: `${joiner?.name} requested to join your event "${event.title}"`,
+          senderId: { _id: userId, name: joiner?.name },
+          createdAt: new Date()
+        });
+      } catch {}
+
       return res.json({ rsvpStatus: 'pending' });
     }
   } catch (err) {

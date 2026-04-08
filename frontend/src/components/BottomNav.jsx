@@ -10,6 +10,7 @@ const BottomNav = () => {
   const { on } = useSocketContext() || {};
   const location = useLocation();
   const [unreadCount, setUnreadCount] = React.useState(0);
+  const [unreadMessages, setUnreadMessages] = React.useState(0);
 
   React.useEffect(() => {
     if (!user) return;
@@ -24,27 +25,31 @@ const BottomNav = () => {
     return () => clearInterval(interval);
   }, [user]);
 
-  // Real-time: increment badge when a new notification arrives
   React.useEffect(() => {
     if (!on) return;
-    const unsub = on('notification', () => {
-      setUnreadCount(c => c + 1);
+    const unsubNotif = on('notification', () => setUnreadCount(c => c + 1));
+    const unsubMsg = on('receive_message', () => {
+      if (!window.location.pathname.startsWith('/chat')) {
+        setUnreadMessages(c => c + 1);
+      }
     });
-    return unsub;
+    return () => { unsubNotif(); unsubMsg(); };
   }, [on]);
+
+  // Clear message dot when user visits chat
+  React.useEffect(() => {
+    if (location.pathname.startsWith('/chat')) {
+      setUnreadMessages(0);
+    }
+  }, [location.pathname]);
 
   if (!user) return null;
 
   const navItems = [
     { to: '/', icon: Home, label: 'Home' },
     { to: '/events', icon: Calendar, label: 'Events' },
-    { to: '/chat', icon: MessageSquare, label: 'Messages' },
-    {
-      to: '/notifications',
-      icon: Bell,
-      label: 'Activity',
-      badge: unreadCount > 0 ? (unreadCount > 9 ? '9+' : unreadCount) : null,
-    },
+    { to: '/chat', icon: MessageSquare, label: 'Messages', dot: unreadMessages > 0 },
+    { to: '/notifications', icon: Bell, label: 'Activity', badge: unreadCount > 0 ? (unreadCount > 9 ? '9+' : unreadCount) : null },
     { to: `/profile/${user._id || user.id}`, icon: User, label: 'Profile' },
   ];
 
@@ -57,19 +62,17 @@ const BottomNav = () => {
             ? location.pathname === '/'
             : location.pathname.startsWith(item.to);
           return (
-            <Link
-              key={item.to}
-              to={item.to}
-              className={`flex flex-col items-center justify-center flex-1 h-full transition-colors ${
-                isActive ? 'text-primary' : 'text-muted-foreground'
-              }`}
-            >
+            <Link key={item.to} to={item.to}
+              className={`flex flex-col items-center justify-center flex-1 h-full transition-colors ${isActive ? 'text-primary' : 'text-muted-foreground'}`}>
               <div className="relative">
                 <Icon size={22} />
                 {item.badge && (
                   <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-destructive text-[9px] text-white flex items-center justify-center border-2 border-background font-bold">
                     {item.badge}
                   </span>
+                )}
+                {item.dot && !item.badge && (
+                  <span className="absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-emerald-500 border-2 border-background"></span>
                 )}
               </div>
               <span className="text-[9px] font-bold mt-1 uppercase tracking-tighter">{item.label}</span>
