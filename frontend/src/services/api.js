@@ -28,16 +28,13 @@ api.interceptors.response.use(
 );
 
 export const authService = {
-  login: (data) => api.post('/auth/login', { 
-    ...data, 
-    email: data.email?.toLowerCase().trim() 
-  }),
-  signup: (data) => api.post('/auth/signup', { 
-    ...data, 
-    email: data.email?.toLowerCase().trim() 
-  }),
+  login: (data) => api.post('/auth/login', { ...data, email: data.email?.toLowerCase().trim() }),
+  signup: (data) => api.post('/auth/signup', { ...data, email: data.email?.toLowerCase().trim() }),
   sendOtp: (email) => api.post('/auth/send-otp', { email: email.toLowerCase().trim() }),
   verifyOtp: (email, code) => api.post('/auth/verify-otp', { email: email.toLowerCase().trim(), code }),
+  verifyEmail: (email, code) => api.post('/auth/verify-email', { email: email.toLowerCase().trim(), code }),
+  forgotPassword: (email) => api.post('/auth/forgot-password', { email: email.toLowerCase().trim() }),
+  resetPassword: (email, code, newPassword) => api.post('/auth/reset-password', { email: email.toLowerCase().trim(), code, newPassword }),
   getMe: () => api.get('/auth/me'),
   updateAvatar: (formData) => api.post('/upload/avatar', formData),
 };

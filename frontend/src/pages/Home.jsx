@@ -55,8 +55,8 @@ const Home = () => {
             <p>© 2026 Collabro. All rights reserved.</p>
             <div className="flex justify-center gap-2 mt-2">
               <button className="hover:text-primary">About</button>
-              <button className="hover:text-primary">Privacy</button>
-              <button className="hover:text-primary">Terms</button>
+              <a href="/legal/privacy" className="hover:text-primary">Privacy</a>
+              <a href="/legal/terms" className="hover:text-primary">Terms</a>
             </div>
           </div>
         </div>

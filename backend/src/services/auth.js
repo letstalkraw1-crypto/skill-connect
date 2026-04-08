@@ -40,24 +40,27 @@ async function signup(name, email, password, location) {
 
   const userId = uuidv4();
   const shortId = await generateShortId();
-  
-  console.log(`📝 Signup attempt: ${normalizedEmail} (userId: ${userId})`);
+
   const user = new User({
     _id: userId,
     shortId,
     name,
     email: normalizedEmail,
     password,
-    location: location || null
+    location: location || null,
+    isEmailVerified: false
   });
-  
+
   await user.save();
-  console.log(`✅ User saved: ${userId}`);
+
+  // Send verification OTP
+  await generateEmailOtp(normalizedEmail, 'verify');
+
   const userJson = user.toObject();
   delete userJson.password;
 
-  const token = jwt.sign({ userId }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
-  return { userId, user: userJson, token };
+  // Don't issue token yet — require email verification
+  return { userId, user: userJson, requiresVerification: true };
 }
 
 // ── Email + Password login ───────────────────────────────────────────────────
@@ -156,39 +159,27 @@ async function verifyOtp(phone, code) {
 }
 
 // ── Generate & Send OTP (Email) ──────────────────────────────────────────────
-async function generateEmailOtp(email) {
+async function generateEmailOtp(email, purpose = 'login') {
   const normalizedEmail = (email || '').toLowerCase().trim();
   if (!normalizedEmail) {
     const err = new Error('Email is required'); err.status = 400; throw err;
   }
 
-  // Clean up old unused OTPs for this email
   await OTP.deleteMany({ email: normalizedEmail, used: false });
 
-  // Generate 6-digit OTP
   const plainOtp = Math.floor(100000 + Math.random() * 900000).toString();
   const expiresAt = new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000);
-
-  // Hash OTP before storing for security
   const hashedOtp = await bcrypt.hash(plainOtp, 10);
 
-  const otp = new OTP({
-    email: normalizedEmail,
-    code: hashedOtp,
-    expiresAt,
-    attempts: 0
-  });
+  const otp = new OTP({ email: normalizedEmail, code: hashedOtp, expiresAt, attempts: 0, purpose });
   await otp.save();
 
-  // Send the plain OTP via email
-  await sendOtpEmail(normalizedEmail, plainOtp);
-
-  console.log(`📧 Email OTP generated for: ${normalizedEmail}`);
+  await sendOtpEmail(normalizedEmail, plainOtp, purpose);
   return { message: 'OTP sent to your email' };
 }
 
 // ── Verify OTP & return JWT (Email) ──────────────────────────────────────────
-async function verifyEmailOtp(email, code) {
+async function verifyEmailOtp(email, code, purpose = 'login') {
   const normalizedEmail = (email || '').toLowerCase().trim();
   if (!normalizedEmail || !code) {
     const err = new Error('Email and OTP code are required'); err.status = 400; throw err;
@@ -199,20 +190,15 @@ async function verifyEmailOtp(email, code) {
   if (!otp) {
     const err = new Error('No OTP found. Please request a new one.'); err.status = 401; throw err;
   }
-
-  // Check expiry
   if (new Date(otp.expiresAt) < new Date()) {
     await OTP.deleteOne({ _id: otp._id });
     const err = new Error('OTP has expired. Please request a new one.'); err.status = 401; throw err;
   }
-
-  // Check max attempts
   if (otp.attempts >= MAX_OTP_ATTEMPTS) {
     await OTP.deleteOne({ _id: otp._id });
     const err = new Error('Too many attempts. Please request a new OTP.'); err.status = 429; throw err;
   }
 
-  // Verify hashed OTP
   const isMatch = await bcrypt.compare(code, otp.code);
   if (!isMatch) {
     otp.attempts += 1;
@@ -221,11 +207,9 @@ async function verifyEmailOtp(email, code) {
     const err = new Error(`Invalid OTP. ${remaining} attempt(s) remaining.`); err.status = 401; throw err;
   }
 
-  // Mark as used
   otp.used = true;
   await otp.save();
 
-  // Find or auto-create user for this email
   let user = await User.findOne({ email: normalizedEmail });
   let isNewUser = false;
 
@@ -233,22 +217,62 @@ async function verifyEmailOtp(email, code) {
     isNewUser = true;
     const userId = uuidv4();
     const shortId = await generateShortId();
-    user = new User({
-      _id: userId,
-      shortId,
-      name: normalizedEmail.split('@')[0],
-      email: normalizedEmail
-    });
+    user = new User({ _id: userId, shortId, name: normalizedEmail.split('@')[0], email: normalizedEmail, isEmailVerified: true });
     await user.save();
-    console.log(`✅ New user auto-created via Email OTP: ${userId}`);
+  } else {
+    // Mark email as verified
+    if (!user.isEmailVerified) {
+      user.isEmailVerified = true;
+      await user.save();
+    }
   }
 
   const userJson = user.toObject();
   delete userJson.password;
 
   const token = jwt.sign({ userId: user._id }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
-  console.log(`✅ Email OTP verified for: ${normalizedEmail}`);
   return { userId: user._id, user: userJson, token, isNewUser };
+}
+
+// ── Forgot Password — send reset OTP ─────────────────────────────────────────
+async function forgotPassword(email) {
+  const normalizedEmail = (email || '').toLowerCase().trim();
+  const user = await User.findOne({ email: normalizedEmail });
+  // Always return success to prevent email enumeration
+  if (!user) return { message: 'If that email exists, a reset code has been sent.' };
+
+  await generateEmailOtp(normalizedEmail, 'reset');
+  return { message: 'Password reset code sent to your email.' };
+}
+
+// ── Reset Password — verify OTP then set new password ────────────────────────
+async function resetPassword(email, code, newPassword) {
+  const normalizedEmail = (email || '').toLowerCase().trim();
+  if (!newPassword || newPassword.length < 6) {
+    const err = new Error('Password must be at least 6 characters'); err.status = 400; throw err;
+  }
+
+  const otp = await OTP.findOne({ email: normalizedEmail, used: false }).sort({ _id: -1 });
+  if (!otp) { const err = new Error('Invalid or expired reset code'); err.status = 401; throw err; }
+  if (new Date(otp.expiresAt) < new Date()) {
+    await OTP.deleteOne({ _id: otp._id });
+    const err = new Error('Reset code expired'); err.status = 401; throw err;
+  }
+
+  const isMatch = await bcrypt.compare(code, otp.code);
+  if (!isMatch) {
+    otp.attempts = (otp.attempts || 0) + 1;
+    await otp.save();
+    const err = new Error('Invalid reset code'); err.status = 401; throw err;
+  }
+
+  otp.used = true;
+  await otp.save();
+
+  const hashed = await bcrypt.hash(newPassword, SALT_ROUNDS);
+  await User.findOneAndUpdate({ email: normalizedEmail }, { password: hashed, isEmailVerified: true });
+
+  return { message: 'Password reset successfully. You can now log in.' };
 }
 
 // ── Middleware: Verify JWT Token ───────────────────────────────────────────
@@ -291,5 +315,6 @@ module.exports = {
   signup, login, signupPhone,
   generateOtp, verifyOtp,
   generateEmailOtp, verifyEmailOtp,
+  forgotPassword, resetPassword,
   verifyToken, optionalVerifyToken
 };

@@ -26,6 +26,9 @@ const userSchema = new mongoose.Schema({
   // Onboarding fields
   lookingFor: { type: String, enum: ['learn', 'collaborate', 'compete', ''], default: '' },
   onboardingComplete: { type: Boolean, default: false },
+  isEmailVerified: { type: Boolean, default: false },
+  passwordResetToken: { type: String },
+  passwordResetExpires: { type: Date },
   createdAt: { type: Date, default: Date.now }
 });
 

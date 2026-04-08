@@ -1,8 +1,11 @@
 const authService = require('../services/auth');
 const { User } = require('../config/db');
 const bcrypt = require('bcrypt');
+const sanitizeHtml = require('sanitize-html');
 const { validationResult } = require('express-validator');
 const { getCache, setCache, delCache } = require('../utils/cache');
+
+const sanitize = (str) => str ? sanitizeHtml(str, { allowedTags: [], allowedAttributes: {} }).trim() : str;
 
 const signup = async (req, res) => {
   const errors = validationResult(req);
@@ -11,11 +14,43 @@ const signup = async (req, res) => {
   const { name, email, password, location, phone } = req.body;
   try {
     if (phone && !email) {
-      const result = await authService.signupPhone(name, phone, location);
+      const result = await authService.signupPhone(sanitize(name), phone, sanitize(location));
       return res.status(201).json(result);
     }
-    const result = await authService.signup(name, email, password, location);
+    const result = await authService.signup(sanitize(name), email, password, sanitize(location));
     return res.status(201).json(result);
+  } catch (err) {
+    return res.status(err.status || 500).json({ error: err.message });
+  }
+};
+
+const verifyEmail = async (req, res) => {
+  const { email, code } = req.body;
+  try {
+    const result = await authService.verifyEmailOtp(email, code, 'verify');
+    return res.status(200).json(result);
+  } catch (err) {
+    return res.status(err.status || 500).json({ error: err.message });
+  }
+};
+
+const forgotPassword = async (req, res) => {
+  const { email } = req.body;
+  if (!email) return res.status(400).json({ error: 'Email is required' });
+  try {
+    const result = await authService.forgotPassword(email);
+    return res.status(200).json(result);
+  } catch (err) {
+    return res.status(err.status || 500).json({ error: err.message });
+  }
+};
+
+const resetPassword = async (req, res) => {
+  const { email, code, newPassword } = req.body;
+  if (!email || !code || !newPassword) return res.status(400).json({ error: 'Email, code and new password are required' });
+  try {
+    const result = await authService.resetPassword(email, code, newPassword);
+    return res.status(200).json(result);
   } catch (err) {
     return res.status(err.status || 500).json({ error: err.message });
   }
@@ -138,4 +173,4 @@ const changePassword = async (req, res) => {
   }
 };
 
-module.exports = { signup, login, sendOtp, verifyOtp, changePassword, getMe };
+module.exports = { signup, login, sendOtp, verifyOtp, changePassword, getMe, verifyEmail, forgotPassword, resetPassword };
