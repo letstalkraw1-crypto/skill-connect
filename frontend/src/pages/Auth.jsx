@@ -51,6 +51,10 @@ const Auth = () => {
           setOtpStep('verify');
           setAuthMode('otp');
           setSuccess('Account created! Check your email for a verification code.');
+        } else if (data.token) {
+          // Email sending failed — log in directly
+          localStorage.setItem('token', data.token);
+          window.location.href = '/';
         } else {
           navigate('/');
         }

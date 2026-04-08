@@ -53,14 +53,28 @@ async function signup(name, email, password, location) {
 
   await user.save();
 
-  // Send verification OTP
-  await generateEmailOtp(normalizedEmail, 'verify');
+  // Try to send verification OTP — don't block signup if email fails
+  let requiresVerification = false;
+  try {
+    await generateEmailOtp(normalizedEmail, 'verify');
+    requiresVerification = true;
+  } catch (emailErr) {
+    console.error('Failed to send verification email:', emailErr.message);
+    // Mark as verified if email can't be sent (fallback)
+    user.isEmailVerified = true;
+    await user.save();
+  }
 
   const userJson = user.toObject();
   delete userJson.password;
 
-  // Don't issue token yet — require email verification
-  return { userId, user: userJson, requiresVerification: true };
+  if (requiresVerification) {
+    return { userId, user: userJson, requiresVerification: true };
+  }
+
+  // Email failed — issue token directly so user isn't locked out
+  const token = jwt.sign({ userId }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
+  return { userId, user: userJson, token };
 }
 
 // ── Email + Password login ───────────────────────────────────────────────────

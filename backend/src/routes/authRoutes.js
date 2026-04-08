@@ -6,19 +6,19 @@ const { body } = require('express-validator');
 
 const router = express.Router();
 
-// Strict rate limit for auth endpoints — 10 attempts per 15 min
+// Login/signup — 20 attempts per 15 min per IP
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  limit: 10,
+  limit: 20,
   message: { error: 'Too many attempts. Please try again in 15 minutes.' },
   standardHeaders: true,
   legacyHeaders: false,
 });
 
-// OTP endpoints — 5 per 10 min (prevent OTP spam)
+// OTP send — 10 per 10 min (prevent spam)
 const otpLimiter = rateLimit({
   windowMs: 10 * 60 * 1000,
-  limit: 5,
+  limit: 10,
   message: { error: 'Too many OTP requests. Please wait 10 minutes.' },
 });
 

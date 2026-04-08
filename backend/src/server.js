@@ -16,7 +16,13 @@ const server = http.createServer(app);
 // Security
 app.use(helmet({ contentSecurityPolicy: false, crossOriginEmbedderPolicy: false }));
 
-const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 20, message: { error: 'Too many authentication attempts' } });
+// Auth rate limiting — strict on login/signup/otp, relaxed on /me
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 50,
+  message: { error: 'Too many authentication attempts. Try again in 15 minutes.' },
+  skip: (req) => req.path === '/me' // don't rate limit the /me endpoint
+});
 app.use('/api/auth', authLimiter);
 
 // Main rate limit
