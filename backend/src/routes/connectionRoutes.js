@@ -8,6 +8,7 @@ router.post('/request', verifyToken, connectionController.sendRequest);
 router.put('/:id/accept', verifyToken, connectionController.acceptConnection);
 router.put('/:id/decline', verifyToken, connectionController.declineConnection);
 router.delete('/:id', verifyToken, connectionController.deleteConnection);
+// NOTE: /status/:connectionId must come BEFORE /:userId to avoid shadowing
 router.get('/status/:connectionId', verifyToken, connectionController.getConnectionStatus);
 router.get('/:userId', optionalVerifyToken, connectionController.listConnections);
 
