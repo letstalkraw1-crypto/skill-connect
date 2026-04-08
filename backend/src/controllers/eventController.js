@@ -36,15 +36,16 @@ const listEvents = async (req, res) => {
     const eventsWithRsvp = await Promise.all(events.map(async (event) => {
       const attendeeCount = await EventRsvp.countDocuments({ eventId: event._id, status: 'accepted' });
       const myRsvp = await EventRsvp.findOne({ eventId: event._id, userId }).select('status');
+      const creatorId = event.creatorId?._id?.toString() || event.creatorId?.toString();
       return {
         ...event,
-        creatorName: event.creatorId.name,
-        creator_name: event.creatorId.name,
-        creatorAvatar: event.creatorId.avatarUrl,
-        creator_avatar: event.creatorId.avatarUrl,
-        creator_id: event.creatorId._id,
-        isCreator: event.creatorId._id.toString() === userId,
-        is_creator: event.creatorId._id.toString() === userId,
+        creatorName: event.creatorId?.name,
+        creator_name: event.creatorId?.name,
+        creatorAvatar: event.creatorId?.avatarUrl,
+        creator_avatar: event.creatorId?.avatarUrl,
+        creator_id: creatorId,
+        isCreator: creatorId === userId,
+        is_creator: creatorId === userId,
         venue_name: event.venueName,
         venue_coords: event.venueCoords,
         attendeeCount,

@@ -66,37 +66,41 @@ export default function CreateModal({ onClose }) {
         initial={{ y: 60, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         exit={{ y: 60, opacity: 0 }}
-        className="w-full max-w-md glass-card rounded-3xl p-6 border border-border shadow-2xl"
+        className="w-full max-w-md glass-card rounded-3xl border border-border shadow-2xl flex flex-col max-h-[85vh]"
       >
-        {/* Header */}
-        <div className="flex items-center justify-between mb-6">
+        {/* Header — sticky */}
+        <div className="flex items-center justify-between p-6 pb-0 flex-shrink-0">
           <h2 className="text-xl font-black tracking-tight">Create New</h2>
           <button onClick={() => onClose(false)} className="h-9 w-9 flex items-center justify-center rounded-xl hover:bg-accent transition-colors">
             <X size={18} />
           </button>
         </div>
 
-        {/* Tab Toggle */}
-        <div className="flex gap-2 p-1 bg-accent/30 rounded-2xl mb-6">
-          <button
-            onClick={() => { setTab('event'); setError(''); }}
-            className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold transition-all ${tab === 'event' ? 'bg-primary text-primary-foreground shadow-lg' : 'text-muted-foreground hover:text-foreground'}`}
-          >
-            <Calendar size={16} /> Event
-          </button>
-          <button
-            onClick={() => { setTab('community'); setError(''); }}
-            className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold transition-all ${tab === 'community' ? 'bg-primary text-primary-foreground shadow-lg' : 'text-muted-foreground hover:text-foreground'}`}
-          >
-            <Users size={16} /> Community
-          </button>
+        {/* Tab Toggle — sticky */}
+        <div className="px-6 pt-4 flex-shrink-0">
+          <div className="flex gap-2 p-1 bg-accent/30 rounded-2xl mb-4">
+            <button
+              onClick={() => { setTab('event'); setError(''); }}
+              className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold transition-all ${tab === 'event' ? 'bg-primary text-primary-foreground shadow-lg' : 'text-muted-foreground hover:text-foreground'}`}
+            >
+              <Calendar size={16} /> Event
+            </button>
+            <button
+              onClick={() => { setTab('community'); setError(''); }}
+              className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold transition-all ${tab === 'community' ? 'bg-primary text-primary-foreground shadow-lg' : 'text-muted-foreground hover:text-foreground'}`}
+            >
+              <Users size={16} /> Community
+            </button>
+          </div>
         </div>
 
-        {error && (
-          <div className="mb-4 px-4 py-3 bg-destructive/10 border border-destructive/30 rounded-xl text-sm text-destructive font-medium">
-            {error}
-          </div>
-        )}
+        {/* Scrollable content */}
+        <div className="flex-1 overflow-y-auto px-6 pb-6">
+          {error && (
+            <div className="mb-4 px-4 py-3 bg-destructive/10 border border-destructive/30 rounded-xl text-sm text-destructive font-medium">
+              {error}
+            </div>
+          )}
 
         {/* Event Form */}
         {tab === 'event' && (
@@ -218,6 +222,7 @@ export default function CreateModal({ onClose }) {
             </button>
           </form>
         )}
+        </div>
       </motion.div>
     </motion.div>
   );
