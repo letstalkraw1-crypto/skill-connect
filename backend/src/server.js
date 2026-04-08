@@ -47,12 +47,14 @@ app.use(cors({
 app.use(compression());
 app.use(express.json());
 
-// Input sanitization middleware — strip XSS from all string fields
+// Input sanitization middleware — strip XSS from string fields (skip sensitive fields)
+const SKIP_SANITIZE = new Set(['password', 'currentPassword', 'newPassword', 'code', 'token']);
 app.use((req, res, next) => {
   const sanitizeHtml = require('sanitize-html');
   const clean = (obj) => {
     if (!obj || typeof obj !== 'object') return;
     for (const key of Object.keys(obj)) {
+      if (SKIP_SANITIZE.has(key)) continue; // never sanitize passwords or OTP codes
       if (typeof obj[key] === 'string') {
         obj[key] = sanitizeHtml(obj[key], { allowedTags: [], allowedAttributes: {} });
       } else if (typeof obj[key] === 'object') {

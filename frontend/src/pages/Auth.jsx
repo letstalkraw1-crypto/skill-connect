@@ -115,7 +115,12 @@ const Auth = () => {
     setLoading(true);
     setError('');
     try {
-      await authService.sendOtp(formData.email);
+      if (pendingVerification) {
+        // Resend email verification OTP
+        await authService.sendOtp(formData.email);
+      } else {
+        await authService.sendOtp(formData.email);
+      }
       setCountdown(60);
       setSuccess('New OTP sent!');
       setOtpCode(['', '', '', '', '', '']);
