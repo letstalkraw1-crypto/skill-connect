@@ -16,6 +16,16 @@ const RsvpModal = ({ event, onClose, onSuccess }) => {
   const [phone, setPhone] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const isPaid = event.entryFee > 0;
+
+  const loadRazorpay = () => new Promise((resolve) => {
+    if (window.Razorpay) return resolve(true);
+    const script = document.createElement('script');
+    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+    document.body.appendChild(script);
+  });
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -23,12 +33,49 @@ const RsvpModal = ({ event, onClose, onSuccess }) => {
     if (!/^\d{10}$/.test(phone.replace(/\s/g, ''))) { setError('Enter a valid 10-digit mobile number'); return; }
     setLoading(true);
     setError('');
+
     try {
-      await api.post(`/events/${event._id}/rsvp`, { rsvpName: name.trim(), rsvpPhone: phone.trim() });
-      onSuccess();
+      if (isPaid) {
+        // Load Razorpay script
+        const loaded = await loadRazorpay();
+        if (!loaded) { setError('Failed to load payment gateway. Check your internet.'); setLoading(false); return; }
+
+        // Create order
+        const { data } = await api.post(`/events/${event._id}/payment/order`, { rsvpName: name.trim(), rsvpPhone: phone.trim() });
+
+        const options = {
+          key: data.keyId,
+          amount: data.amount,
+          currency: data.currency,
+          name: 'Collabro',
+          description: `Entry fee for ${data.eventTitle}`,
+          order_id: data.orderId,
+          prefill: { name: data.userName, contact: phone.trim() },
+          theme: { color: '#3b82f6' },
+          handler: async (response) => {
+            try {
+              await api.post(`/events/${event._id}/payment/verify`, {
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature,
+                rsvpName: name.trim(),
+                rsvpPhone: phone.trim(),
+              });
+              onSuccess('accepted');
+            } catch (err) {
+              setError('Payment succeeded but registration failed. Contact support.');
+            }
+          },
+          modal: { ondismiss: () => setLoading(false) }
+        };
+        const rzp = new window.Razorpay(options);
+        rzp.open();
+      } else {
+        await api.post(`/events/${event._id}/rsvp`, { rsvpName: name.trim(), rsvpPhone: phone.trim() });
+        onSuccess('pending');
+      }
     } catch (err) {
       setError(err?.response?.data?.error || 'Failed to join event');
-    } finally {
       setLoading(false);
     }
   };
@@ -47,7 +94,9 @@ const RsvpModal = ({ event, onClose, onSuccess }) => {
           <h3 className="font-black text-lg">Join Event</h3>
           <button onClick={onClose} className="h-8 w-8 flex items-center justify-center rounded-xl hover:bg-accent"><X size={16} /></button>
         </div>
-        <p className="text-sm text-muted-foreground mb-5 font-medium">{event.title}</p>
+        <p className="text-sm text-muted-foreground mb-5 font-medium">{event.title}
+          {isPaid && <span className="ml-2 px-2 py-0.5 bg-primary/20 text-primary rounded-full text-xs font-bold">₹{event.entryFee} entry fee</span>}
+        </p>
         {error && <div className="mb-4 px-3 py-2 bg-destructive/10 border border-destructive/30 rounded-xl text-sm text-destructive">{error}</div>}
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
@@ -68,7 +117,7 @@ const RsvpModal = ({ event, onClose, onSuccess }) => {
           </div>
           <button type="submit" disabled={loading}
             className="w-full py-3 bg-primary text-primary-foreground rounded-2xl font-bold shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50">
-            {loading ? 'Joining...' : 'Confirm Join'}
+            {loading ? 'Processing...' : isPaid ? `Pay ₹${event.entryFee} & Join` : 'Confirm Join'}
           </button>
         </form>
       </motion.div>
@@ -247,6 +296,12 @@ export default function Events() {
                     <div className="flex items-center gap-2 text-sm">
                       <Users size={14} className="text-primary flex-shrink-0" />
                       <span>{event.attendeeCount || event.attendee_count || 0} attending</span>
+                      {event.entryFee > 0 && (
+                        <span className="ml-auto px-2 py-0.5 bg-emerald-500/20 text-emerald-400 text-xs font-bold rounded-full">₹{event.entryFee}</span>
+                      )}
+                      {(!event.entryFee || event.entryFee === 0) && (
+                        <span className="ml-auto px-2 py-0.5 bg-accent text-muted-foreground text-xs font-bold rounded-full">Free</span>
+                      )}
                     </div>
                   </div>
 
@@ -296,11 +351,10 @@ export default function Events() {
       <AnimatePresence>
         {rsvpEvent && (
           <RsvpModal event={rsvpEvent} onClose={() => setRsvpEvent(null)}
-            onSuccess={() => {
-              setEvents(prev => prev.map(e => e._id === rsvpEvent._id ? { ...e, myRsvpStatus: 'pending' } : e));
+            onSuccess={(status) => {
+              setEvents(prev => prev.map(e => e._id === rsvpEvent._id ? { ...e, myRsvpStatus: status || 'pending' } : e));
               setRsvpEvent(null);
-            }} />
-        )}
+            }} />        )}
         {attendeeEvent && <AttendeeModal event={attendeeEvent} onClose={() => setAttendeeEvent(null)} />}
       </AnimatePresence>
     </div>

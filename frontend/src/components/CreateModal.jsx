@@ -140,6 +140,17 @@ export default function CreateModal({ onClose }) {
                 className="w-full px-4 py-3 rounded-xl bg-accent/30 border border-border focus:ring-2 focus:ring-primary/50 outline-none text-sm resize-none"
               />
             </div>
+            <div>
+              <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1.5 block">Entry Fee (₹) — leave 0 for free</label>
+              <input
+                type="number"
+                min={0}
+                placeholder="0"
+                value={eventForm.entryFee || ''}
+                onChange={e => setEventForm(p => ({ ...p, entryFee: e.target.value }))}
+                className="w-full px-4 py-3 rounded-xl bg-accent/30 border border-border focus:ring-2 focus:ring-primary/50 outline-none text-sm"
+              />
+            </div>
             <button
               type="submit"
               disabled={loading}
