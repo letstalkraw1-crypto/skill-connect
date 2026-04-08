@@ -1,56 +1,50 @@
 const { v4: uuidv4 } = require('uuid');
 const { Connection, User, Notification } = require('../config/db');
 const { createNotification } = require('../utils/notification');
+const { emitToUser } = require('../socket/index');
 
 async function sendRequest(requesterId, addresseeId) {
   if (!addresseeId || addresseeId === 'undefined') {
     const err = new Error('Invalid target user ID'); err.status = 400; throw err;
   }
   if (requesterId === addresseeId) {
-    const err = new Error('Cannot connect with yourself');
-    err.status = 400;
-    throw err;
+    const err = new Error('Cannot connect with yourself'); err.status = 400; throw err;
   }
 
   const existing = await Connection.findOne({
-    $or: [
-      { requesterId, addresseeId },
-      { requesterId: addresseeId, addresseeId: requesterId }
-    ]
+    $or: [{ requesterId, addresseeId }, { requesterId: addresseeId, addresseeId: requesterId }]
   });
 
   if (existing) {
-    if (existing.status === 'pending') {
-      const err = new Error('Request already pending'); err.status = 409; throw err;
-    }
-    if (existing.status === 'accepted') {
-      const err = new Error('Already connected'); err.status = 409; throw err;
-    }
+    if (existing.status === 'pending') { const err = new Error('Request already pending'); err.status = 409; throw err; }
+    if (existing.status === 'accepted') { const err = new Error('Already connected'); err.status = 409; throw err; }
   }
 
-  const connection = new Connection({
-    _id: uuidv4(),
-    requesterId,
-    addresseeId,
-    status: 'pending'
-  });
-
+  const connection = new Connection({ _id: uuidv4(), requesterId, addresseeId, status: 'pending' });
   await connection.save();
-  
-  // Create notification for the addressee
+
   try {
-    const sender = await User.findById(requesterId).select('name');
+    const sender = await User.findById(requesterId).select('name avatarUrl shortId').lean();
     if (sender) {
-      await createNotification({
+      const notification = await createNotification({
         recipientId: addresseeId,
         senderId: requesterId,
         type: 'connection_request',
         message: `${sender.name} sent you a connection request!`,
         relatedId: connection._id
       });
+      // Real-time: notify the addressee instantly
+      emitToUser(addresseeId, 'notification', {
+        type: 'connection_request',
+        message: `${sender.name} sent you a connection request!`,
+        senderId: { _id: requesterId, name: sender.name, avatarUrl: sender.avatarUrl },
+        relatedId: connection._id,
+        _id: notification?._id,
+        createdAt: new Date()
+      });
     }
   } catch (err) {
-    console.error('Failed to prepare notification:', err);
+    console.error('Failed to send notification:', err.message);
   }
 
   return connection.toObject();
@@ -60,11 +54,20 @@ async function acceptConnection(connectionId, userId) {
   const conn = await Connection.findById(connectionId);
   if (!conn) { const err = new Error('Connection not found'); err.status = 404; throw err; }
   if (conn.addresseeId !== userId) { const err = new Error('Forbidden'); err.status = 403; throw err; }
-  
+
   conn.status = 'accepted';
   conn.updatedAt = new Date();
   await conn.save();
-  
+
+  // Real-time: tell the requester their request was accepted
+  try {
+    const accepter = await User.findById(userId).select('name avatarUrl').lean();
+    emitToUser(conn.requesterId, 'connection_accepted', {
+      connectionId: conn._id,
+      acceptedBy: { _id: userId, name: accepter?.name, avatarUrl: accepter?.avatarUrl }
+    });
+  } catch {}
+
   return conn.toObject();
 }
 
@@ -72,11 +75,14 @@ async function declineConnection(connectionId, userId) {
   const conn = await Connection.findById(connectionId);
   if (!conn) { const err = new Error('Connection not found'); err.status = 404; throw err; }
   if (conn.addresseeId !== userId) { const err = new Error('Forbidden'); err.status = 403; throw err; }
-  
+
   conn.status = 'declined';
   conn.updatedAt = new Date();
   await conn.save();
-  
+
+  // Real-time: tell the requester their request was declined
+  emitToUser(conn.requesterId, 'connection_declined', { connectionId: conn._id });
+
   return conn.toObject();
 }
 

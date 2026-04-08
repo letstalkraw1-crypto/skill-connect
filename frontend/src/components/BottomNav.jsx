@@ -2,10 +2,12 @@ import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Home, Calendar, MessageSquare, Bell, User } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useSocketContext } from '../context/SocketContext';
 import api from '../services/api';
 
 const BottomNav = () => {
   const { user } = useAuth();
+  const { on } = useSocketContext() || {};
   const location = useLocation();
   const [unreadCount, setUnreadCount] = React.useState(0);
 
@@ -21,6 +23,15 @@ const BottomNav = () => {
     const interval = setInterval(fetch, 60000);
     return () => clearInterval(interval);
   }, [user]);
+
+  // Real-time: increment badge when a new notification arrives
+  React.useEffect(() => {
+    if (!on) return;
+    const unsub = on('notification', () => {
+      setUnreadCount(c => c + 1);
+    });
+    return unsub;
+  }, [on]);
 
   if (!user) return null;
 

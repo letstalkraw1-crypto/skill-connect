@@ -9,10 +9,12 @@ import AddSkillModal from '../components/AddSkillModal';
 import Avatar from '../components/Avatar';
 import { userService, connectionService, authService, notificationService } from '../services/api';
 import ProfileSkeleton from '../components/ProfileSkeleton';
+import { useSocketContext } from '../context/SocketContext';
 
 const Profile = () => {
   const { id } = useParams();
   const { user: currentUser, updateUser } = useAuth();
+  const { on } = useSocketContext() || {};
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -134,6 +136,18 @@ const Profile = () => {
       setActiveTab(tab);
     }
   }, [searchParams]);
+
+  // Real-time: update connect button when request is accepted/declined
+  useEffect(() => {
+    if (!on) return;
+    const unsubAccepted = on('connection_accepted', ({ connectionId }) => {
+      setConnectionStatus('accepted');
+    });
+    const unsubDeclined = on('connection_declined', () => {
+      setConnectionStatus(null);
+    });
+    return () => { unsubAccepted(); unsubDeclined(); };
+  }, [on]);
 
   const handleAvatarUpload = async (e) => {
     const file = e.target.files[0];

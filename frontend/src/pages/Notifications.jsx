@@ -5,31 +5,27 @@ import { notificationService } from '../services/api';
 import api from '../services/api';
 import Avatar from '../components/Avatar';
 import { safeDistanceToNow } from '../utils/utils';
+import { useSocketContext } from '../context/SocketContext';
 
 export default function Notifications() {
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
-  // Track which connection_request notifications have been handled this session
   const [handled, setHandled] = useState(new Set());
+  const { on } = useSocketContext() || {};
 
   useEffect(() => {
     const load = async () => {
       try {
         const { data } = await notificationService.getNotifications();
-
-        // For connection_request notifications, check actual connection status
         const enriched = await Promise.all(data.map(async (n) => {
           if (n.type === 'connection_request' && n.relatedId) {
             try {
               const res = await api.get(`/connections/status/${n.relatedId}`);
               return { ...n, connectionStatus: res.data.status };
-            } catch {
-              return n;
-            }
+            } catch { return n; }
           }
           return n;
         }));
-
         setNotifications(enriched);
         await notificationService.markAsRead();
       } catch (err) {
@@ -40,6 +36,15 @@ export default function Notifications() {
     };
     load();
   }, []);
+
+  // Real-time: prepend new notifications instantly
+  useEffect(() => {
+    if (!on) return;
+    const unsub = on('notification', (newNotif) => {
+      setNotifications(prev => [{ ...newNotif, isRead: false, connectionStatus: 'pending' }, ...prev]);
+    });
+    return unsub;
+  }, [on]);
 
   const handleAccept = async (n) => {
     try {

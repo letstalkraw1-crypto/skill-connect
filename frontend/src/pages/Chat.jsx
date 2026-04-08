@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { chatService, userService } from '../services/api';
 import { useAuth } from '../context/AuthContext';
-import { useSocket } from '../hooks/useSocket';
+import { useSocketContext } from '../context/SocketContext';
 import { Send, Image, Plus, MoreVertical, Phone, Video, Search, ChevronLeft, Paperclip, Smile, MessageCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getAssetUrl, safeFormat } from '../utils/utils';
@@ -12,7 +12,7 @@ import ChatSkeleton from '../components/ChatSkeleton';
 const Chat = () => {
   const { id } = useParams();
   const { user: currentUser } = useAuth();
-  const { socket, isConnected } = useSocket(localStorage.getItem('token'));
+  const { socket, isConnected, on } = useSocketContext() || {};
   const [conversations, setConversations] = useState([]);
   const [communities, setCommunities] = useState([]);
   const [messages, setMessages] = useState([]);
@@ -114,28 +114,24 @@ const Chat = () => {
   }, [activeChat]);
 
   useEffect(() => {
-    if (socket) {
-      socket.on('receive_message', (msg) => {
-        const myId = currentUser?._id || currentUser?.id;
-        const senderId = msg.senderId || msg.sender_id;
-
-        if (activeChat && msg.conversationId === activeChat.id) {
-          // Skip if this is our own message — we already added it optimistically
-          if (senderId?.toString() !== myId?.toString()) {
-            setMessages(prev => [...prev, msg]);
-            scrollToBottom();
-          }
+    if (!on) return;
+    const unsub = on('receive_message', (msg) => {
+      const myId = currentUser?._id || currentUser?.id;
+      const senderId = msg.senderId || msg.sender_id;
+      if (activeChat && msg.conversationId === activeChat.id) {
+        if (senderId?.toString() !== myId?.toString()) {
+          setMessages(prev => [...prev, msg]);
+          scrollToBottom();
         }
-        // Update last message in sidebar
-        setConversations(prev => prev.map(c =>
-          c.id === msg.conversationId
-            ? { ...c, lastMessage: msg.text || msg.content, lastAt: msg.timestamp || msg.sentAt }
-            : c
-        ));
-      });
-    }
-    return () => socket?.off('receive_message');
-  }, [socket, activeChat, currentUser]);
+      }
+      setConversations(prev => prev.map(c =>
+        c.id === msg.conversationId
+          ? { ...c, lastMessage: msg.text || msg.content, lastAt: msg.timestamp || msg.sentAt }
+          : c
+      ));
+    });
+    return unsub;
+  }, [on, activeChat, currentUser]);
 
   const handleSendMessage = (e) => {
     e.preventDefault();

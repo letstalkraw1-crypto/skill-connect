@@ -13,30 +13,30 @@ async function getParticipants(conversationId) {
   return conv ? conv.participants : [];
 }
 
-/**
- * Attach Socket.io to an existing HTTP server.
- * @param {import('http').Server} httpServer
- * @returns {import('socket.io').Server}
- */
-function initSocket(httpServer) {
-  const io = new Server(httpServer, {
-    cors: { origin: '*' }
-  });
+// Global io instance so other services can emit events
+let _io = null;
+function getIO() { return _io; }
 
-  // Redis Adapter for scalability (Optional for local dev)
+/**
+ * Emit a real-time event to a specific user by userId
+ */
+function emitToUser(userId, event, data) {
+  if (_io && userId) {
+    _io.to(userId.toString()).emit(event, data);
+  }
+}
+
+function initSocket(httpServer) {
+  const io = new Server(httpServer, { cors: { origin: '*' } });
+  _io = io;
+
   if (process.env.REDIS_URL) {
     io.adapter(createAdapter(redisClient, subClient));
   }
 
   io.on('connection', async (socket) => {
-    // --- Authentication ---
     const token = socket.handshake.auth?.token;
-
-    if (!token) {
-      socket.emit('error', 'Unauthorized');
-      socket.disconnect(true);
-      return;
-    }
+    if (!token) { socket.emit('error', 'Unauthorized'); socket.disconnect(true); return; }
 
     let userId;
     try {
@@ -53,7 +53,7 @@ function initSocket(httpServer) {
     socket.userId = userId;
     socket.join(userId);
 
-    // Simple in-memory rate limit: max 30 messages per minute per socket
+    // Rate limit: max 30 messages per minute
     let msgCount = 0;
     const msgReset = setInterval(() => { msgCount = 0; }, 60000);
     socket.on('disconnect', () => clearInterval(msgReset));
@@ -61,31 +61,17 @@ function initSocket(httpServer) {
     // --- send_message ---
     socket.on('send_message', async ({ conversationId, text, content, replyToMessageId }) => {
       msgCount++;
-      if (msgCount > 30) {
-        socket.emit('error', 'Rate limit exceeded. Slow down.');
-        return;
-      }
+      if (msgCount > 30) { socket.emit('error', 'Rate limit exceeded. Slow down.'); return; }
       const messageText = text || content;
       try {
         const message = await persistMessage(conversationId, socket.userId, messageText, replyToMessageId);
         const participants = await getParticipants(conversationId);
-
         const payload = {
-          conversationId,
-          conversation_id: conversationId,
-          text: messageText,
-          content: messageText,
-          senderId: socket.userId,
-          sender_id: socket.userId,
-          timestamp: message.sentAt,
-          sent_at: message.sentAt,
-          messageId: message._id,
-          message_id: message._id,
-          replyToMessageId: message.replyToMessageId,
-          reply_to: message.replyToMessageId
+          conversationId, text: messageText, content: messageText,
+          senderId: socket.userId, sender_id: socket.userId,
+          timestamp: message.sentAt, sentAt: message.sentAt,
+          messageId: message._id, message_id: message._id,
         };
-
-        // Emit to the room of each participant
         for (const participantId of participants) {
           io.to(participantId.toString()).emit('receive_message', payload);
         }
@@ -100,44 +86,16 @@ function initSocket(httpServer) {
         const participants = await getParticipants(conversationId);
         for (const participantId of participants) {
           if (participantId.toString() !== socket.userId.toString()) {
-            io.to(participantId.toString()).emit('typing', {
-              conversationId,
-              conversation_id: conversationId,
-              userId: socket.userId,
-              user_id: socket.userId
-            });
+            io.to(participantId.toString()).emit('typing', { conversationId, userId: socket.userId });
           }
         }
-      } catch {
-        // silently ignore
-      }
+      } catch {}
     });
 
-    // --- wallpaper update ---
-    socket.on('update_wallpaper', async ({ conversationId, wallpaper }) => {
-      try {
-        const participants = await getParticipants(conversationId);
-        for (const participantId of participants) {
-          if (participantId.toString() !== socket.userId.toString()) {
-            io.to(participantId.toString()).emit('wallpaper_updated', {
-              conversationId,
-              conversation_id: conversationId,
-              wallpaper
-            });
-          }
-        }
-      } catch {
-        // silently ignore
-      }
-    });
-
-    // --- disconnect ---
-    socket.on('disconnect', () => {
-      // Socket.io automatically leaves rooms on disconnect
-    });
+    socket.on('disconnect', () => {});
   });
 
   return io;
 }
 
-module.exports = { initSocket };
+module.exports = { initSocket, getIO, emitToUser };

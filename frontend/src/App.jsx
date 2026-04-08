@@ -1,6 +1,7 @@
-import { Suspense, lazy } from 'react';
+import { Suspense, lazy, useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { SocketProvider, useSocketContext } from './context/SocketContext';
 import Navbar from './components/Navbar';
 import BottomNav from './components/BottomNav';
 
@@ -34,26 +35,28 @@ const PrivateRoute = ({ children }) => {
 const App = () => {
   return (
     <AuthProvider>
-      <div className="min-h-screen bg-background text-foreground transition-colors duration-300 pb-20 md:pb-0">
-        <Navbar />
-        <main className="container mx-auto px-4 py-4 md:py-8">
-          <Suspense fallback={<LoadingFallback />}>
-            <Routes>
-              <Route path="/auth" element={<Auth />} />
-              <Route path="/" element={<PrivateRoute><Home /></PrivateRoute>} />
-              <Route path="/profile/:id" element={<PrivateRoute><Profile /></PrivateRoute>} />
-              <Route path="/chat/:id?" element={<PrivateRoute><Chat /></PrivateRoute>} />
-              <Route path="/discovery" element={<PrivateRoute><Discovery /></PrivateRoute>} />
-              <Route path="/notifications" element={<PrivateRoute><Notifications /></PrivateRoute>} />
-              <Route path="/events" element={<PrivateRoute><Events /></PrivateRoute>} />
-              <Route path="/communities" element={<PrivateRoute><Communities /></PrivateRoute>} />
-              <Route path="/legal/:type" element={<Legal />} />
-              <Route path="*" element={<Navigate to="/" />} />
-            </Routes>
-          </Suspense>
-        </main>
-        <BottomNav />
-      </div>
+      <SocketProvider>
+        <div className="min-h-screen bg-background text-foreground transition-colors duration-300 pb-20 md:pb-0">
+          <Navbar />
+          <main className="container mx-auto px-4 py-4 md:py-8">
+            <Suspense fallback={<LoadingFallback />}>
+              <Routes>
+                <Route path="/auth" element={<Auth />} />
+                <Route path="/" element={<PrivateRoute><Home /></PrivateRoute>} />
+                <Route path="/profile/:id" element={<PrivateRoute><Profile /></PrivateRoute>} />
+                <Route path="/chat/:id?" element={<PrivateRoute><Chat /></PrivateRoute>} />
+                <Route path="/discovery" element={<PrivateRoute><Discovery /></PrivateRoute>} />
+                <Route path="/notifications" element={<PrivateRoute><Notifications /></PrivateRoute>} />
+                <Route path="/events" element={<PrivateRoute><Events /></PrivateRoute>} />
+                <Route path="/communities" element={<PrivateRoute><Communities /></PrivateRoute>} />
+                <Route path="/legal/:type" element={<Legal />} />
+                <Route path="*" element={<Navigate to="/" />} />
+              </Routes>
+            </Suspense>
+          </main>
+          <BottomNav />
+        </div>
+      </SocketProvider>
     </AuthProvider>
   );
 };
