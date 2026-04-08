@@ -1,25 +1,36 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Bell, Check } from 'lucide-react';
+import { Bell } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { useAuth } from '../context/AuthContext';
 import { notificationService } from '../services/api';
 import api from '../services/api';
 import Avatar from '../components/Avatar';
 import { safeDistanceToNow } from '../utils/utils';
 
 export default function Notifications() {
-  const { user } = useAuth();
-  const navigate = useNavigate();
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
+  // Track which connection_request notifications have been handled this session
+  const [handled, setHandled] = useState(new Set());
 
   useEffect(() => {
-    const fetch = async () => {
+    const load = async () => {
       try {
         const { data } = await notificationService.getNotifications();
-        setNotifications(data);
-        // mark all as read
+
+        // For connection_request notifications, check actual connection status
+        const enriched = await Promise.all(data.map(async (n) => {
+          if (n.type === 'connection_request' && n.relatedId) {
+            try {
+              const res = await api.get(`/connections/status/${n.relatedId}`);
+              return { ...n, connectionStatus: res.data.status };
+            } catch {
+              return n;
+            }
+          }
+          return n;
+        }));
+
+        setNotifications(enriched);
         await notificationService.markAsRead();
       } catch (err) {
         console.error(err);
@@ -27,34 +38,49 @@ export default function Notifications() {
         setLoading(false);
       }
     };
-    fetch();
+    load();
   }, []);
 
   const handleAccept = async (n) => {
     try {
       await api.put(`/connections/${n.relatedId}/accept`);
+      setHandled(prev => new Set([...prev, n._id]));
       setNotifications(prev => prev.map(notif =>
-        notif._id === n._id ? { ...notif, message: 'Connection accepted!', data: { handled: true } } : notif
+        notif._id === n._id
+          ? { ...notif, message: `You are now connected with ${notif.senderId?.name || 'them'}!`, connectionStatus: 'accepted' }
+          : notif
       ));
     } catch (err) {
-      alert('Failed to accept');
+      const msg = err?.response?.data?.error || 'Failed to accept';
+      alert(msg);
     }
   };
 
   const handleDecline = async (n) => {
     try {
       await api.put(`/connections/${n.relatedId}/decline`);
-      setNotifications(prev => prev.filter(notif => notif._id !== n._id));
+      setHandled(prev => new Set([...prev, n._id]));
+      setNotifications(prev => prev.map(notif =>
+        notif._id === n._id
+          ? { ...notif, message: 'Connection request declined.', connectionStatus: 'declined' }
+          : notif
+      ));
     } catch (err) {
       alert('Failed to decline');
     }
+  };
+
+  const isHandled = (n) => {
+    if (handled.has(n._id)) return true;
+    if (n.connectionStatus && n.connectionStatus !== 'pending') return true;
+    return false;
   };
 
   return (
     <div className="max-w-lg mx-auto pb-24 pt-2">
       {loading ? (
         <div className="space-y-3">
-          {[1,2,3].map(i => (
+          {[1, 2, 3].map(i => (
             <div key={i} className="glass-card p-4 rounded-2xl animate-pulse flex gap-3">
               <div className="h-10 w-10 rounded-xl bg-accent/50" />
               <div className="flex-1 space-y-2">
@@ -78,7 +104,7 @@ export default function Notifications() {
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: idx * 0.04 }}
-              className={`glass-card p-4 rounded-2xl border transition-all ${n.isRead ? 'border-border/30' : 'border-primary/30 bg-primary/5'}`}
+              className="glass-card p-4 rounded-2xl border border-border/30 transition-all"
             >
               <div className="flex items-start gap-3">
                 <Avatar src={n.senderId?.avatarUrl} name={n.senderId?.name || '?'} size="10" />
@@ -87,24 +113,30 @@ export default function Notifications() {
                   <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold mt-1">
                     {safeDistanceToNow(n.createdAt)}
                   </p>
-                  {n.type === 'connection_request' && !n.data?.handled && (
-                    <div className="flex gap-2 mt-3">
-                      <button
-                        onClick={() => handleAccept(n)}
-                        className="px-4 py-1.5 bg-primary text-primary-foreground rounded-lg text-xs font-bold hover:scale-105 active:scale-95 transition-all"
-                      >
-                        Accept
-                      </button>
-                      <button
-                        onClick={() => handleDecline(n)}
-                        className="px-4 py-1.5 bg-accent text-foreground rounded-lg text-xs font-bold hover:bg-destructive hover:text-destructive-foreground transition-all"
-                      >
-                        Decline
-                      </button>
-                    </div>
+
+                  {n.type === 'connection_request' && (
+                    isHandled(n) ? (
+                      <p className="text-xs text-emerald-500 font-bold mt-2">
+                        {n.connectionStatus === 'accepted' ? '✓ Connected' : '✗ Declined'}
+                      </p>
+                    ) : (
+                      <div className="flex gap-2 mt-3">
+                        <button
+                          onClick={() => handleAccept(n)}
+                          className="px-4 py-1.5 bg-primary text-primary-foreground rounded-lg text-xs font-bold hover:scale-105 active:scale-95 transition-all"
+                        >
+                          Accept
+                        </button>
+                        <button
+                          onClick={() => handleDecline(n)}
+                          className="px-4 py-1.5 bg-accent text-foreground rounded-lg text-xs font-bold hover:bg-destructive hover:text-destructive-foreground transition-all"
+                        >
+                          Decline
+                        </button>
+                      </div>
+                    )
                   )}
                 </div>
-                {!n.isRead && <div className="h-2 w-2 rounded-full bg-primary mt-1 flex-shrink-0" />}
               </div>
             </motion.div>
           ))}

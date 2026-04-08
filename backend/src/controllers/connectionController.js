@@ -64,4 +64,15 @@ const listConnections = async (req, res) => {
   }
 };
 
-module.exports = { sendRequest, acceptConnection, declineConnection, deleteConnection, listConnections };
+const getConnectionStatus = async (req, res) => {
+  try {
+    const { Connection } = require('../config/db');
+    const conn = await Connection.findById(req.params.connectionId).lean();
+    if (!conn) return res.json({ status: 'not_found' });
+    res.json({ status: conn.status });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+module.exports = { sendRequest, acceptConnection, declineConnection, deleteConnection, listConnections, getConnectionStatus };
