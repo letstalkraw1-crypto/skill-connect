@@ -5,7 +5,8 @@ const { Conversation, User } = require('../config/db');
 const { persistMessage } = require('../services/messaging');
 const { redisClient, subClient } = require('../config/redis');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'changeme';
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) throw new Error('FATAL: JWT_SECRET not set in environment');
 
 async function getParticipants(conversationId) {
   const conv = await Conversation.findById(conversationId).select('participants').lean();
@@ -50,11 +51,20 @@ function initSocket(httpServer) {
     }
 
     socket.userId = userId;
-    // Join a room named after the userId for direct messaging scalability
     socket.join(userId);
+
+    // Simple in-memory rate limit: max 30 messages per minute per socket
+    let msgCount = 0;
+    const msgReset = setInterval(() => { msgCount = 0; }, 60000);
+    socket.on('disconnect', () => clearInterval(msgReset));
 
     // --- send_message ---
     socket.on('send_message', async ({ conversationId, text, content, replyToMessageId }) => {
+      msgCount++;
+      if (msgCount > 30) {
+        socket.emit('error', 'Rate limit exceeded. Slow down.');
+        return;
+      }
       const messageText = text || content;
       try {
         const message = await persistMessage(conversationId, socket.userId, messageText, replyToMessageId);

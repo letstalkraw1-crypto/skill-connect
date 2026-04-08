@@ -10,5 +10,7 @@ const connectionSchema = new mongoose.Schema({
 });
 
 connectionSchema.index({ requesterId: 1, addresseeId: 1 }, { unique: true });
+connectionSchema.index({ addresseeId: 1, status: 1 }); // for pending requests lookup
+connectionSchema.index({ requesterId: 1, status: 1 });
 
 module.exports = mongoose.model('Connection', connectionSchema);

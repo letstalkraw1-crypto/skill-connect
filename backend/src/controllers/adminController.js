@@ -1,10 +1,24 @@
 const { User, UserSkill, Connection, Message, Conversation, Skill, Event } = require('../config/db');
 const bcrypt = require('bcrypt');
+const crypto = require('crypto');
+const jwt = require('jsonwebtoken');
+
+const ADMIN_JWT_SECRET = process.env.JWT_SECRET + '_admin';
 
 const login = (req, res) => {
   const { password } = req.body;
-  if (password === process.env.ADMIN_PASSWORD) return res.json({ token: process.env.ADMIN_PASSWORD });
-  return res.status(401).json({ error: 'Invalid admin password' });
+  if (!password || !process.env.ADMIN_PASSWORD) return res.status(401).json({ error: 'Invalid admin password' });
+
+  // Timing-safe comparison to prevent timing attacks
+  const provided = Buffer.from(password);
+  const expected = Buffer.from(process.env.ADMIN_PASSWORD);
+  if (provided.length !== expected.length || !crypto.timingSafeEqual(provided, expected)) {
+    return res.status(401).json({ error: 'Invalid admin password' });
+  }
+
+  // Return a short-lived JWT instead of the password itself
+  const token = jwt.sign({ role: 'admin' }, ADMIN_JWT_SECRET, { expiresIn: '8h' });
+  return res.json({ token });
 };
 
 const getUsers = async (req, res) => {

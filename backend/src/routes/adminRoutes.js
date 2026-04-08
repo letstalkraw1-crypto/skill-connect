@@ -1,14 +1,21 @@
 const express = require('express');
+const jwt = require('jsonwebtoken');
 const adminController = require('../controllers/adminController');
 
 const router = express.Router();
 
+const ADMIN_JWT_SECRET = process.env.JWT_SECRET + '_admin';
+
 function adminAuth(req, res, next) {
   const token = req.headers['x-admin-token'];
-  if (!token || token !== process.env.ADMIN_PASSWORD) {
-    return res.status(401).json({ error: 'Unauthorized' });
+  if (!token) return res.status(401).json({ error: 'Unauthorized' });
+  try {
+    const decoded = jwt.verify(token, ADMIN_JWT_SECRET);
+    if (decoded.role !== 'admin') throw new Error('Not admin');
+    next();
+  } catch {
+    return res.status(401).json({ error: 'Invalid or expired admin token' });
   }
-  next();
 }
 
 router.post('/login', adminController.login);

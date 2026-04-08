@@ -22,8 +22,28 @@ app.use('/api/auth', authLimiter);
 // Main rate limit
 app.use(rateLimit({ windowMs: 15 * 60 * 1000, limit: 500, message: { error: 'Too many requests' } }));
 
+// Stricter limit for content creation
+const createLimiter = rateLimit({ windowMs: 60 * 1000, limit: 10, message: { error: 'Too many requests. Slow down.' } });
+app.use('/api/posts', createLimiter);
+app.use('/api/events', createLimiter);
+app.use('/api/communities', createLimiter);
+
 // CORS
-app.use(cors({ origin: '*', methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'], allowedHeaders: ['Content-Type', 'Authorization', 'x-admin-token'] }));
+const allowedOrigins = process.env.NODE_ENV === 'production'
+  ? ['https://collabro.onrender.com', process.env.FRONTEND_URL].filter(Boolean)
+  : ['http://localhost:3000', 'http://localhost:5000'];
+
+app.use(cors({
+  origin: (origin, callback) => {
+    // Allow requests with no origin (mobile apps, curl, Postman)
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.includes(origin)) return callback(null, true);
+    callback(null, true); // Keep permissive for now — tighten when custom domain is set
+  },
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-admin-token'],
+  credentials: true
+}));
 app.use(compression());
 app.use(express.json());
 
