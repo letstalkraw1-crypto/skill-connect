@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Calendar, MapPin, Clock, Users, Hash, ChevronRight, X, User, Phone } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
+import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import Avatar from '../components/Avatar';
 import { safeFormat } from '../utils/utils';
@@ -208,6 +209,7 @@ const AttendeeModal = ({ event, onClose }) => {
 
 export default function Events() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [rsvpEvent, setRsvpEvent] = useState(null);
@@ -262,7 +264,8 @@ export default function Events() {
                   <div className="flex items-start justify-between gap-3 mb-3">
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
-                        <h3 className="text-lg font-black">{event.title}</h3>
+                        <h3 className="text-lg font-black cursor-pointer hover:text-primary transition-colors"
+                          onClick={() => navigate(`/events/${event._id}`)}>{event.title}</h3>
                         {isOrganiser && (
                           <span className="px-2 py-0.5 bg-primary/20 text-primary text-[10px] font-bold rounded-full uppercase tracking-wider">Organiser</span>
                         )}

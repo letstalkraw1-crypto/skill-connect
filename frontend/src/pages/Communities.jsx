@@ -165,7 +165,8 @@ export default function Communities() {
 
             return (
               <motion.div key={id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.05 }}
-                className="glass-card rounded-2xl border border-border p-5">
+                className="glass-card rounded-2xl border border-border p-5 cursor-pointer hover:border-primary/30 transition-all"
+                onClick={() => navigate(`/communities/${id}`)}>
                 <div className="flex items-start gap-4">
                   <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-primary/30 to-blue-600/30 flex items-center justify-center flex-shrink-0 border border-primary/20">
                     <Users size={24} className="text-primary" />
@@ -197,7 +198,7 @@ export default function Communities() {
                   </div>
                 </div>
 
-                <div className="flex gap-2 mt-4">
+                <div className="flex gap-2 mt-4" onClick={e => e.stopPropagation()}>
                   {isMember && (
                     <button onClick={() => community.conversationId && navigate(`/chat/${community.conversationId}`)}
                       className="flex-1 py-2.5 bg-primary text-primary-foreground rounded-xl text-sm font-bold flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-95 transition-all shadow-lg shadow-primary/20">

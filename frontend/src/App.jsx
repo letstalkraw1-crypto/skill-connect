@@ -15,6 +15,8 @@ const Notifications = lazy(() => import('./pages/Notifications'));
 const Events = lazy(() => import('./pages/Events'));
 const Communities = lazy(() => import('./pages/Communities'));
 const Legal = lazy(() => import('./pages/Legal'));
+const CommunityDetail = lazy(() => import('./pages/CommunityDetail'));
+const EventDetail = lazy(() => import('./pages/EventDetail'));
 
 // Lightweight loading fallback
 const LoadingFallback = () => (
@@ -48,7 +50,9 @@ const App = () => {
                 <Route path="/discovery" element={<PrivateRoute><Discovery /></PrivateRoute>} />
                 <Route path="/notifications" element={<PrivateRoute><Notifications /></PrivateRoute>} />
                 <Route path="/events" element={<PrivateRoute><Events /></PrivateRoute>} />
+                <Route path="/events/:id" element={<PrivateRoute><EventDetail /></PrivateRoute>} />
                 <Route path="/communities" element={<PrivateRoute><Communities /></PrivateRoute>} />
+                <Route path="/communities/:id" element={<PrivateRoute><CommunityDetail /></PrivateRoute>} />
                 <Route path="/legal/:type" element={<Legal />} />
                 <Route path="*" element={<Navigate to="/" />} />
               </Routes>

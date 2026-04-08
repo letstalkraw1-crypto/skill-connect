@@ -20,6 +20,10 @@ const Chat = () => {
   const [activeChat, setActiveChat] = useState(null);
   const [loading, setLoading] = useState(true);
   const [sidebarTab, setSidebarTab] = useState('chats'); // 'chats' | 'groups'
+  const [showNewChat, setShowNewChat] = useState(false);
+  const [newChatSearch, setNewChatSearch] = useState('');
+  const [newChatResults, setNewChatResults] = useState([]);
+  const [newChatSearching, setNewChatSearching] = useState(false);
   const messagesEndRef = useRef(null);
   const navigate = useNavigate();
 
@@ -107,6 +111,39 @@ const Chat = () => {
     fetchCommunities();
   }, []);
 
+  // Debounced search for new chat
+  useEffect(() => {
+    if (!newChatSearch.trim() || newChatSearch.length < 2) { setNewChatResults([]); return; }
+    const timer = setTimeout(async () => {
+      setNewChatSearching(true);
+      try {
+        const apiModule = await import('../services/api');
+        const { data } = await apiModule.default.get(`/discover/search?q=${encodeURIComponent(newChatSearch)}`);
+        setNewChatResults(Array.isArray(data) ? data.slice(0, 10) : []);
+      } catch { setNewChatResults([]); }
+      finally { setNewChatSearching(false); }
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [newChatSearch]);
+
+  const handleStartChat = async (userId) => {
+    setShowNewChat(false);
+    setNewChatSearch('');
+    setNewChatResults([]);
+    try {
+      const res = await chatService.createConversation([userId]);
+      const newConv = res.data;
+      setConversations(prev => {
+        const exists = prev.find(p => p.id === newConv.id);
+        return exists ? prev : [newConv, ...prev];
+      });
+      setActiveChat(newConv);
+      navigate(`/chat/${newConv.id}`);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   useEffect(() => {
     if (activeChat) {
       fetchMessages(activeChat.id);
@@ -184,7 +221,16 @@ const Chat = () => {
       {/* Sidebar: Conversations */}
       <div className={`w-full md:w-80 lg:w-96 border-r border-border flex flex-col bg-accent/10 ${activeChat ? 'hidden md:flex' : 'flex'}`}>
         <div className="p-4 border-b border-border space-y-3">
-          <h2 className="text-xl font-black tracking-tight text-primary px-2">Messages</h2>
+          <div className="flex items-center justify-between px-2">
+            <h2 className="text-xl font-black tracking-tight text-primary">Messages</h2>
+            <button
+              onClick={() => setShowNewChat(true)}
+              className="h-8 w-8 flex items-center justify-center rounded-xl bg-primary text-primary-foreground hover:scale-105 active:scale-95 transition-all"
+              title="New Message"
+            >
+              <Plus size={16} />
+            </button>
+          </div>
           {/* Chats / Groups toggle */}
           <div className="flex gap-1 p-1 bg-accent/30 rounded-xl">
             <button onClick={() => setSidebarTab('chats')}
@@ -377,3 +423,4 @@ const Chat = () => {
 };
 
 export default Chat;
+
