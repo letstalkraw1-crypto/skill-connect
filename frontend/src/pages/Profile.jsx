@@ -18,6 +18,9 @@ const Profile = () => {
   const [loading, setLoading] = useState(true);
   const [connections, setConnections] = useState([]);
   const [connPagination, setConnPagination] = useState(null);
+  const [connectionStatus, setConnectionStatus] = useState(null); // null | 'pending' | 'accepted'
+  const [connectLoading, setConnectLoading] = useState(false);
+  const [points, setPoints] = useState(0);
   const [searchParams, setSearchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'skills');
 // ... rest of state ...
@@ -34,17 +37,57 @@ const Profile = () => {
     try {
       const { data } = await userService.getProfile(id);
       setUser(data);
+
+      // Calculate points
+      let pts = 0;
+      if (data.bio) pts += 5;
+      if (data.avatarUrl) pts += 5;
+      if (data.location) pts += 2;
+      pts += (data.skills?.length || 0) * 2;
+      setPoints(pts);
+
       const connRes = await connectionService.getConnections(id, connPage);
-      setConnections(connRes.data.connections || []);
+      const acceptedConns = connRes.data.connections || [];
+      setConnections(acceptedConns);
+      // Add points for accepted connections
+      setPoints(p => p + acceptedConns.length * 3);
       setConnPagination({
         page: connRes.data.page,
         totalPages: connRes.data.totalPages,
         totalConnections: connRes.data.totalConnections
       });
+
+      // Fetch connection status with this user (only if viewing someone else's profile)
+      const myId = currentUser?._id || currentUser?.id;
+      if (myId && myId !== id) {
+        try {
+          const allConns = await connectionService.getConnections(myId);
+          const pending = allConns.data.pending || [];
+          const outgoing = allConns.data.outgoing || [];
+          const accepted = allConns.data.connections || [];
+          if (accepted.some(c => (c._id || c.id) === id)) setConnectionStatus('accepted');
+          else if (outgoing.some(c => (c._id || c.id) === id)) setConnectionStatus('pending');
+          else if (pending.some(c => (c._id || c.id) === id)) setConnectionStatus('incoming');
+          else setConnectionStatus(null);
+        } catch {}
+      }
     } catch (err) {
       console.error(err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleConnect = async () => {
+    if (connectLoading || connectionStatus) return;
+    setConnectLoading(true);
+    try {
+      await connectionService.sendRequest(id);
+      setConnectionStatus('pending');
+    } catch (err) {
+      alert(err?.response?.data?.error || 'Failed to send request');
+    } finally {
+      setConnectLoading(false);
     }
   };
 
@@ -260,7 +303,7 @@ const Profile = () => {
                 <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-tighter mt-1">Connections</p>
               </div>
               <div className="p-4 bg-accent/30 rounded-xl text-center border border-border/50">
-                <p className="text-2xl font-bold text-emerald-500">12</p>
+                <p className="text-2xl font-bold text-emerald-500">{points}</p>
                 <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-tighter mt-1">Points</p>
               </div>
             </div>
@@ -273,8 +316,25 @@ const Profile = () => {
                   <MessageCircle size={18} />
                   Message
                 </button>
-                <button className="h-12 w-12 flex items-center justify-center rounded-2xl bg-accent border border-border hover:bg-accent/80 transition-all">
-                  <UserPlus size={20} />
+                <button
+                  onClick={handleConnect}
+                  disabled={connectLoading || connectionStatus === 'accepted' || connectionStatus === 'pending'}
+                  className={`h-12 w-12 flex items-center justify-center rounded-2xl border transition-all ${
+                    connectionStatus === 'accepted'
+                      ? 'bg-emerald-500/20 border-emerald-500/30 text-emerald-500'
+                      : connectionStatus === 'pending'
+                      ? 'bg-amber-500/20 border-amber-500/30 text-amber-500'
+                      : 'bg-accent border-border hover:bg-primary hover:text-primary-foreground hover:border-primary'
+                  }`}
+                  title={connectionStatus === 'accepted' ? 'Connected' : connectionStatus === 'pending' ? 'Request Sent' : 'Connect'}
+                >
+                  {connectLoading ? (
+                    <Loader2 size={18} className="animate-spin" />
+                  ) : connectionStatus === 'accepted' ? (
+                    <Check size={18} />
+                  ) : (
+                    <UserPlus size={20} />
+                  )}
                 </button>
               </div>
             )}
