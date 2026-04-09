@@ -32,7 +32,7 @@ const getVenues = async (req, res) => {
 const listEvents = async (req, res) => {
   try {
     const userId = req.user.userId;
-    const events = await Event.find({ status: 'active' }).populate('creatorId', 'name avatarUrl').sort({ datetime: 1 }).lean();
+    const events = await Event.find({ status: 'active' }).populate('creatorId', 'name avatarUrl').sort({ datetime: -1 }).lean();
     const eventsWithRsvp = await Promise.all(events.map(async (event) => {
       const attendeeCount = await EventRsvp.countDocuments({ eventId: event._id, status: 'accepted' });
       const myRsvp = await EventRsvp.findOne({ eventId: event._id, userId }).select('status');
