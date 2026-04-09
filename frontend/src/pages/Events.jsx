@@ -12,6 +12,9 @@ const formatEventDate = (dt) => {
   try { return format(new Date(dt), 'EEE, MMM d yyyy • h:mm a'); } catch { return dt; }
 };
 
+// Module-level cache — persists across tab switches within the session
+let _eventsCache = null;
+
 const RsvpModal = ({ event, onClose, onSuccess }) => {
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
@@ -215,9 +218,18 @@ export default function Events() {
   const [rsvpEvent, setRsvpEvent] = useState(null);
   const [attendeeEvent, setAttendeeEvent] = useState(null);
 
-  const fetchEvents = async () => {
+  const fetchEvents = async (force = false) => {
+    // Use cached data instantly, then refresh in background
+    if (_eventsCache && !force) {
+      setEvents(_eventsCache);
+      setLoading(false);
+      // Refresh in background silently
+      api.get('/events').then(({ data }) => { _eventsCache = data; setEvents(data); }).catch(() => {});
+      return;
+    }
     try {
       const { data } = await api.get('/events');
+      _eventsCache = data;
       setEvents(data);
     } catch (err) { console.error(err); }
     finally { setLoading(false); }

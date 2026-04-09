@@ -100,6 +100,9 @@ const AdminPanel = ({ community, onClose, onUpdate }) => {
   );
 };
 
+// Module-level cache
+let _communitiesCache = null;
+
 export default function Communities() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -110,9 +113,16 @@ export default function Communities() {
 
   const myId = user?._id || user?.id;
 
-  const fetchCommunities = async () => {
+  const fetchCommunities = async (force = false) => {
+    if (_communitiesCache && !force) {
+      setCommunities(_communitiesCache);
+      setLoading(false);
+      api.get('/communities').then(({ data }) => { _communitiesCache = data; setCommunities(data); }).catch(() => {});
+      return;
+    }
     try {
       const { data } = await api.get('/communities');
+      _communitiesCache = data;
       setCommunities(data);
     } catch (err) { console.error(err); }
     finally { setLoading(false); }
@@ -132,6 +142,7 @@ export default function Communities() {
         return c;
       }));
       if (data.joined && data.conversationId) navigate(`/chat/${data.conversationId}`);
+      else fetchCommunities(true); // force refresh after leave
     } catch (err) {
       alert(err?.response?.data?.error || 'Failed');
     } finally {
@@ -230,7 +241,7 @@ export default function Communities() {
 
       <AnimatePresence>
         {adminCommunity && (
-          <AdminPanel community={adminCommunity} onClose={() => setAdminCommunity(null)} onUpdate={fetchCommunities} />
+          <AdminPanel community={adminCommunity} onClose={() => setAdminCommunity(null)} onUpdate={() => fetchCommunities(true)} />
         )}
       </AnimatePresence>
     </div>
