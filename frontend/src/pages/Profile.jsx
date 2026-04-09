@@ -393,11 +393,6 @@ const Profile = () => {
                   className="grid grid-cols-1 md:grid-cols-2 gap-4"
                 >
                   {user.skills?.map((skill, idx) => {
-                    const profMap = { beginner: 25, intermediate: 60, expert: 85 };
-                    const base = profMap[(skill.proficiency || skill.level || 'beginner').toLowerCase()] || 25;
-                    const expBonus = Math.min((skill.yearsExp || skill.years_exp || 0) * 5, 10);
-                    const verifiedBonus = skill.isVerified ? 5 : 0;
-                    const progress = Math.min(base + expBonus + verifiedBonus, 100);
                     return (
                     <div key={idx} className="glass-card p-6 rounded-2xl border-l-4 border-primary group hover:border-emerald-500 transition-all">
                       <div className="flex items-center justify-between mb-4">
@@ -418,20 +413,10 @@ const Profile = () => {
                       </div>
                       <h4 className="text-lg font-bold group-hover:text-primary transition-colors">{skill.name}</h4>
                       {skill.subSkill && <p className="text-xs text-primary font-bold -mt-1 mb-2">{skill.subSkill}</p>}
-                      <p className="text-xs text-muted-foreground mt-1 mb-4 flex items-center gap-1">
+                      <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
                         <Shield size={12} />
                         {skill.yearsExp || skill.years_exp || 0} {(skill.yearsExp || skill.years_exp || 0) === 1 ? 'Year' : 'Years'} Experience
                       </p>
-                      <div className="space-y-2">
-                        <div className="flex justify-between items-center">
-                          <span className="text-xs font-medium">Progress</span>
-                          <span className="text-xs font-bold">{progress}%</span>
-                        </div>
-                        <div className="h-2 w-full bg-accent rounded-full overflow-hidden">
-                          <motion.div initial={{ width: 0 }} animate={{ width: `${progress}%` }}
-                            className={`h-full ${skill.isVerified ? 'bg-emerald-500' : 'bg-primary'}`} />
-                        </div>
-                      </div>
                     </div>
                     );
                   })}
