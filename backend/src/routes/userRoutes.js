@@ -1,15 +1,17 @@
 const express = require('express');
+const multer = require('multer');
 const userController = require('../controllers/userController');
 const { verifyToken, optionalVerifyToken } = require('../middleware/authMiddleware');
 
 const router = express.Router();
+const certUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
 router.post('/onboarding', verifyToken, userController.completeOnboarding);
 router.get('/skills-list', userController.getSkillsList);
 router.get('/by-short-id/:shortId', userController.getProfileByShortId);
 router.post('/skills', verifyToken, userController.addSkills);
 router.delete('/skills/:skillId', verifyToken, userController.deleteSkill);
-router.post('/verifications', verifyToken, userController.submitVerification);
+router.post('/verifications', verifyToken, certUpload.single('certificate'), userController.submitVerification);
 router.get('/verifications', verifyToken, userController.getVerifications);
 router.post('/endorsements', verifyToken, userController.addEndorsement);
 router.get('/:userId/endorsements', userController.getEndorsements);

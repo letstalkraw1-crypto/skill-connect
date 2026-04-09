@@ -10,6 +10,9 @@ const AddSkillModal = ({ onClose, onSave }) => {
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [selectedSubSkill, setSelectedSubSkill] = useState(null);
   const [proficiency, setProficiency] = useState('Beginner');
+  const [yearsExp, setYearsExp] = useState(0);
+  const [verificationLink, setVerificationLink] = useState('');
+  const [certificateFile, setCertificateFile] = useState(null);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -33,9 +36,36 @@ const AddSkillModal = ({ onClose, onSave }) => {
       const skills = [{
         name: selectedCategory,
         subSkill: selectedSubSkill,
-        proficiency: proficiency
+        proficiency: proficiency,
+        yearsExp: parseInt(yearsExp) || 0,
+        verificationLink: verificationLink.trim() || null,
       }];
       await onSave(skills);
+
+      // Submit verification if link or certificate provided
+      if (verificationLink.trim() || certificateFile) {
+        try {
+          const apiModule = await import('../services/api');
+          const api = apiModule.default;
+          if (certificateFile) {
+            const formData = new FormData();
+            formData.append('certificate', certificateFile);
+            formData.append('skillName', selectedCategory);
+            formData.append('verificationType', 'certificate');
+            await api.post('/profile/verifications', formData);
+          } else if (verificationLink.trim()) {
+            const type = getVerificationType(selectedCategory, verificationLink);
+            await api.post('/profile/verifications', {
+              skillName: selectedCategory,
+              verificationType: type,
+              url: verificationLink.trim()
+            });
+          }
+        } catch (e) {
+          console.error('Verification submission failed:', e);
+        }
+      }
+
       onClose();
     } catch (err) {
       alert(err.response?.data?.error || 'Failed to add skill');
@@ -43,6 +73,31 @@ const AddSkillModal = ({ onClose, onSave }) => {
       setSaving(false);
     }
   };
+
+  // Determine verification type based on skill and URL
+  const getVerificationType = (skill, url) => {
+    const s = skill.toLowerCase();
+    if (s.includes('running') || s.includes('cycling') || s.includes('swimming')) return 'strava';
+    if (url.includes('github.com')) return 'github';
+    if (url.includes('leetcode.com')) return 'leetcode';
+    if (url.includes('hackerrank.com')) return 'hackerrank';
+    return 'link';
+  };
+
+  // What verification is expected for this skill
+  const getVerificationHint = (skill) => {
+    if (!skill) return null;
+    const s = skill.toLowerCase();
+    if (s.includes('running') || s.includes('cycling') || s.includes('swimming')) {
+      return { label: 'Strava Profile Link', placeholder: 'https://www.strava.com/athletes/...' };
+    }
+    if (s.includes('coding') || s.includes('programming')) {
+      return { label: 'GitHub / LeetCode / HackerRank Link', placeholder: 'https://github.com/username' };
+    }
+    return { label: 'Certificate or Portfolio Link', placeholder: 'https://...' };
+  };
+
+  const verificationHint = getVerificationHint(selectedCategory);
 
   const filteredCategories = Object.keys(skillsData).filter(cat => 
     cat.toLowerCase().includes(search.toLowerCase())
@@ -145,6 +200,47 @@ const AddSkillModal = ({ onClose, onSave }) => {
                   ))}
                 </div>
               </div>
+
+              {/* Years of Experience */}
+              <div className="space-y-3">
+                <label className="text-xs font-black uppercase text-muted-foreground tracking-widest">Years of Experience</label>
+                <div className="flex items-center gap-3">
+                  <button onClick={() => setYearsExp(Math.max(0, yearsExp - 1))}
+                    className="h-9 w-9 rounded-xl bg-accent border border-border font-bold text-lg flex items-center justify-center hover:bg-accent/80 transition-all">−</button>
+                  <span className="flex-1 text-center text-2xl font-black text-primary">{yearsExp}</span>
+                  <button onClick={() => setYearsExp(Math.min(30, yearsExp + 1))}
+                    className="h-9 w-9 rounded-xl bg-accent border border-border font-bold text-lg flex items-center justify-center hover:bg-accent/80 transition-all">+</button>
+                </div>
+              </div>
+
+              {/* Verification */}
+              {verificationHint && (
+                <div className="space-y-3 p-4 bg-primary/5 border border-primary/20 rounded-2xl">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-black uppercase text-primary tracking-widest">Verification (Optional)</span>
+                    <span className="px-2 py-0.5 bg-primary/20 text-primary text-[9px] font-bold rounded-full uppercase">Get Badge</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">Add a {verificationHint.label} to get a verified badge on this skill.</p>
+                  <input
+                    type="url"
+                    placeholder={verificationHint.placeholder}
+                    value={verificationLink}
+                    onChange={e => setVerificationLink(e.target.value)}
+                    className="w-full px-3 py-2.5 rounded-xl bg-background border border-border focus:ring-2 focus:ring-primary/50 outline-none text-sm"
+                  />
+                  {selectedCategory && !selectedCategory.toLowerCase().includes('running') && !selectedCategory.toLowerCase().includes('cycling') && !selectedCategory.toLowerCase().includes('coding') && (
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-2">Or upload a certificate:</p>
+                      <label className="flex items-center gap-2 px-3 py-2 rounded-xl bg-accent/30 border border-border cursor-pointer hover:border-primary/50 transition-all text-sm">
+                        <span className="text-primary">📎</span>
+                        <span className="text-muted-foreground">{certificateFile ? certificateFile.name : 'Choose certificate file'}</span>
+                        <input type="file" accept=".pdf,.jpg,.jpeg,.png" className="hidden"
+                          onChange={e => setCertificateFile(e.target.files[0])} />
+                      </label>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </div>

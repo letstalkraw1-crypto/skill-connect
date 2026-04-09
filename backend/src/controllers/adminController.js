@@ -1,4 +1,4 @@
-const { User, UserSkill, Connection, Message, Conversation, Skill, Event } = require('../config/db');
+const { User, UserSkill, Connection, Message, Conversation, Skill, Event, SkillVerification } = require('../config/db');
 const bcrypt = require('bcrypt');
 const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
@@ -161,4 +161,46 @@ const deleteEvent = async (req, res) => {
   }
 };
 
-module.exports = { login, getUsers, getUser, updateUser, deleteUser, getStats, getSkillUsers, addSkill, deleteSkill, getEvents, updateEvent, deleteEvent };
+// GET /admin/verifications — list all pending skill verifications
+const getPendingVerifications = async (req, res) => {
+  try {
+    const verifications = await SkillVerification.find({ status: 'pending' })
+      .sort({ createdAt: -1 })
+      .lean();
+    const enriched = await Promise.all(verifications.map(async (v) => {
+      const user = await User.findById(v.userId).select('name email avatarUrl shortId').lean();
+      return { ...v, user };
+    }));
+    res.json(enriched);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// PUT /admin/verifications/:id — approve or reject
+const reviewVerification = async (req, res) => {
+  try {
+    const { status, adminNote } = req.body;
+    if (!['verified', 'rejected'].includes(status)) return res.status(400).json({ error: 'Invalid status' });
+
+    const verification = await SkillVerification.findById(req.params.id);
+    if (!verification) return res.status(404).json({ error: 'Verification not found' });
+
+    verification.status = status;
+    verification.adminNote = adminNote || null;
+    if (status === 'verified') verification.verifiedAt = new Date();
+    await verification.save();
+
+    // Update the UserSkill verification status
+    await UserSkill.findOneAndUpdate(
+      { userId: verification.userId, skillId: verification.skillId },
+      { verificationStatus: status }
+    );
+
+    res.json({ ok: true, status });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+module.exports = { login, getUsers, getUser, updateUser, deleteUser, getStats, getSkillUsers, addSkill, deleteSkill, getEvents, updateEvent, deleteEvent, getPendingVerifications, reviewVerification };

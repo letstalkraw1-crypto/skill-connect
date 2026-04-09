@@ -25,13 +25,16 @@ async function getProfile(userId) {
         subSkill: us.subSkill || null,
         sub_skill: us.subSkill || null,
         level: us.level,
-        yearsExp: us.yearsExp,
-        years_exp: us.yearsExp,
+        yearsExp: us.yearsExp || 0,
+        years_exp: us.yearsExp || 0,
         proficiency: proficiency?.name,
         endorsementCount,
         endorsement_count: endorsementCount,
         verifiedCount,
-        verified_count: verifiedCount
+        verified_count: verifiedCount,
+        verificationStatus: us.verificationStatus || 'none',
+        isVerified: us.verificationStatus === 'verified',
+        userSkillId: us._id
       };
     })
   );

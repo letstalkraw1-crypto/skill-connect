@@ -30,5 +30,7 @@ router.delete('/skills/:id', adminAuth, adminController.deleteSkill);
 router.get('/events', adminAuth, adminController.getEvents);
 router.put('/events/:id', adminAuth, adminController.updateEvent);
 router.delete('/events/:id', adminAuth, adminController.deleteEvent);
+router.get('/verifications', adminAuth, adminController.getPendingVerifications);
+router.put('/verifications/:id', adminAuth, adminController.reviewVerification);
 
 module.exports = router;

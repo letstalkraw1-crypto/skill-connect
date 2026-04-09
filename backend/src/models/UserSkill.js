@@ -4,10 +4,12 @@ const userSkillSchema = new mongoose.Schema({
   _id: { type: String, default: () => require('uuid').v4() },
   userId: { type: String, required: true, ref: 'User' },
   skillId: { type: mongoose.Schema.Types.ObjectId, required: true, ref: 'Skill' },
-  subSkill: { type: String, default: null }, // e.g. "Marathon / Endurance"
+  subSkill: { type: String, default: null },
   level: String,
-  yearsExp: Number,
+  yearsExp: { type: Number, default: 0 },
   proficiencyId: { type: mongoose.Schema.Types.ObjectId, ref: 'ProficiencyLevel' },
+  verificationStatus: { type: String, enum: ['none', 'pending', 'verified', 'rejected'], default: 'none' },
+  verificationId: { type: String, ref: 'SkillVerification' },
   createdAt: { type: Date, default: Date.now }
 }, { unique: false });
 

@@ -3,10 +3,11 @@ const { User, SkillVerification, Skill, SkillEndorsement, Feedback, Connection, 
 const { v4: uuidv4 } = require('uuid');
 const { delCache } = require('../utils/cache');
 
+const safeRegex = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
 const getProfile = async (req, res) => {
   try {
     const profile = await profileService.getProfile(req.params.userId);
-    
     let connectionStatus = 'none';
     if (req.user && req.user.userId !== req.params.userId) {
       const conn = await Connection.findOne({
@@ -22,12 +23,7 @@ const getProfile = async (req, res) => {
         }
       }
     }
-
-    res.status(200).json({
-      ...profile,
-      connectionStatus,
-      connection_status: connectionStatus
-    });
+    res.status(200).json({ ...profile, connectionStatus, connection_status: connectionStatus });
   } catch (err) {
     res.status(err.status || 500).json({ error: err.message });
   }
@@ -45,10 +41,7 @@ const getProfileByShortId = async (req, res) => {
 };
 
 const updateProfile = async (req, res) => {
-  if (req.user.userId !== req.params.userId) {
-    return res.status(403).json({ error: 'Forbidden' });
-  }
-
+  if (req.user.userId !== req.params.userId) return res.status(403).json({ error: 'Forbidden' });
   try {
     const profile = await profileService.updateProfile(req.params.userId, req.body);
     await delCache(`user:${req.params.userId}`);
@@ -75,7 +68,7 @@ const completeOnboarding = async (req, res) => {
 
     if (skills && skills.length) {
       for (const s of skills) {
-        const skillDoc = await Skill.findOne({ name: { $regex: new RegExp('^' + s.skillName + '$', 'i') } });
+        const skillDoc = await Skill.findOne({ name: { $regex: new RegExp('^' + safeRegex(s.skillName) + '$', 'i') } });
         if (!skillDoc) continue;
         try {
           await UserSkill.findOneAndUpdate(
@@ -145,23 +138,41 @@ const deleteSkill = async (req, res) => {
 const submitVerification = async (req, res) => {
   let { skillId, skillName, verificationType, url } = req.body;
   if (!skillId && !skillName) return res.status(400).json({ error: 'skillId or skillName required' });
-  
+
   try {
     if (!skillId && skillName) {
-      const skill = await Skill.findOne({ name: { $regex: new RegExp('^' + skillName + '$', 'i') } });
+      const skill = await Skill.findOne({ name: { $regex: new RegExp('^' + safeRegex(skillName) + '$', 'i') } });
       if (skill) skillId = skill._id;
       else return res.status(404).json({ error: 'Skill not found' });
     }
 
+    let certificateUrl = null;
+    if (req.file) {
+      const { uploadToCloudinary } = require('../config/cloudinary');
+      const result = await uploadToCloudinary(req.file.buffer, { folder: 'skill-certificates' });
+      certificateUrl = result.secure_url;
+      verificationType = 'certificate';
+    }
+
+    const skillDoc = await Skill.findById(skillId).lean();
     const verification = new SkillVerification({
       _id: uuidv4(),
       userId: req.user.userId,
       skillId,
-      verificationType,
-      url,
+      skillName: skillDoc?.name || skillName,
+      verificationType: verificationType || 'link',
+      url: url || null,
+      certificateUrl,
       status: 'pending'
     });
     await verification.save();
+
+    // Mark UserSkill as pending verification
+    await UserSkill.findOneAndUpdate(
+      { userId: req.user.userId, skillId },
+      { verificationStatus: 'pending', verificationId: verification._id }
+    );
+
     res.json({ id: verification._id, status: 'pending' });
   } catch (err) {
     res.status(err.status || 500).json({ error: err.message });
@@ -173,7 +184,7 @@ const getVerifications = async (req, res) => {
     const verifications = await SkillVerification.find({ userId: req.user.userId })
       .populate({ path: 'skillId', select: 'name' })
       .lean();
-    res.json(verifications.map(v => ({ ...v, skillName: v.skillId?.name })));
+    res.json(verifications.map(v => ({ ...v, skillName: v.skillId?.name || v.skillName })));
   } catch (err) {
     res.status(err.status || 500).json({ error: err.message });
   }
@@ -182,13 +193,7 @@ const getVerifications = async (req, res) => {
 const addEndorsement = async (req, res) => {
   const { endorseeId, skillId, comment } = req.body;
   try {
-    const endorsement = new SkillEndorsement({
-      _id: uuidv4(),
-      endorserId: req.user.userId,
-      endorseeId,
-      skillId,
-      comment
-    });
+    const endorsement = new SkillEndorsement({ _id: uuidv4(), endorserId: req.user.userId, endorseeId, skillId, comment });
     await endorsement.save();
     res.json({ id: endorsement._id });
   } catch (err) {
@@ -200,9 +205,7 @@ const addEndorsement = async (req, res) => {
 const getEndorsements = async (req, res) => {
   try {
     const endorsements = await SkillEndorsement.find({ endorseeId: req.params.userId })
-      .populate('skillId', 'name')
-      .populate('endorserId', 'name')
-      .lean();
+      .populate('skillId', 'name').populate('endorserId', 'name').lean();
     res.json(endorsements.map(e => ({ ...e, skillName: e.skillId?.name, endorserName: e.endorserId?.name })));
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -211,11 +214,7 @@ const getEndorsements = async (req, res) => {
 
 const addFeedback = async (req, res) => {
   try {
-    const feedback = new Feedback({
-      _id: uuidv4(),
-      fromUserId: req.user.userId,
-      ...req.body
-    });
+    const feedback = new Feedback({ _id: uuidv4(), fromUserId: req.user.userId, ...req.body });
     await feedback.save();
     res.json({ id: feedback._id });
   } catch (err) {
@@ -225,9 +224,7 @@ const addFeedback = async (req, res) => {
 
 const getFeedback = async (req, res) => {
   try {
-    const feedback = await Feedback.find({ toUserId: req.user.userId })
-      .populate('fromUserId', 'name')
-      .lean();
+    const feedback = await Feedback.find({ toUserId: req.user.userId }).populate('fromUserId', 'name').lean();
     res.json(feedback.map(f => ({ ...f, fromName: f.fromUserId?.name })));
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -240,10 +237,7 @@ const getShareData = async (req, res) => {
     if (!user) return res.status(404).json({ error: 'User not found' });
     const baseUrl = process.env.BASE_URL || `${req.protocol}://${req.get('host')}`;
     res.json({
-      userId: user._id,
-      shortId: user.shortId,
-      name: user.name,
-      avatarUrl: user.avatarUrl,
+      userId: user._id, shortId: user.shortId, name: user.name, avatarUrl: user.avatarUrl,
       shareLink: `${baseUrl}/profile?id=${user.shortId}`,
       qrCode: { type: 'profile', value: `${baseUrl}/profile?id=${user.shortId}` }
     });
@@ -253,7 +247,7 @@ const getShareData = async (req, res) => {
 };
 
 module.exports = {
-  getProfile, getProfileByShortId, updateProfile, updateMyProfile, completeOnboarding, 
+  getProfile, getProfileByShortId, updateProfile, updateMyProfile, completeOnboarding,
   getSkillsList, addSkills, deleteSkill, submitVerification, getVerifications,
   addEndorsement, getEndorsements, addFeedback, getFeedback, getShareData
 };
