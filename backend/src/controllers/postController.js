@@ -159,8 +159,7 @@ const createPost = async (req, res) => {
     await newPost.save();
     
     const post = await Post.findById(newPost._id).populate('userId', 'name avatarUrl shortId').lean();
-    
-    res.status(201).json({
+    const postData = {
       ...post,
       id: post._id,
       authorName: post.userId.name,
@@ -170,14 +169,21 @@ const createPost = async (req, res) => {
       authorShortId: post.userId.shortId,
       author_short_id: post.userId.shortId,
       author_id: post.userId._id,
-      likeCount: 0,
-      likes_count: 0,
-      commentCount: 0,
-      comments_count: 0,
-      isLiked: false,
-      is_liked: false,
+      likeCount: 0, likes_count: 0,
+      commentCount: 0, comments_count: 0,
+      isLiked: false, is_liked: false,
       image_urls: post.imageUrls || []
-    });
+    };
+
+    // Broadcast new post to all connected users in real-time
+    try {
+      const { emitToUser } = require('../socket/index');
+      const { getIO } = require('../socket/index');
+      const io = getIO();
+      if (io) io.emit('new_post', postData); // broadcast to everyone
+    } catch {}
+
+    res.status(201).json(postData);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -256,6 +262,14 @@ const likePost = async (req, res) => {
       }
     }
     const likeCount = await PostLike.countDocuments({ postId: req.params.id });
+
+    // Broadcast like update to all users
+    try {
+      const { getIO } = require('../socket/index');
+      const io = getIO();
+      if (io) io.emit('post_updated', { postId: req.params.id, likeCount, liked: !existing });
+    } catch {}
+
     res.json({ liked: !existing, likeCount });
   } catch (err) {
     res.status(500).json({ error: err.message });
