@@ -61,21 +61,27 @@ const AddSkillModal = ({ onClose, onSave }) => {
             const payload = JSON.parse(atob(token.split('.')[1]));
             const userId = payload.userId;
             
+            // Wait a moment for the skill to be fully saved
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
             // Fetch updated profile to get the saved skill ID
             const { data: profile } = await userService.getProfile(userId);
-            const savedSkill = profile.skills?.find(s => s.name === selectedCategory);
+            const savedSkill = profile.skills?.find(s => 
+              s.name.toLowerCase() === selectedCategory.toLowerCase()
+            );
             
             if (savedSkill) {
               // Redirect to OAuth flow with skill context
-              const skillId = savedSkill._id || savedSkill.id;
+              const skillId = savedSkill.userSkillId || savedSkill._id || savedSkill.id;
               window.location.href = `/api/auth/oauth/${provider}?skillId=${skillId}&skillName=${encodeURIComponent(selectedCategory)}`;
               return; // Don't close modal, we're redirecting
             } else {
+              console.error('Saved skill not found in profile. Skills:', profile.skills?.map(s => s.name));
               alert('Skill saved but verification failed. Please try again from your profile.');
             }
           } catch (err) {
             console.error('Failed to parse token or fetch profile:', err);
-            alert('Verification failed. Please try again from your profile.');
+            alert('Skill saved but verification failed. Please try again from your profile.');
           }
         }
       }
