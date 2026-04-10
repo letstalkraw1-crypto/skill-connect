@@ -44,6 +44,8 @@ export const userService = {
   updateProfile: (data) => api.put('/profile', data),
   getSkillsList: () => api.get('/profile/skills-list'),
   addSkills: (skills) => api.post('/profile/skills', { skills }),
+  updateSkill: (skill) => api.put('/profile/skills', skill),
+  deleteSkill: (skillName) => api.delete(`/profile/skills/${encodeURIComponent(skillName)}`),
 };
 
 export const connectionService = {

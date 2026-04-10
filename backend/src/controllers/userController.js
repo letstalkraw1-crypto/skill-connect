@@ -126,6 +126,15 @@ const addSkills = async (req, res) => {
   }
 };
 
+const updateSkill = async (req, res) => {
+  try {
+    const profile = await profileService.updateSkill(req.user.userId, req.body);
+    res.status(200).json(profile);
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
+};
+
 const deleteSkill = async (req, res) => {
   try {
     const result = await profileService.deleteSkill(req.user.userId, req.params.skillId);
@@ -248,6 +257,6 @@ const getShareData = async (req, res) => {
 
 module.exports = {
   getProfile, getProfileByShortId, updateProfile, updateMyProfile, completeOnboarding,
-  getSkillsList, addSkills, deleteSkill, submitVerification, getVerifications,
+  getSkillsList, addSkills, updateSkill, deleteSkill, submitVerification, getVerifications,
   addEndorsement, getEndorsements, addFeedback, getFeedback, getShareData
 };

@@ -113,19 +113,17 @@ const AddSkillModal = ({ onClose, onSave }) => {
   const getOAuthProvider = (skill, url) => {
     const s = skill.toLowerCase();
     
-    // Only return providers that are actually configured
-    // For now, only GitHub is configured
+    // Strava for fitness/sports skills
+    if (s.includes('running') || s.includes('cycling') || s.includes('swimming')) {
+      return 'strava';
+    }
+    
+    // GitHub for coding skills
     if (s.includes('coding') || s.includes('programming')) {
       if (url.includes('github.com') || !url) {
         return 'github';
       }
     }
-    
-    // Strava is not configured yet, so don't return it
-    // Uncomment when Strava OAuth is configured:
-    // if (s.includes('running') || s.includes('cycling') || s.includes('swimming')) {
-    //   return 'strava';
-    // }
     
     return null; // No OAuth provider for this skill
   };
@@ -135,9 +133,9 @@ const AddSkillModal = ({ onClose, onSave }) => {
     if (!skill) return null;
     const s = skill.toLowerCase();
     
-    // Strava skills - but OAuth not configured yet
+    // Strava skills - OAuth configured
     if (s.includes('running') || s.includes('cycling') || s.includes('swimming')) {
-      return { label: 'Strava Profile Link (Manual verification)', placeholder: 'https://www.strava.com/athletes/...' };
+      return { label: 'Strava Profile Link', placeholder: 'https://www.strava.com/athletes/...' };
     }
     
     // GitHub skills - OAuth configured

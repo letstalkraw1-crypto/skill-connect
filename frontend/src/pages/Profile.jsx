@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { getAssetUrl, safeFormat } from '../utils/utils';
 import EditProfileModal from '../components/EditProfileModal';
 import AddSkillModal from '../components/AddSkillModal';
+import EditSkillModal from '../components/EditSkillModal';
 import Avatar from '../components/Avatar';
 import { userService, connectionService, authService, notificationService } from '../services/api';
 import ProfileSkeleton from '../components/ProfileSkeleton';
@@ -32,6 +33,8 @@ const Profile = () => {
   const [unreadCount, setUnreadCount] = useState(0);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showAddSkillModal, setShowAddSkillModal] = useState(false);
+  const [showEditSkillModal, setShowEditSkillModal] = useState(false);
+  const [selectedSkill, setSelectedSkill] = useState(null);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = React.useRef(null);
 
@@ -215,6 +218,34 @@ const Profile = () => {
     } catch (err) {
       console.error(err);
       throw err;
+    }
+  };
+
+  const handleUpdateSkill = async (updatedSkill) => {
+    try {
+      // Update skill via API
+      await userService.updateSkill(updatedSkill);
+      await fetchProfile();
+    } catch (err) {
+      console.error(err);
+      throw err;
+    }
+  };
+
+  const handleDeleteSkill = async (skillName) => {
+    try {
+      await userService.deleteSkill(skillName);
+      await fetchProfile();
+    } catch (err) {
+      console.error(err);
+      throw err;
+    }
+  };
+
+  const handleSkillClick = (skill) => {
+    if (isOwnProfile) {
+      setSelectedSkill(skill);
+      setShowEditSkillModal(true);
     }
   };
 
@@ -426,7 +457,11 @@ const Profile = () => {
                 >
                   {user.skills?.map((skill, idx) => {
                     return (
-                    <div key={idx} className="glass-card p-6 rounded-2xl border-l-4 border-primary group hover:border-emerald-500 transition-all">
+                    <div 
+                      key={idx} 
+                      onClick={() => handleSkillClick(skill)}
+                      className={`glass-card p-6 rounded-2xl border-l-4 border-primary group hover:border-emerald-500 transition-all ${isOwnProfile ? 'cursor-pointer hover:scale-[1.02]' : ''}`}
+                    >
                       <div className="flex items-center justify-between mb-4">
                         <div className="h-10 w-10 flex items-center justify-center rounded-xl bg-primary/20 text-primary group-hover:bg-emerald-500/20 group-hover:text-emerald-500 transition-colors">
                           <Star size={20} />
@@ -449,6 +484,9 @@ const Profile = () => {
                         <Shield size={12} />
                         {skill.yearsExp || skill.years_exp || 0} {(skill.yearsExp || skill.years_exp || 0) === 1 ? 'Year' : 'Years'} Experience
                       </p>
+                      {isOwnProfile && (
+                        <p className="text-[10px] text-primary/60 mt-2 font-bold">Click to edit</p>
+                      )}
                     </div>
                     );
                   })}
@@ -576,6 +614,20 @@ const Profile = () => {
           <AddSkillModal 
             onClose={() => setShowAddSkillModal(false)} 
             onSave={handleSaveSkill} 
+          />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showEditSkillModal && selectedSkill && (
+          <EditSkillModal 
+            skill={selectedSkill}
+            onClose={() => {
+              setShowEditSkillModal(false);
+              setSelectedSkill(null);
+            }} 
+            onUpdate={handleUpdateSkill}
+            onDelete={handleDeleteSkill}
           />
         )}
       </AnimatePresence>

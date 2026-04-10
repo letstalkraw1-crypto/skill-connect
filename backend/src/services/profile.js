@@ -149,5 +149,51 @@ async function deleteSkill(userId, skillId) {
   return { ok: true };
 }
 
-module.exports = { getProfile, updateProfile, addSkills, deleteSkill };
+async function updateSkill(userId, skillData) {
+  if (!skillData.name) {
+    const err = new Error('Skill name is required');
+    err.status = 400;
+    throw err;
+  }
+
+  // Find the skill document
+  const skillDoc = await Skill.findOne({ 
+    name: { $regex: new RegExp("^" + skillData.name.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + "$", "i") } 
+  });
+
+  if (!skillDoc) {
+    const err = new Error('Skill not found');
+    err.status = 404;
+    throw err;
+  }
+
+  // Find proficiency if provided
+  let proficiencyId = null;
+  const profName = (skillData.proficiency || '').trim();
+  if (profName) {
+    const profDoc = await ProficiencyLevel.findOne({ 
+      name: { $regex: new RegExp("^" + profName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + "$", "i") } 
+    });
+    if (profDoc) proficiencyId = profDoc._id;
+  }
+
+  // Update the UserSkill
+  const updateData = {
+    level: skillData.proficiency || 'Beginner',
+    yearsExp: skillData.yearsExp || 0,
+  };
+
+  if (proficiencyId) updateData.proficiencyId = proficiencyId;
+  if (skillData.verificationLink) updateData.verificationLink = skillData.verificationLink;
+
+  await UserSkill.findOneAndUpdate(
+    { userId, skillId: skillDoc._id, subSkill: skillData.subSkill || null },
+    updateData,
+    { new: true }
+  );
+
+  return getProfile(userId);
+}
+
+module.exports = { getProfile, updateProfile, addSkills, updateSkill, deleteSkill };
 
