@@ -257,16 +257,117 @@ const AddSkillModal = ({ onClose, onSave }) => {
                     <span className="text-xs font-black uppercase text-primary tracking-widest">Verification (Optional)</span>
                     <span className="px-2 py-0.5 bg-primary/20 text-primary text-[9px] font-bold rounded-full uppercase">Get Badge</span>
                   </div>
-                  <p className="text-xs text-muted-foreground">Add a {verificationHint.label} to get a verified badge on this skill.</p>
-                  <input
-                    type="url"
-                    placeholder={verificationHint.placeholder}
-                    value={verificationLink}
-                    onChange={e => setVerificationLink(e.target.value)}
-                    className="w-full px-3 py-2.5 rounded-xl bg-background border border-border focus:ring-2 focus:ring-primary/50 outline-none text-sm"
-                  />
+                  <p className="text-xs text-muted-foreground">Add a Certificate or Portfolio Link to get a verified badge on this skill.</p>
+                  
+                  {/* Link Input with Verify Button */}
+                  <div className="space-y-2">
+                    <input
+                      type="url"
+                      placeholder={verificationHint.placeholder}
+                      value={verificationLink}
+                      onChange={(e) => setVerificationLink(e.target.value)}
+                      className="w-full px-4 py-2.5 rounded-xl bg-accent/20 border border-border outline-none focus:ring-2 focus:ring-primary/50 text-sm"
+                    />
+                    
+                    {/* Verify Button - Show for any link entered */}
+                    {verificationLink.trim() && (
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          const provider = getOAuthProvider(selectedCategory, verificationLink);
+                          
+                          // If OAuth provider is available, use OAuth flow
+                          if (provider) {
+                            // Save skill first, then redirect to OAuth
+                            setSaving(true);
+                            try {
+                              const skills = [{
+                                name: selectedCategory,
+                                subSkill: selectedSubSkill,
+                                proficiency: proficiency,
+                                yearsExp: parseInt(yearsExp) || 0,
+                                verificationLink: verificationLink.trim(),
+                              }];
+                              
+                              await onSave(skills);
+
+                              // Get user ID and redirect to OAuth
+                              const token = localStorage.getItem('token');
+                              if (!token) {
+                                alert('Please log in to verify skills');
+                                setSaving(false);
+                                return;
+                              }
+
+                              const payload = JSON.parse(atob(token.split('.')[1]));
+                              const userId = payload.userId;
+                              
+                              // Wait for skill to be saved
+                              await new Promise(resolve => setTimeout(resolve, 500));
+                              
+                              // Fetch profile to get skill ID
+                              const { data: profile } = await userService.getProfile(userId);
+                              const savedSkill = profile.skills?.find(s => 
+                                s.name.toLowerCase() === selectedCategory.toLowerCase()
+                              );
+                              
+                              if (savedSkill) {
+                                const skillId = savedSkill.userSkillId || savedSkill._id || savedSkill.id;
+                                window.location.href = `/api/auth/oauth/${provider}?skillId=${skillId}&skillName=${encodeURIComponent(selectedCategory)}`;
+                              } else {
+                                alert('Skill saved but verification failed. Please try again from your profile.');
+                                setSaving(false);
+                              }
+                            } catch (err) {
+                              console.error('Verification error:', err);
+                              alert('Failed to start verification. Please try again.');
+                              setSaving(false);
+                            }
+                          } else {
+                            // For non-OAuth links (portfolio, certificates, etc.), just save with the link
+                            setSaving(true);
+                            try {
+                              const skills = [{
+                                name: selectedCategory,
+                                subSkill: selectedSubSkill,
+                                proficiency: proficiency,
+                                yearsExp: parseInt(yearsExp) || 0,
+                                verificationLink: verificationLink.trim(),
+                              }];
+                              
+                              await onSave(skills);
+                              alert('✅ Skill saved with verification link!');
+                              onClose();
+                            } catch (err) {
+                              console.error('Save error:', err);
+                              alert('Failed to save skill. Please try again.');
+                            } finally {
+                              setSaving(false);
+                            }
+                          }
+                        }}
+                        disabled={saving}
+                        className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-primary text-primary-foreground rounded-xl font-bold text-sm hover:bg-primary/90 transition-all disabled:opacity-50"
+                      >
+                        {saving ? (
+                          <>
+                            <Loader2 className="animate-spin" size={18} />
+                            {getOAuthProvider(selectedCategory, verificationLink) ? 'Verifying...' : 'Saving...'}
+                          </>
+                        ) : (
+                          <>
+                            <span>🔗</span>
+                            {getOAuthProvider(selectedCategory, verificationLink) 
+                              ? `Verify with ${getOAuthProvider(selectedCategory, verificationLink) === 'github' ? 'GitHub' : 'Strava'}`
+                              : 'Save with Link'}
+                          </>
+                        )}
+                      </button>
+                    )}
+                  </div>
+
                   {selectedCategory && !selectedCategory.toLowerCase().includes('running') && !selectedCategory.toLowerCase().includes('cycling') && !selectedCategory.toLowerCase().includes('coding') && (
-                    <div>
+                    <div className="pt-3 border-t border-border/50">
                       <p className="text-xs text-muted-foreground mb-2">Or upload a certificate:</p>
                       <label className="flex items-center gap-2 px-3 py-2 rounded-xl bg-accent/30 border border-border cursor-pointer hover:border-primary/50 transition-all text-sm">
                         <span className="text-primary">📎</span>
