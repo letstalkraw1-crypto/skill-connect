@@ -66,7 +66,7 @@ export default function CreateModal({ onClose }) {
         initial={{ y: 60, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         exit={{ y: 60, opacity: 0 }}
-        className="w-full max-w-md glass-card rounded-3xl border border-border shadow-2xl flex flex-col max-h-[85vh]"
+        className="w-full max-w-md glass-card rounded-3xl border border-border shadow-2xl flex flex-col max-h-[75vh] mb-20 sm:mb-0 sm:max-h-[85vh]"
       >
         {/* Header — sticky */}
         <div className="flex items-center justify-between p-6 pb-0 flex-shrink-0">

@@ -5,7 +5,7 @@ const CommunitySchema = new mongoose.Schema({
   creatorId: { type: String, ref: 'User', required: true },
   name: { type: String, required: true },
   description: String,
-  type: { type: String, enum: ['community', 'group', 'forum'], default: 'community' },
+  type: { type: String, enum: ['community', 'group', 'forum', 'team'], default: 'community' },
   maxMembers: { type: Number, default: 100 },
   shortCode: { type: String, unique: true, sparse: true },
   conversationId: { type: String, ref: 'Conversation' },
