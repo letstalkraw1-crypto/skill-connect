@@ -48,15 +48,34 @@ const AddSkillModal = ({ onClose, onSave }) => {
       if (verificationLink.trim()) {
         const provider = getOAuthProvider(selectedCategory, verificationLink);
         if (provider) {
-          // Get the saved skill ID (we'll need to fetch it)
-          const { data: profile } = await userService.getProfile();
-          const savedSkill = profile.skills?.find(s => s.name === selectedCategory);
-          
-          if (savedSkill) {
-            // Redirect to OAuth flow with skill context
-            const skillId = savedSkill._id || savedSkill.id;
-            window.location.href = `/api/auth/oauth/${provider}?skillId=${skillId}&skillName=${encodeURIComponent(selectedCategory)}`;
-            return; // Don't close modal, we're redirecting
+          // Get current user from auth context or localStorage
+          const token = localStorage.getItem('token');
+          if (!token) {
+            alert('Please log in to verify skills');
+            onClose();
+            return;
+          }
+
+          // Decode JWT to get user ID
+          try {
+            const payload = JSON.parse(atob(token.split('.')[1]));
+            const userId = payload.userId;
+            
+            // Fetch updated profile to get the saved skill ID
+            const { data: profile } = await userService.getProfile(userId);
+            const savedSkill = profile.skills?.find(s => s.name === selectedCategory);
+            
+            if (savedSkill) {
+              // Redirect to OAuth flow with skill context
+              const skillId = savedSkill._id || savedSkill.id;
+              window.location.href = `/api/auth/oauth/${provider}?skillId=${skillId}&skillName=${encodeURIComponent(selectedCategory)}`;
+              return; // Don't close modal, we're redirecting
+            } else {
+              alert('Skill saved but verification failed. Please try again from your profile.');
+            }
+          } catch (err) {
+            console.error('Failed to parse token or fetch profile:', err);
+            alert('Verification failed. Please try again from your profile.');
           }
         }
       }
