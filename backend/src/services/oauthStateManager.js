@@ -17,9 +17,11 @@ const STATE_KEY_PREFIX = 'oauth:state:';
  * @param {string} provider - Provider name (e.g., 'github')
  * @param {string} codeVerifier - PKCE code verifier
  * @param {string} [userId] - Optional user ID for account linking
+ * @param {string} [skillId] - Optional skill ID for skill-specific verification
+ * @param {string} [skillName] - Optional skill name for skill-specific verification
  * @returns {Promise<import('../types/oauth').OAuthState>} Created state object
  */
-async function createState(provider, codeVerifier, userId = null) {
+async function createState(provider, codeVerifier, userId = null, skillId = null, skillName = null) {
   const token = uuidv4();
   const now = Date.now();
   
@@ -29,6 +31,8 @@ async function createState(provider, codeVerifier, userId = null) {
     codeVerifier,
     provider,
     userId: userId || undefined,
+    skillId: skillId || undefined,
+    skillName: skillName || undefined,
     createdAt: now,
     expiresAt: now + (STATE_EXPIRY_SECONDS * 1000)
   };

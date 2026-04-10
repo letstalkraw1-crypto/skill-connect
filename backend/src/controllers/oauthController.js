@@ -13,10 +13,11 @@ const oauthService = require('../services/oauthService');
 
 /**
  * Initiate OAuth flow
- * GET /auth/oauth/:provider
+ * GET /auth/oauth/:provider?skillId=xxx&skillName=xxx
  */
 async function initiateOAuth(req, res) {
   const { provider: providerName } = req.params;
+  const { skillId, skillName } = req.query;
   
   try {
     // Step 1: Validate provider
@@ -32,9 +33,9 @@ async function initiateOAuth(req, res) {
     const codeVerifier = generateCodeVerifier(128);
     const codeChallenge = generateCodeChallenge(codeVerifier);
     
-    // Step 3: Store state in Redis
+    // Step 3: Store state in Redis with skill context
     const userId = req.user?.userId; // For account linking if user is authenticated
-    const state = await createState(providerName, codeVerifier, userId);
+    const state = await createState(providerName, codeVerifier, userId, skillId, skillName);
     
     // Step 4: Build authorization URL
     const authUrl = oauthService.generateAuthUrl(
@@ -69,7 +70,7 @@ async function handleCallback(req, res) {
     // Handle user denial or provider error
     if (oauthError) {
       console.log('[OAuth] User denied or error:', oauthError);
-      return res.redirect(`${FRONTEND_URL}/auth/error?error=authentication_cancelled`);
+      return res.redirect(`${FRONTEND_URL}/profile?verification=cancelled`);
     }
 
     // Validate required parameters
@@ -119,21 +120,39 @@ async function handleCallback(req, res) {
       tokenResponse.access_token
     );
 
-    // Step 5: Find or create user
+    // Step 5: Handle skill-specific verification if skillId is present
+    if (state.skillId && state.userId) {
+      // Skill-specific verification flow
+      const verificationResult = await oauthService.verifySkill(
+        state.userId,
+        state.skillId,
+        state.skillName,
+        providerName,
+        tokenResponse.access_token
+      );
+
+      if (verificationResult.verified) {
+        return res.redirect(`${FRONTEND_URL}/profile?verification=success&skill=${encodeURIComponent(state.skillName)}`);
+      } else {
+        return res.redirect(`${FRONTEND_URL}/profile?verification=failed&skill=${encodeURIComponent(state.skillName)}&message=${encodeURIComponent(verificationResult.message || 'Verification criteria not met')}`);
+      }
+    }
+
+    // Step 6: Account-level OAuth (fallback to original behavior)
     const user = await oauthService.findOrCreateUser(
       profile,
       providerName,
-      state.userId // For account linking
+      state.userId
     );
 
-    // Step 6: Perform skill verification (if applicable)
+    // Step 7: Perform skill verification (if applicable)
     if (providerName === 'github') {
       await oauthService.verifyGitHubSkills(user._id, tokenResponse.access_token);
     } else if (providerName === 'strava') {
       await oauthService.verifyStravaSkills(user._id, tokenResponse.access_token);
     }
 
-    // Step 7: Generate JWT token
+    // Step 8: Generate JWT token
     const jwt = require('jsonwebtoken');
     const JWT_SECRET = process.env.JWT_SECRET;
     const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '30d';
@@ -142,7 +161,7 @@ async function handleCallback(req, res) {
       expiresIn: JWT_EXPIRES_IN 
     });
 
-    // Step 8: Redirect to frontend with token
+    // Step 9: Redirect to frontend with token
     const redirectUrl = `${FRONTEND_URL}/auth/callback?token=${jwtToken}`;
     return res.redirect(redirectUrl);
 
@@ -163,7 +182,7 @@ async function handleCallback(req, res) {
     }
     
     // Redirect to frontend error page
-    return res.redirect(`${FRONTEND_URL}/auth/error?error=${errorType}&message=${encodeURIComponent(err.message)}`);
+    return res.redirect(`${FRONTEND_URL}/profile?verification=error&message=${encodeURIComponent(err.message)}`);
   }
 }
 

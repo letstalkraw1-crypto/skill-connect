@@ -40,27 +40,37 @@ const AddSkillModal = ({ onClose, onSave }) => {
         yearsExp: parseInt(yearsExp) || 0,
         verificationLink: verificationLink.trim() || null,
       }];
+      
+      // Save skill first
       await onSave(skills);
 
-      // Submit verification if link or certificate provided
-      if (verificationLink.trim() || certificateFile) {
+      // If verification link provided, initiate OAuth flow
+      if (verificationLink.trim()) {
+        const provider = getOAuthProvider(selectedCategory, verificationLink);
+        if (provider) {
+          // Get the saved skill ID (we'll need to fetch it)
+          const { data: profile } = await userService.getProfile();
+          const savedSkill = profile.skills?.find(s => s.name === selectedCategory);
+          
+          if (savedSkill) {
+            // Redirect to OAuth flow with skill context
+            const skillId = savedSkill._id || savedSkill.id;
+            window.location.href = `/api/auth/oauth/${provider}?skillId=${skillId}&skillName=${encodeURIComponent(selectedCategory)}`;
+            return; // Don't close modal, we're redirecting
+          }
+        }
+      }
+
+      // Submit verification if certificate provided
+      if (certificateFile) {
         try {
           const apiModule = await import('../services/api');
           const api = apiModule.default;
-          if (certificateFile) {
-            const formData = new FormData();
-            formData.append('certificate', certificateFile);
-            formData.append('skillName', selectedCategory);
-            formData.append('verificationType', 'certificate');
-            await api.post('/profile/verifications', formData);
-          } else if (verificationLink.trim()) {
-            const type = getVerificationType(selectedCategory, verificationLink);
-            await api.post('/profile/verifications', {
-              skillName: selectedCategory,
-              verificationType: type,
-              url: verificationLink.trim()
-            });
-          }
+          const formData = new FormData();
+          formData.append('certificate', certificateFile);
+          formData.append('skillName', selectedCategory);
+          formData.append('verificationType', 'certificate');
+          await api.post('/profile/verifications', formData);
         } catch (e) {
           console.error('Verification submission failed:', e);
         }
@@ -74,14 +84,16 @@ const AddSkillModal = ({ onClose, onSave }) => {
     }
   };
 
-  // Determine verification type based on skill and URL
-  const getVerificationType = (skill, url) => {
+  // Determine OAuth provider based on skill and URL
+  const getOAuthProvider = (skill, url) => {
     const s = skill.toLowerCase();
     if (s.includes('running') || s.includes('cycling') || s.includes('swimming')) return 'strava';
-    if (url.includes('github.com')) return 'github';
-    if (url.includes('leetcode.com')) return 'leetcode';
-    if (url.includes('hackerrank.com')) return 'hackerrank';
-    return 'link';
+    if (s.includes('coding') || s.includes('programming')) {
+      if (url.includes('github.com')) return 'github';
+      // Default to github for coding skills
+      return 'github';
+    }
+    return null; // No OAuth provider for this skill
   };
 
   // What verification is expected for this skill

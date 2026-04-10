@@ -377,6 +377,101 @@ async function unlinkOAuthAccount(userId, providerName) {
   };
 }
 
+/**
+ * Verify a specific skill based on OAuth provider data
+ * @param {string} userId - User ID
+ * @param {string} skillId - Skill ID to verify
+ * @param {string} skillName - Skill name
+ * @param {string} providerName - Provider name (github, strava, etc.)
+ * @param {string} accessToken - OAuth access token
+ * @returns {Promise<{verified: boolean, message?: string}>} Verification result
+ */
+async function verifySkill(userId, skillId, skillName, providerName, accessToken) {
+  try {
+    const { SkillVerification, UserSkill } = require('../config/db');
+    
+    let verified = false;
+    let message = '';
+    let metadata = {};
+
+    // Provider-specific verification logic
+    if (providerName === 'github') {
+      // Fetch GitHub user data
+      const response = await axios.get('https://api.github.com/user', {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Accept': 'application/json'
+        }
+      });
+
+      const { public_repos, followers, login } = response.data;
+      metadata = { publicRepos: public_repos, followers, username: login };
+
+      // Verify based on skill name
+      if (skillName.toLowerCase().includes('coding') || skillName.toLowerCase().includes('programming')) {
+        if (public_repos > 5) {
+          verified = true;
+        } else {
+          message = `Verification criteria not met: Need more than 5 public repositories (found ${public_repos})`;
+        }
+      } else {
+        message = `Skill "${skillName}" cannot be verified via GitHub`;
+      }
+    } else if (providerName === 'strava') {
+      // Fetch Strava athlete data
+      const response = await axios.get('https://www.strava.com/api/v3/athlete', {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Accept': 'application/json'
+        }
+      });
+
+      const athlete = response.data;
+      metadata = { athleteId: athlete.id, username: athlete.username };
+
+      // Verify based on skill name
+      if (skillName.toLowerCase().includes('running') || skillName.toLowerCase().includes('cycling') || skillName.toLowerCase().includes('fitness')) {
+        verified = true;
+      } else {
+        message = `Skill "${skillName}" cannot be verified via Strava`;
+      }
+    } else {
+      message = `Provider "${providerName}" is not supported for skill verification`;
+    }
+
+    // Update skill verification status
+    if (verified) {
+      await SkillVerification.findOneAndUpdate(
+        { userId, skillName },
+        {
+          userId,
+          skillName,
+          verificationType: providerName,
+          status: 'verified',
+          verifiedAt: new Date(),
+          metadata
+        },
+        { upsert: true, new: true }
+      );
+
+      // Update UserSkill if skillId is provided
+      if (skillId) {
+        await UserSkill.findByIdAndUpdate(skillId, {
+          isVerified: true,
+          verificationStatus: 'verified'
+        });
+      }
+
+      console.log(`[OAuth] Verified skill "${skillName}" for user ${userId} via ${providerName}`);
+    }
+
+    return { verified, message };
+  } catch (err) {
+    console.error('[OAuth] Skill verification error:', err.message);
+    return { verified: false, message: `Verification failed: ${err.message}` };
+  }
+}
+
 module.exports = {
   generateAuthUrl,
   exchangeCodeForToken,
@@ -385,5 +480,6 @@ module.exports = {
   findOrCreateUser,
   verifyGitHubSkills,
   verifyStravaSkills,
+  verifySkill,
   unlinkOAuthAccount
 };

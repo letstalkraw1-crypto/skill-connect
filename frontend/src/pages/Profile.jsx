@@ -136,6 +136,29 @@ const Profile = () => {
     if (tab) {
       setActiveTab(tab);
     }
+
+    // Handle verification status messages
+    const verification = searchParams.get('verification');
+    const skill = searchParams.get('skill');
+    const message = searchParams.get('message');
+
+    if (verification) {
+      if (verification === 'success') {
+        alert(`✅ Skill "${skill}" verified successfully!`);
+      } else if (verification === 'failed') {
+        alert(`❌ ${message || 'Verification criteria not met'}`);
+      } else if (verification === 'cancelled') {
+        alert('⚠️ Verification cancelled');
+      } else if (verification === 'error') {
+        alert(`❌ Verification error: ${message || 'Unknown error'}`);
+      }
+      
+      // Clean up URL
+      searchParams.delete('verification');
+      searchParams.delete('skill');
+      searchParams.delete('message');
+      setSearchParams(searchParams, { replace: true });
+    }
   }, [searchParams]);
 
   // Real-time: update connect button when request is accepted/declined
