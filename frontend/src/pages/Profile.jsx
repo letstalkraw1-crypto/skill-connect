@@ -10,6 +10,7 @@ import Avatar from '../components/Avatar';
 import { userService, connectionService, authService, notificationService } from '../services/api';
 import ProfileSkeleton from '../components/ProfileSkeleton';
 import { useSocketContext } from '../context/SocketContext';
+import OAuthButtons from '../components/OAuthButtons';
 
 const Profile = () => {
   const { id } = useParams();
@@ -353,6 +354,14 @@ const Profile = () => {
               </div>
             )}
           </motion.div>
+
+          {isOwnProfile && (
+            <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} className="glass-card p-6 rounded-2xl space-y-4">
+              <h3 className="text-sm font-bold uppercase tracking-widest text-primary">Verify Skills</h3>
+              <p className="text-xs text-muted-foreground">Connect your accounts to automatically verify your skills</p>
+              <OAuthButtons />
+            </motion.div>
+          )}
         </div>
 
         {/* Right: Skills & Content */}
