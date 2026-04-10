@@ -380,7 +380,7 @@ async function unlinkOAuthAccount(userId, providerName) {
 /**
  * Verify a specific skill based on OAuth provider data
  * @param {string} userId - User ID
- * @param {string} skillId - Skill ID to verify
+ * @param {string} skillId - Skill ID to verify (UserSkill ID)
  * @param {string} skillName - Skill name
  * @param {string} providerName - Provider name (github, strava, etc.)
  * @param {string} accessToken - OAuth access token
@@ -388,7 +388,7 @@ async function unlinkOAuthAccount(userId, providerName) {
  */
 async function verifySkill(userId, skillId, skillName, providerName, accessToken) {
   try {
-    const { SkillVerification, UserSkill } = require('../config/db');
+    const { SkillVerification, UserSkill, Skill } = require('../config/db');
     
     let verified = false;
     let message = '';
@@ -441,10 +441,18 @@ async function verifySkill(userId, skillId, skillName, providerName, accessToken
 
     // Update skill verification status
     if (verified) {
-      await SkillVerification.findOneAndUpdate(
-        { userId, skillName },
+      // Find the skill by name
+      const skill = await Skill.findOne({ name: skillName });
+      if (!skill) {
+        return { verified: false, message: `Skill "${skillName}" not found in database` };
+      }
+
+      // Create/update SkillVerification record
+      const skillVerification = await SkillVerification.findOneAndUpdate(
+        { userId, skillId: skill._id },
         {
           userId,
+          skillId: skill._id,
           skillName,
           verificationType: providerName,
           status: 'verified',
@@ -454,13 +462,15 @@ async function verifySkill(userId, skillId, skillName, providerName, accessToken
         { upsert: true, new: true }
       );
 
-      // Update UserSkill if skillId is provided
-      if (skillId) {
-        await UserSkill.findByIdAndUpdate(skillId, {
-          isVerified: true,
-          verificationStatus: 'verified'
-        });
-      }
+      // Update UserSkill verification status
+      // Find UserSkill by userId and skillId (not the userSkillId passed in)
+      await UserSkill.updateMany(
+        { userId, skillId: skill._id },
+        {
+          verificationStatus: 'verified',
+          verificationId: skillVerification._id
+        }
+      );
 
       console.log(`[OAuth] Verified skill "${skillName}" for user ${userId} via ${providerName}`);
     }
