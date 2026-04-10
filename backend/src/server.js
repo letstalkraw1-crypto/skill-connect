@@ -86,6 +86,7 @@ app.get('/health', (req, res) => {
 
 // API Routes
 app.use('/api/auth', require('./routes/authRoutes'));
+app.use('/api/auth/oauth', require('./routes/oauthRoutes'));
 app.use('/api/profile', require('./routes/userRoutes'));
 app.use('/api/discover', require('./routes/discoveryRoutes'));
 app.use('/api/connections', require('./routes/connectionRoutes'));

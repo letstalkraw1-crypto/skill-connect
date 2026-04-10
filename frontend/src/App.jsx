@@ -17,6 +17,7 @@ const Communities = lazy(() => import('./pages/Communities'));
 const Legal = lazy(() => import('./pages/Legal'));
 const CommunityDetail = lazy(() => import('./pages/CommunityDetail'));
 const EventDetail = lazy(() => import('./pages/EventDetail'));
+const OAuthCallback = lazy(() => import('./pages/OAuthCallback'));
 
 // Lightweight loading fallback
 const LoadingFallback = () => (
@@ -44,6 +45,7 @@ const App = () => {
             <Suspense fallback={<LoadingFallback />}>
               <Routes>
                 <Route path="/auth" element={<Auth />} />
+                <Route path="/auth/callback" element={<OAuthCallback />} />
                 <Route path="/" element={<PrivateRoute><Home /></PrivateRoute>} />
                 <Route path="/profile/:id" element={<PrivateRoute><Profile /></PrivateRoute>} />
                 <Route path="/chat/:id?" element={<PrivateRoute><Chat /></PrivateRoute>} />

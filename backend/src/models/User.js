@@ -19,6 +19,11 @@ const userSchema = new mongoose.Schema({
   garminId: String,
   instagramId: String,
   githubId: String,
+  // OAuth provider IDs
+  googleId: { type: String, unique: true, sparse: true },
+  microsoftId: { type: String, unique: true, sparse: true },
+  facebookId: { type: String, unique: true, sparse: true },
+  appleId: { type: String, unique: true, sparse: true },
   portfolioUrl: String,
   allowTagging: { type: String, default: 'everyone' },
   theme: { type: String, default: 'bright' },
@@ -53,5 +58,9 @@ userSchema.methods.matchPassword = async function(enteredPassword) {
 
 userSchema.index({ location_geo: '2dsphere' });
 userSchema.index({ lat: 1, lng: 1 });
+userSchema.index({ googleId: 1 });
+userSchema.index({ githubId: 1 });
+userSchema.index({ microsoftId: 1 });
+userSchema.index({ stravaId: 1 });
 
 module.exports = mongoose.model('User', userSchema);

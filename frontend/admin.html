@@ -484,6 +484,7 @@
       <button class="nav-item" onclick="showSection('users',this)">👥 Users</button>
       <button class="nav-item" onclick="showSection('skills',this)">🏅 Skills</button>
       <button class="nav-item" onclick="showSection('events',this)">📅 Events</button>
+      <button class="nav-item" onclick="showSection('verifications',this);loadVerifications()">✅ Verifications</button>
       <div style="margin-top:auto;">
         <button class="nav-item" onclick="adminLogout()" style="color:#f87171;">🚪 Logout</button>
       </div>
@@ -575,6 +576,12 @@
       <div id="section-events" class="section">
         <h2 class="section-title">Events Management</h2>
         <div id="admin-events-list"></div>
+      </div>
+
+      <!-- VERIFICATIONS -->
+      <div id="section-verifications" class="section">
+        <h2 class="section-title">Skill Verifications</h2>
+        <div id="verifications-list" style="display:flex;flex-direction:column;gap:16px;"></div>
       </div>
 
     </div>
