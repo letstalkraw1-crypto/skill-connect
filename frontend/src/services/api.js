@@ -81,4 +81,8 @@ export const notificationService = {
   markAsRead: () => api.post('/notifications/read'),
 };
 
+export const communityService = {
+  listCommunities: () => api.get('/communities'),
+};
+
 export default api;
