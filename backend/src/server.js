@@ -118,7 +118,7 @@ app.use('/uploads', express.static(uploadsPath));
 app.use(express.static(distPath));
 
 // Global Error Handler
-app.use((err, req, res) => {
+app.use((err, req, res, next) => {
   logger.error(`Error: ${err.message}`, { stack: err.stack, path: req.path });
   res.status(err.status || 500).json({ error: err.message || 'Internal server error' });
 });
@@ -131,3 +131,12 @@ app.get('*', (req, res) => {
 
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, '0.0.0.0', () => { logger.info(`✅ Server running on port ${PORT}`); });
+
+// Prevent process crashes from unhandled errors
+process.on('uncaughtException', (err) => {
+  logger.error('Uncaught Exception:', err.message, err.stack);
+});
+
+process.on('unhandledRejection', (reason) => {
+  logger.error('Unhandled Rejection:', reason);
+});

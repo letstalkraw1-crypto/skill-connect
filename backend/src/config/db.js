@@ -18,6 +18,11 @@ async function connectDB() {
 
     console.log('✅ Connected to MongoDB Atlas');
 
+    mongoose.connection.on('disconnected', () => {
+      console.warn('⚠ MongoDB disconnected. Attempting to reconnect...');
+      setTimeout(() => connectDB(), 5000);
+    });
+
     // Seed initial data if needed
     await seedInitialData();
 
