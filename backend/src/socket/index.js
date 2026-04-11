@@ -89,10 +89,14 @@ function initSocket(httpServer) {
             io.to(participantId.toString()).emit('typing', { conversationId, userId: socket.userId });
           }
         }
-      } catch {}
+      } catch (typingErr) {
+        console.error('[Socket] Failed to broadcast typing indicator:', typingErr.message);
+      }
     });
 
-    socket.on('disconnect', () => {});
+    socket.on('disconnect', () => {
+      console.log(`[Socket] User ${socket.userId} disconnected`);
+    });
   });
 
   return io;

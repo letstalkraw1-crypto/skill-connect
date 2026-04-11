@@ -96,7 +96,7 @@ const completeOnboarding = async (req, res) => {
             { userId, skillId: skillDoc._id, subSkill: s.subSkill || null, level: s.level || 'Beginner' },
             { upsert: true, new: true }
           );
-        } catch (e) { /* skip duplicates */ }
+        } catch { /* skip duplicates */ }
       }
     }
 

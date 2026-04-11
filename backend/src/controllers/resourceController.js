@@ -1,4 +1,4 @@
-const { Resource, Skill, User, ResourceFavorite } = require('../config/db');
+const { Resource, ResourceFavorite, Skill } = require('../config/db');
 const { v4: uuidv4 } = require('uuid');
 
 const listResources = async (req, res) => {

@@ -6,6 +6,7 @@
  */
 
 const axios = require('axios');
+const { URLSearchParams } = require('url');
 const { User } = require('../config/db');
 const { v4: uuidv4 } = require('uuid');
 const { getCallbackUrl } = require('./oauthProviderRegistry');
@@ -64,7 +65,7 @@ async function exchangeCodeForToken(provider, code, codeVerifier) {
     return response.data;
   } catch (err) {
     console.error('[OAuth] Token exchange error:', err.message);
-    throw new Error(`Failed to exchange authorization code for token: ${err.message}`);
+    throw new Error(`Failed to exchange authorization code for token: ${err.message}`, { cause: err });
   }
 }
 
@@ -88,7 +89,7 @@ async function fetchUserProfile(provider, accessToken) {
     return normalizeProfile(response.data, provider.name);
   } catch (err) {
     console.error('[OAuth] Profile fetch error:', err.message);
-    throw new Error(`Failed to fetch user profile: ${err.message}`);
+    throw new Error(`Failed to fetch user profile: ${err.message}`, { cause: err });
   }
 }
 

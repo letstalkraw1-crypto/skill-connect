@@ -1,5 +1,5 @@
 const { v4: uuidv4 } = require('uuid');
-const { Connection, User, Notification } = require('../config/db');
+const { Connection, User } = require('../config/db');
 const { createNotification } = require('../utils/notification');
 const { emitToUser } = require('../socket/index');
 
@@ -66,7 +66,9 @@ async function acceptConnection(connectionId, userId) {
       connectionId: conn._id,
       acceptedBy: { _id: userId, name: accepter?.name, avatarUrl: accepter?.avatarUrl }
     });
-  } catch {}
+  } catch (socketErr) {
+    console.error('[Connection] Failed to emit connection_accepted event:', socketErr.message);
+  }
 
   return conn.toObject();
 }

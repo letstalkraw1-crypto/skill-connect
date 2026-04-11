@@ -1,8 +1,8 @@
-const { Post, PostLike, PostComment, PostInteraction, User, Connection, Notification } = require('../config/db');
+const { Post, PostLike, PostComment, PostInteraction, User, Connection } = require('../config/db');
 const { v4: uuidv4 } = require('uuid');
 const { createNotification } = require('../utils/notification');
-const path = require('path');
 const fs = require('fs');
+const path = require('path');
 const { uploadToCloudinary } = require('../config/cloudinary');
 
 // Helper to get connected user IDs
@@ -177,11 +177,12 @@ const createPost = async (req, res) => {
 
     // Broadcast new post to all connected users in real-time
     try {
-      const { emitToUser } = require('../socket/index');
       const { getIO } = require('../socket/index');
       const io = getIO();
       if (io) io.emit('new_post', postData); // broadcast to everyone
-    } catch {}
+    } catch (socketErr) {
+      console.error('[Post] Failed to broadcast new post:', socketErr.message);
+    }
 
     res.status(201).json(postData);
   } catch (err) {
@@ -268,7 +269,9 @@ const likePost = async (req, res) => {
       const { getIO } = require('../socket/index');
       const io = getIO();
       if (io) io.emit('post_updated', { postId: req.params.id, likeCount, liked: !existing });
-    } catch {}
+    } catch (socketErr) {
+      console.error('[Post] Failed to broadcast like update:', socketErr.message);
+    }
 
     res.json({ liked: !existing, likeCount });
   } catch (err) {

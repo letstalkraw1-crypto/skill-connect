@@ -155,7 +155,9 @@ const rsvpEvent = async (req, res) => {
           senderId: { _id: userId, name: joiner?.name },
           createdAt: new Date()
         });
-      } catch {}
+      } catch (notifErr) {
+        console.error('[Event] Failed to send RSVP notification:', notifErr.message);
+      }
 
       return res.json({ rsvpStatus: 'pending' });
     }

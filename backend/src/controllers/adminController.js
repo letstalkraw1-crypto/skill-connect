@@ -114,7 +114,7 @@ const addSkill = async (req, res) => {
     const skill = new Skill({ name: name.toLowerCase().trim() });
     await skill.save();
     res.json({ ok: true, name: name.toLowerCase().trim() });
-  } catch (e) {
+  } catch {
     res.status(409).json({ error: 'Skill already exists' });
   }
 };

@@ -188,12 +188,12 @@ async function generateEmailOtp(email, purpose = 'login') {
   const otp = new OTP({ email: normalizedEmail, code: hashedOtp, expiresAt, attempts: 0, purpose });
   await otp.save();
 
-  await sendOtpEmail(normalizedEmail, plainOtp, purpose);
+  await sendOtpEmail(normalizedEmail, plainOtp);
   return { message: 'OTP sent to your email' };
 }
 
 // ── Verify OTP & return JWT (Email) ──────────────────────────────────────────
-async function verifyEmailOtp(email, code, purpose = 'login') {
+async function verifyEmailOtp(email, code) {
   const normalizedEmail = (email || '').toLowerCase().trim();
   if (!normalizedEmail || !code) {
     const err = new Error('Email and OTP code are required'); err.status = 400; throw err;
@@ -304,7 +304,7 @@ function verifyToken(req, res, next) {
     const decoded = jwt.verify(token, JWT_SECRET);
     req.user = decoded;
     next();
-  } catch (err) {
+  } catch {
     res.status(401).json({ error: 'Invalid or expired token' });
   }
 }
@@ -320,7 +320,7 @@ function optionalVerifyToken(req, res, next) {
     const decoded = jwt.verify(token, JWT_SECRET);
     req.user = decoded;
     next();
-  } catch (err) {
+  } catch {
     next();
   }
 }

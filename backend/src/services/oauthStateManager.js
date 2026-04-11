@@ -104,7 +104,7 @@ async function cleanupExpiredStates() {
         await redisClient.del(key);
         deleted++;
       }
-    } catch (err) {
+    } catch {
       // Invalid state data, delete it
       await redisClient.del(key);
       deleted++;

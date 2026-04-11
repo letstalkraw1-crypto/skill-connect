@@ -170,7 +170,9 @@ const joinCommunity = async (req, res) => {
           senderId: { _id: userId, name: joiner?.name, avatarUrl: joiner?.avatarUrl },
           createdAt: new Date()
         });
-      } catch {}
+      } catch (notifErr) {
+        console.error('[Community] Failed to send join notification:', notifErr.message);
+      }
 
       return res.json({ joined: true, conversationId: community.conversationId });
     }

@@ -118,7 +118,7 @@ app.use('/uploads', express.static(uploadsPath));
 app.use(express.static(distPath));
 
 // Global Error Handler
-app.use((err, req, res, next) => {
+app.use((err, req, res) => {
   logger.error(`Error: ${err.message}`, { stack: err.stack, path: req.path });
   res.status(err.status || 500).json({ error: err.message || 'Internal server error' });
 });

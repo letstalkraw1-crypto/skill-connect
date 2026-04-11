@@ -6,7 +6,7 @@
  * and user account linking/creation.
  */
 
-const { getProvider, getCallbackUrl } = require('../services/oauthProviderRegistry');
+const { getProvider } = require('../services/oauthProviderRegistry');
 const { createState, verifyState, deleteState } = require('../services/oauthStateManager');
 const { generateCodeVerifier, generateCodeChallenge } = require('../utils/pkce');
 const oauthService = require('../services/oauthService');
@@ -168,21 +168,18 @@ async function handleCallback(req, res) {
   } catch (err) {
     console.error('[OAuth] Callback error:', err);
     
-    // Determine appropriate error response
-    let errorType = 'authentication_failed';
-    let statusCode = 502;
-    
+    // Determine error type for better user messaging
+    let redirectMessage = err.message;
     if (err.message.includes('token exchange')) {
-      errorType = 'token_exchange_failed';
+      redirectMessage = 'Failed to exchange authorization code';
     } else if (err.message.includes('profile')) {
-      errorType = 'profile_fetch_failed';
+      redirectMessage = 'Failed to fetch profile from provider';
     } else if (err.message.includes('timeout')) {
-      errorType = 'provider_timeout';
-      statusCode = 504;
+      redirectMessage = 'Provider request timed out';
     }
     
     // Redirect to frontend error page
-    return res.redirect(`${FRONTEND_URL}/profile?verification=error&message=${encodeURIComponent(err.message)}`);
+    return res.redirect(`${FRONTEND_URL}/profile?verification=error&message=${encodeURIComponent(redirectMessage)}`);
   }
 }
 

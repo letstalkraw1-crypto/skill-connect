@@ -1,4 +1,4 @@
-const { QARoom, QAQuestion, User, Skill } = require('../config/db');
+const { QARoom, QAQuestion } = require('../config/db');
 const { v4: uuidv4 } = require('uuid');
 
 const listRooms = async (req, res) => {

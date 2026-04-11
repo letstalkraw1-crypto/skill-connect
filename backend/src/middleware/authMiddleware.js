@@ -15,7 +15,7 @@ const verifyToken = async (req, res, next) => {
     const payload = jwt.verify(token, JWT_SECRET);
     req.user = { userId: payload.userId };
     next();
-  } catch (err) {
+  } catch {
     return res.status(401).json({ error: 'Invalid or expired token' });
   }
 };
@@ -35,7 +35,7 @@ const optionalVerifyToken = async (req, res, next) => {
     if (user || payload.userId) {
       req.user = { userId: payload.userId };
     }
-  } catch (e) {
+  } catch {
     // Ignore invalid tokens for optional auth
   }
   next();

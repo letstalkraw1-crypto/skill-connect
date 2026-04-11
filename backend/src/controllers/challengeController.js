@@ -1,4 +1,4 @@
-const { Challenge, ChallengeSubmission, Skill, User } = require('../config/db');
+const { Challenge, ChallengeSubmission } = require('../config/db');
 const { v4: uuidv4 } = require('uuid');
 
 const listChallenges = async (req, res) => {
