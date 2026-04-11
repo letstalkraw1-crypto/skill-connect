@@ -58,9 +58,7 @@ userSchema.methods.matchPassword = async function(enteredPassword) {
 
 userSchema.index({ location_geo: '2dsphere' });
 userSchema.index({ lat: 1, lng: 1 });
-userSchema.index({ googleId: 1 });
-userSchema.index({ githubId: 1 });
-userSchema.index({ microsoftId: 1 });
-userSchema.index({ stravaId: 1 });
+// Note: googleId, microsoftId, githubId, stravaId already have indexes via unique: true
+// No need to create duplicate indexes
 
 module.exports = mongoose.model('User', userSchema);
