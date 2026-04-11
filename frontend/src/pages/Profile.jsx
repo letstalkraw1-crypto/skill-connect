@@ -535,13 +535,13 @@ const Profile = () => {
                               <Check size={10} /> Verified
                             </span>
                           )}
-                          {skill.verificationStatus === 'pending' && !skill.isVerified && (
+                          {isOwnProfile && skill.verificationStatus === 'pending' && !skill.isVerified && (
                             <span className="px-2 py-0.5 bg-amber-500/20 text-amber-400 text-[9px] font-bold rounded-full">Pending</span>
                           )}
-                          {skill.verificationStatus === 'rejected' && (
+                          {isOwnProfile && skill.verificationStatus === 'rejected' && (
                             <span className="px-2 py-0.5 bg-red-500/20 text-red-400 text-[9px] font-bold rounded-full">Rejected</span>
                           )}
-                          {!skill.isVerified && !skill.verificationStatus && (
+                          {isOwnProfile && !skill.isVerified && !skill.verificationStatus && (
                             <span className="px-2 py-0.5 bg-accent text-muted-foreground text-[9px] font-bold rounded-full">Not Verified</span>
                           )}
                           <div className="px-2 py-1 bg-accent rounded text-[10px] font-bold uppercase tracking-wider">{skill.proficiency || skill.level || 'Beginner'}</div>
