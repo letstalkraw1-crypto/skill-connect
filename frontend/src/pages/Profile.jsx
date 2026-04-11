@@ -538,6 +538,12 @@ const Profile = () => {
                           {skill.verificationStatus === 'pending' && !skill.isVerified && (
                             <span className="px-2 py-0.5 bg-amber-500/20 text-amber-400 text-[9px] font-bold rounded-full">Pending</span>
                           )}
+                          {skill.verificationStatus === 'rejected' && (
+                            <span className="px-2 py-0.5 bg-red-500/20 text-red-400 text-[9px] font-bold rounded-full">Rejected</span>
+                          )}
+                          {!skill.isVerified && !skill.verificationStatus && (
+                            <span className="px-2 py-0.5 bg-accent text-muted-foreground text-[9px] font-bold rounded-full">Not Verified</span>
+                          )}
                           <div className="px-2 py-1 bg-accent rounded text-[10px] font-bold uppercase tracking-wider">{skill.proficiency || skill.level || 'Beginner'}</div>
                         </div>
                       </div>
@@ -548,7 +554,12 @@ const Profile = () => {
                         {skill.yearsExp || skill.years_exp || 0} {(skill.yearsExp || skill.years_exp || 0) === 1 ? 'Year' : 'Years'} Experience
                       </p>
                       {isOwnProfile && (
-                        <p className="text-[10px] text-primary/60 mt-2 font-bold">Click to edit</p>
+                        <p className="text-[10px] text-primary/60 mt-2 font-bold">
+                          {skill.verificationStatus === 'pending' ? '⏳ Under review by admin' :
+                           skill.verificationStatus === 'rejected' ? '❌ Rejected — click to resubmit' :
+                           skill.isVerified ? '✅ Verified' :
+                           'Click to edit or verify'}
+                        </p>
                       )}
                     </div>
                     );

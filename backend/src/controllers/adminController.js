@@ -197,6 +197,36 @@ const reviewVerification = async (req, res) => {
       { verificationStatus: status }
     );
 
+    // Send notification to user
+    try {
+      const { Notification } = require('../config/db');
+      const { v4: uuidv4 } = require('uuid');
+      const skillName = verification.skillName || 'your skill';
+      const message = status === 'verified'
+        ? `✅ Your "${skillName}" skill has been verified!`
+        : `❌ Your "${skillName}" skill verification was rejected.${adminNote ? ` Reason: ${adminNote}` : ' Please resubmit with correct proof.'}`;
+
+      await new Notification({
+        _id: uuidv4(),
+        userId: verification.userId,
+        type: 'skill_verification',
+        message,
+        isRead: false,
+      }).save();
+
+      // Real-time notification
+      try {
+        const { emitToUser } = require('../socket/index');
+        emitToUser(verification.userId.toString(), 'notification', {
+          type: 'skill_verification',
+          message,
+          createdAt: new Date(),
+        });
+      } catch {}
+    } catch (notifErr) {
+      console.error('Failed to send verification notification:', notifErr.message);
+    }
+
     res.json({ ok: true, status });
   } catch (err) {
     res.status(500).json({ error: err.message });

@@ -44,6 +44,24 @@ const AddSkillModal = ({ onClose, onSave }) => {
 
   const handleSave = async () => {
     if (!selectedCategory) return;
+
+    // Validate required gaming fields
+    if (isGaming) {
+      const gameName = selectedGame === 'Other' ? customGame.trim() : selectedGame;
+      if (!gameName) {
+        alert('Please select or enter a game name');
+        return;
+      }
+      if (!playerId.trim()) {
+        alert('Player ID / UID is required for Online Gaming');
+        return;
+      }
+      if (!screenshotFile) {
+        alert('Please upload a rank screenshot for verification');
+        return;
+      }
+    }
+
     setSaving(true);
     try {
       const skills = [{
