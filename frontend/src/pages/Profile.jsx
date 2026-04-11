@@ -191,7 +191,12 @@ const Profile = () => {
       const { data } = await authService.updateAvatar(formData);
       const newAvatarUrl = data.avatarUrl || data.avatar_url || data.url;
       setUser(prev => ({ ...prev, avatarUrl: newAvatarUrl }));
-      updateUser({ avatarUrl: newAvatarUrl });
+      
+      // Only update auth context if this is your own profile
+      const myId = currentUser?._id || currentUser?.id;
+      if (myId === id) {
+        updateUser({ avatarUrl: newAvatarUrl });
+      }
     } catch (err) {
       console.error('Avatar upload failed:', err);
       const msg = err?.response?.data?.error || err.message || 'Failed to upload photo';
@@ -207,7 +212,12 @@ const Profile = () => {
     try {
       const { data } = await userService.updateProfile(formData);
       setUser(data);
-      updateUser(data);
+      
+      // Only update auth context if this is your own profile
+      const myId = currentUser?._id || currentUser?.id;
+      if (myId === id) {
+        updateUser(data);
+      }
     } catch (err) {
       console.error(err);
       throw err;
