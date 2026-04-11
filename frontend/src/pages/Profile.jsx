@@ -45,6 +45,8 @@ const Profile = () => {
     if (connPage === 1) setLoading(true);
     try {
       const { data } = await userService.getProfile(id);
+      
+      // CRITICAL: Only update local state, never update auth context for other users
       setUser(data);
 
       // Calculate points
@@ -126,6 +128,11 @@ const Profile = () => {
 
   useEffect(() => {
     if (id) {
+      // Reset state when viewing a different profile
+      setUser(null);
+      setConnections([]);
+      setConnectionStatus(null);
+      setPoints(0);
       fetchProfile();
     }
   }, [id]);

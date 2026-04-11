@@ -55,6 +55,16 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const updateUser = (newData) => {
+    // CRITICAL SECURITY: Only update if the user ID matches the current user
+    // This prevents auth context pollution when viewing other users' profiles
+    if (newData._id || newData.id) {
+      const currentUserId = user?._id || user?.id;
+      const newUserId = newData._id || newData.id;
+      if (currentUserId && newUserId && currentUserId !== newUserId) {
+        console.warn('Attempted to update auth context with different user ID. Blocked for security.');
+        return;
+      }
+    }
     setUser(prev => prev ? { ...prev, ...newData } : newData);
   };
 
