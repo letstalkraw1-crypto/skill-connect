@@ -181,7 +181,16 @@ const submitVerification = async (req, res) => {
       const { uploadToCloudinary } = require('../config/cloudinary');
       const result = await uploadToCloudinary(req.file.buffer, { folder: 'skill-certificates' });
       certificateUrl = result.secure_url;
-      verificationType = 'certificate';
+      // Only override type to 'certificate' if not already a specific type like 'gaming'
+      if (!verificationType || verificationType === 'link') {
+        verificationType = 'certificate';
+      }
+    }
+
+    // Parse gamingDetails if it came as a JSON string (from FormData)
+    let gamingDetails = req.body.gamingDetails || null;
+    if (gamingDetails && typeof gamingDetails === 'string') {
+      try { gamingDetails = JSON.parse(gamingDetails); } catch { gamingDetails = null; }
     }
 
     const skillDoc = await Skill.findById(skillId).lean();
@@ -194,7 +203,7 @@ const submitVerification = async (req, res) => {
       url: url || null,
       certificateUrl,
       status: 'pending',
-      gamingDetails: req.body.gamingDetails || null,
+      gamingDetails: gamingDetails,
     });
     await verification.save();
 

@@ -367,9 +367,16 @@ const VerificationsView = ({ verifications, onReview }) => (
               <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-2">
                 {v.verificationType === 'gaming' ? 'Rank Screenshot' : 'Certificate'}
               </p>
-              <a href={v.certificateUrl} target="_blank" rel="noopener noreferrer"
-                className="inline-block">
-                <img src={v.certificateUrl} alt="Proof" className="max-h-48 rounded-xl border border-border object-contain" />
+              <a href={v.certificateUrl} target="_blank" rel="noopener noreferrer">
+                <img src={v.certificateUrl} alt="Proof"
+                  className="max-h-64 w-full rounded-xl border border-border object-contain bg-accent/20 cursor-pointer hover:opacity-90 transition-opacity"
+                  onError={e => { e.target.style.display='none'; e.target.nextSibling.style.display='block'; }}
+                />
+                <a href={v.certificateUrl} target="_blank" rel="noopener noreferrer"
+                  style={{display:'none'}}
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-primary/10 text-primary rounded-xl text-sm font-bold hover:bg-primary/20 transition-all">
+                  📎 View Screenshot
+                </a>
               </a>
             </div>
           )}
