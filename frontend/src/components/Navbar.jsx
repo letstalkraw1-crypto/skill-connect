@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Home, Search, MessageSquare, User, LogOut, Plus, Calendar, Users, X } from 'lucide-react';
+import { Home, Search, MessageSquare, User, LogOut, Plus, Calendar, Users, X, Trophy, BookOpen, MessageCircleQuestion } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { AnimatePresence, motion } from 'framer-motion';
 import Avatar from './Avatar';
@@ -86,6 +86,18 @@ const Navbar = () => {
             <Link to="/communities"
               className={`hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${location.pathname === '/communities' ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-accent hover:text-foreground'}`}>
               <Users size={16} /> Groups
+            </Link>
+            <Link to="/challenges"
+              className={`hidden lg:flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${location.pathname === '/challenges' ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-accent hover:text-foreground'}`}>
+              <Trophy size={16} /> Challenges
+            </Link>
+            <Link to="/resources"
+              className={`hidden lg:flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${location.pathname === '/resources' ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-accent hover:text-foreground'}`}>
+              <BookOpen size={16} /> Resources
+            </Link>
+            <Link to="/qa"
+              className={`hidden lg:flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${location.pathname === '/qa' ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-accent hover:text-foreground'}`}>
+              <MessageCircleQuestion size={16} /> Q&A
             </Link>
 
             {/* Search */}

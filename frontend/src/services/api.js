@@ -87,4 +87,25 @@ export const communityService = {
   listCommunities: () => api.get('/communities'),
 };
 
+export const challengeService = {
+  list: () => api.get('/challenges'),
+  submit: (id, data) => api.post(`/challenges/${id}/submit`, data),
+  getSubmissions: (id) => api.get(`/challenges/${id}/submissions`),
+};
+
+export const resourceService = {
+  list: (params) => api.get('/resources', { params }),
+  create: (data) => api.post('/resources', data),
+  favorite: (id) => api.post(`/resources/${id}/favorite`),
+  unfavorite: (id) => api.delete(`/resources/${id}/favorite`),
+};
+
+export const qaService = {
+  listRooms: () => api.get('/qa'),
+  createRoom: (data) => api.post('/qa', data),
+  getQuestions: (roomId) => api.get(`/qa/${roomId}/questions`),
+  askQuestion: (roomId, question) => api.post(`/qa/${roomId}/questions`, { question }),
+  answerQuestion: (questionId, answer) => api.put(`/qa/questions/${questionId}`, { answer }),
+};
+
 export default api;

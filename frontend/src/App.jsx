@@ -20,6 +20,9 @@ const CommunityDetail = lazy(() => import('./pages/CommunityDetail'));
 const EventDetail = lazy(() => import('./pages/EventDetail'));
 const OAuthCallback = lazy(() => import('./pages/OAuthCallback'));
 const Admin = lazy(() => import('./pages/Admin'));
+const Challenges = lazy(() => import('./pages/Challenges'));
+const Resources = lazy(() => import('./pages/Resources'));
+const QARooms = lazy(() => import('./pages/QARooms'));
 
 // Lightweight loading fallback
 const LoadingFallback = () => (
@@ -59,6 +62,9 @@ const App = () => {
                 <Route path="/events/:id" element={<PrivateRoute><EventDetail /></PrivateRoute>} />
                 <Route path="/communities" element={<PrivateRoute><Communities /></PrivateRoute>} />
                 <Route path="/communities/:id" element={<PrivateRoute><CommunityDetail /></PrivateRoute>} />
+                <Route path="/challenges" element={<PrivateRoute><Challenges /></PrivateRoute>} />
+                <Route path="/resources" element={<PrivateRoute><Resources /></PrivateRoute>} />
+                <Route path="/qa" element={<PrivateRoute><QARooms /></PrivateRoute>} />
                 <Route path="/legal/:type" element={<Legal />} />
                 <Route path="*" element={<Navigate to="/" />} />
               </Routes>
