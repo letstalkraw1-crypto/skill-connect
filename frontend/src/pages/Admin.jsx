@@ -346,10 +346,38 @@ const VerificationsView = ({ verifications, onReview }) => (
           </div>
           <span className="px-3 py-1 bg-yellow-500/20 text-yellow-500 rounded-full text-xs font-bold">Pending</span>
         </div>
-        <div className="mb-4">
+        <div className="mb-4 space-y-1">
           <p className="text-sm"><span className="font-bold">Skill:</span> {v.skillName}</p>
           <p className="text-sm"><span className="font-bold">Type:</span> {v.verificationType}</p>
           <p className="text-sm"><span className="font-bold">Submitted:</span> {new Date(v.createdAt).toLocaleString()}</p>
+
+          {/* Gaming-specific details */}
+          {v.verificationType === 'gaming' && v.gamingDetails && (
+            <div className="mt-3 p-3 bg-primary/10 border border-primary/20 rounded-xl space-y-1">
+              <p className="text-xs font-black uppercase text-primary tracking-widest mb-2">🎮 Gaming Details</p>
+              <p className="text-sm"><span className="font-bold">Game:</span> {v.gamingDetails.customGame || v.gamingDetails.game}</p>
+              <p className="text-sm"><span className="font-bold">Player ID:</span> {v.gamingDetails.playerId || '—'}</p>
+              <p className="text-sm"><span className="font-bold">Role:</span> {v.gamingDetails.role || '—'}</p>
+            </div>
+          )}
+
+          {/* Screenshot / Certificate */}
+          {v.certificateUrl && (
+            <div className="mt-3">
+              <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-2">
+                {v.verificationType === 'gaming' ? 'Rank Screenshot' : 'Certificate'}
+              </p>
+              <a href={v.certificateUrl} target="_blank" rel="noopener noreferrer"
+                className="inline-block">
+                <img src={v.certificateUrl} alt="Proof" className="max-h-48 rounded-xl border border-border object-contain" />
+              </a>
+            </div>
+          )}
+          {v.url && (
+            <p className="text-sm"><span className="font-bold">Link:</span>{' '}
+              <a href={v.url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline truncate">{v.url}</a>
+            </p>
+          )}
         </div>
         <div className="flex gap-2">
           <button

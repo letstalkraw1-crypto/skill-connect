@@ -132,7 +132,8 @@ const getSkillsList = (req, res) => {
     'Business / Entrepreneurship': ['Marketing', 'Sales', 'Startup Building'],
     'Personal Development': ['Leadership', 'Time Management', 'Problem Solving'],
     'Yoga': ['Hatha Yoga', 'Power Yoga', 'Meditation'],
-    'Hiking': ['Trail Hiking', 'Mountain Trekking', 'Backpacking']
+    'Hiking': ['Trail Hiking', 'Mountain Trekking', 'Backpacking'],
+    'Online Gaming': ['BGMI', 'Free Fire', 'Valorant', 'COD Mobile', 'Chess', 'Other']
   };
   res.json(SKILLS_DATA);
 };
@@ -192,7 +193,8 @@ const submitVerification = async (req, res) => {
       verificationType: verificationType || 'link',
       url: url || null,
       certificateUrl,
-      status: 'pending'
+      status: 'pending',
+      gamingDetails: req.body.gamingDetails || null,
     });
     await verification.save();
 

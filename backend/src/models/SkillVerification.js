@@ -9,10 +9,17 @@ const skillVerificationSchema = new mongoose.Schema({
   verificationType: {
     type: String,
     required: true,
-    enum: ['strava', 'github', 'leetcode', 'hackerrank', 'portfolio', 'certificate', 'link']
+    enum: ['strava', 'github', 'leetcode', 'hackerrank', 'portfolio', 'certificate', 'link', 'gaming']
   },
-  url: String,           // for link-based verifications
-  certificateUrl: String, // for certificate uploads (Cloudinary URL)
+  url: String,
+  certificateUrl: String,
+  // Gaming-specific fields
+  gamingDetails: {
+    game: String,        // BGMI, Free Fire, Valorant, etc.
+    customGame: String,  // if user typed their own game
+    playerId: String,    // in-game UID
+    role: String,        // Fragger, Sniper, Support, IGL
+  },
   status: { type: String, default: 'pending', enum: ['pending', 'verified', 'rejected'] },
   adminNote: String,     // admin can add a note when rejecting
   verifiedAt: Date,

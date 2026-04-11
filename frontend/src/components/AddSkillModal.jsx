@@ -1,7 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Search, Star, Loader2, Check } from 'lucide-react';
+import { X, Search, Star, Loader2, Check, Gamepad2, Upload } from 'lucide-react';
 import { userService } from '../services/api';
+import api from '../services/api';
+
+const PRESET_GAMES = ['BGMI', 'Free Fire', 'Valorant', 'COD Mobile', 'Chess'];
+const GAMING_ROLES = ['Fragger', 'Sniper', 'Support', 'IGL (In-Game Leader)', 'All-rounder'];
 
 const AddSkillModal = ({ onClose, onSave }) => {
   const [skillsData, setSkillsData] = useState({});
@@ -14,6 +18,15 @@ const AddSkillModal = ({ onClose, onSave }) => {
   const [verificationLink, setVerificationLink] = useState('');
   const [certificateFile, setCertificateFile] = useState(null);
   const [saving, setSaving] = useState(false);
+
+  // Gaming-specific state
+  const [selectedGame, setSelectedGame] = useState('');
+  const [customGame, setCustomGame] = useState('');
+  const [playerId, setPlayerId] = useState('');
+  const [gamingRole, setGamingRole] = useState('');
+  const [screenshotFile, setScreenshotFile] = useState(null);
+
+  const isGaming = selectedCategory === 'Online Gaming';
 
   useEffect(() => {
     const fetchSkills = async () => {
@@ -35,48 +48,60 @@ const AddSkillModal = ({ onClose, onSave }) => {
     try {
       const skills = [{
         name: selectedCategory,
-        subSkill: selectedSubSkill,
+        subSkill: isGaming ? (selectedGame === 'Other' ? customGame : selectedGame) || selectedSubSkill : selectedSubSkill,
         proficiency: proficiency,
         yearsExp: parseInt(yearsExp) || 0,
         verificationLink: verificationLink.trim() || null,
       }];
       
-      // Save skill first
       await onSave(skills);
 
-      // If verification link provided, initiate OAuth flow
-      if (verificationLink.trim()) {
+      // Gaming verification — upload screenshot + submit verification
+      if (isGaming && screenshotFile) {
+        try {
+          const token = localStorage.getItem('token');
+          const payload = JSON.parse(atob(token.split('.')[1]));
+          const userId = payload.userId;
+
+          await new Promise(resolve => setTimeout(resolve, 500));
+          const { data: profile } = await userService.getProfile(userId);
+          const savedSkill = profile.skills?.find(s => s.name.toLowerCase() === 'online gaming');
+
+          if (savedSkill) {
+            const formData = new FormData();
+            formData.append('certificate', screenshotFile);
+            formData.append('skillName', 'Online Gaming');
+            formData.append('verificationType', 'gaming');
+            formData.append('gamingDetails', JSON.stringify({
+              game: selectedGame === 'Other' ? customGame : selectedGame,
+              customGame: selectedGame === 'Other' ? customGame : '',
+              playerId,
+              role: gamingRole,
+            }));
+            await api.post('/profile/verifications', formData);
+          }
+        } catch (e) {
+          console.error('Gaming verification submission failed:', e);
+        }
+      }
+
+      // OAuth verification for non-gaming skills
+      if (!isGaming && verificationLink.trim()) {
         const provider = getOAuthProvider(selectedCategory, verificationLink);
         if (provider) {
-          // Get current user from auth context or localStorage
           const token = localStorage.getItem('token');
-          if (!token) {
-            alert('Please log in to verify skills');
-            onClose();
-            return;
-          }
-
-          // Decode JWT to get user ID
+          if (!token) { alert('Please log in to verify skills'); onClose(); return; }
           try {
             const payload = JSON.parse(atob(token.split('.')[1]));
             const userId = payload.userId;
-            
-            // Wait a moment for the skill to be fully saved
             await new Promise(resolve => setTimeout(resolve, 500));
-            
-            // Fetch updated profile to get the saved skill ID
             const { data: profile } = await userService.getProfile(userId);
-            const savedSkill = profile.skills?.find(s => 
-              s.name.toLowerCase() === selectedCategory.toLowerCase()
-            );
-            
+            const savedSkill = profile.skills?.find(s => s.name.toLowerCase() === selectedCategory.toLowerCase());
             if (savedSkill) {
-              // Redirect to OAuth flow with skill context
               const skillId = savedSkill.userSkillId || savedSkill._id || savedSkill.id;
               window.location.href = `/api/auth/oauth/${provider}?skillId=${skillId}&skillName=${encodeURIComponent(selectedCategory)}`;
-              return; // Don't close modal, we're redirecting
+              return;
             } else {
-              console.error('Saved skill not found in profile. Skills:', profile.skills?.map(s => s.name));
               alert('Skill saved but verification failed. Please try again from your profile.');
             }
           } catch (err) {
@@ -86,11 +111,8 @@ const AddSkillModal = ({ onClose, onSave }) => {
         }
       }
 
-      // Submit verification if certificate provided
-      if (certificateFile) {
+      if (!isGaming && certificateFile) {
         try {
-          const apiModule = await import('../services/api');
-          const api = apiModule.default;
           const formData = new FormData();
           formData.append('certificate', certificateFile);
           formData.append('skillName', selectedCategory);
@@ -232,6 +254,80 @@ const AddSkillModal = ({ onClose, onSave }) => {
                   ))}
                 </div>
               </div>
+
+              {/* Gaming-specific form */}
+              {isGaming && (
+                <div className="space-y-4 p-4 bg-primary/5 border border-primary/20 rounded-2xl">
+                  <div className="flex items-center gap-2">
+                    <Gamepad2 size={16} className="text-primary" />
+                    <span className="text-xs font-black uppercase text-primary tracking-widest">Gaming Details</span>
+                  </div>
+
+                  {/* Game selection */}
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Select Game *</label>
+                    <div className="flex flex-wrap gap-2">
+                      {PRESET_GAMES.map(game => (
+                        <button key={game} onClick={() => setSelectedGame(game)}
+                          className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all ${selectedGame === game ? 'bg-primary text-primary-foreground border-primary' : 'bg-accent/10 border-border hover:border-primary/50'}`}>
+                          {game}
+                        </button>
+                      ))}
+                      <button onClick={() => setSelectedGame('Other')}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all ${selectedGame === 'Other' ? 'bg-primary text-primary-foreground border-primary' : 'bg-accent/10 border-border hover:border-primary/50'}`}>
+                        Other
+                      </button>
+                    </div>
+                    {selectedGame === 'Other' && (
+                      <input type="text" placeholder="Enter game name..."
+                        value={customGame} onChange={e => setCustomGame(e.target.value)}
+                        className="w-full px-4 py-2.5 rounded-xl bg-accent/20 border border-border outline-none focus:ring-2 focus:ring-primary/50 text-sm mt-2" />
+                    )}
+                  </div>
+
+                  {/* Player ID */}
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest">In-Game Player ID / UID *</label>
+                    <input type="text" placeholder="e.g. 5123456789"
+                      value={playerId} onChange={e => setPlayerId(e.target.value)}
+                      className="w-full px-4 py-2.5 rounded-xl bg-accent/20 border border-border outline-none focus:ring-2 focus:ring-primary/50 text-sm" />
+                  </div>
+
+                  {/* Role */}
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Your Role</label>
+                    <div className="flex flex-wrap gap-2">
+                      {GAMING_ROLES.map(role => (
+                        <button key={role} onClick={() => setGamingRole(gamingRole === role ? '' : role)}
+                          className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all ${gamingRole === role ? 'bg-primary text-primary-foreground border-primary' : 'bg-accent/10 border-border hover:border-primary/50'}`}>
+                          {role}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Screenshot upload */}
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Rank Screenshot *</label>
+                    <p className="text-xs text-muted-foreground">Upload a screenshot of your in-game rank/profile for verification</p>
+                    <label className="flex items-center gap-3 px-4 py-3 rounded-xl bg-accent/30 border border-dashed border-border cursor-pointer hover:border-primary/50 transition-all">
+                      <Upload size={18} className="text-primary flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        {screenshotFile ? (
+                          <p className="text-sm font-bold text-primary truncate">{screenshotFile.name}</p>
+                        ) : (
+                          <p className="text-sm text-muted-foreground">Choose screenshot (JPG, PNG)</p>
+                        )}
+                      </div>
+                      <input type="file" accept=".jpg,.jpeg,.png,.webp" className="hidden"
+                        onChange={e => setScreenshotFile(e.target.files[0])} />
+                    </label>
+                    {screenshotFile && (
+                      <p className="text-xs text-amber-500 font-bold">⏳ Will be reviewed by admin within 24 hours</p>
+                    )}
+                  </div>
+                </div>
+              )}
 
               <div className="space-y-3">
                 <label className="text-xs font-black uppercase text-muted-foreground tracking-widest">Proficiency Level</label>
