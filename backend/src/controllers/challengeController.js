@@ -3,8 +3,15 @@ const { v4: uuidv4 } = require('uuid');
 
 const listChallenges = async (req, res) => {
   try {
-    const challenges = await Challenge.find().populate('skillId', 'name').sort({ createdAt: -1 }).lean();
-    res.json(challenges);
+    const challenges = await Challenge.find()
+      .populate('skillId', 'name')
+      .populate('creatorId', 'name avatarUrl')
+      .sort({ createdAt: -1 }).lean();
+    res.json(challenges.map(c => ({
+      ...c,
+      creatorName: c.creatorId?.name,
+      isCreator: c.creatorId?._id?.toString() === req.user?.userId
+    })));
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -14,7 +21,14 @@ const createChallenge = async (req, res) => {
   try {
     const { title, description, skillId, difficulty, startDate, endDate, points } = req.body;
     if (!title) return res.status(400).json({ error: 'title required' });
-    const challenge = new Challenge({ _id: uuidv4(), title, description, skillId, difficulty, startDate, endDate, points: points || 10 });
+    const challenge = new Challenge({
+      _id: uuidv4(),
+      creatorId: req.user.userId,
+      title, description, skillId,
+      difficulty: difficulty || 'Medium',
+      startDate, endDate,
+      points: points || 10
+    });
     await challenge.save();
     res.json({ id: challenge._id });
   } catch (err) {

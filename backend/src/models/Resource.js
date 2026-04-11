@@ -9,6 +9,7 @@ const resourceSchema = new mongoose.Schema({
   url: String,
   category: String,
   skillId: { type: mongoose.Schema.Types.ObjectId, ref: 'Skill' },
+  price: { type: Number, default: 0 }, // 0 = free
   createdAt: { type: Date, default: Date.now }
 });
 

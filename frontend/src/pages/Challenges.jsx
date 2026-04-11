@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Trophy, Star, Clock, ChevronRight, X, Send, Loader2 } from 'lucide-react';
+import { Trophy, Star, Clock, X, Send, Loader2, Plus, Calendar } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 import { format } from 'date-fns';
@@ -14,6 +14,90 @@ const difficultyColor = (d) => {
   return 'bg-accent text-muted-foreground';
 };
 
+const CreateChallengeModal = ({ onClose, onSuccess }) => {
+  const [form, setForm] = useState({ title: '', description: '', difficulty: 'Medium', points: 10, startDate: '', endDate: '' });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!form.title.trim()) { setError('Title is required'); return; }
+    setLoading(true); setError('');
+    try {
+      await api.post('/challenges', {
+        ...form,
+        points: parseInt(form.points) || 10,
+        startDate: form.startDate || null,
+        endDate: form.endDate || null,
+      });
+      onSuccess();
+    } catch (err) {
+      setError(err?.response?.data?.error || 'Failed to create challenge');
+    } finally { setLoading(false); }
+  };
+
+  return (
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+      onClick={e => e.target === e.currentTarget && onClose()}>
+      <motion.div initial={{ y: 40, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 40, opacity: 0 }}
+        className="w-full max-w-md glass-card rounded-3xl border border-border shadow-2xl p-6 max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between mb-5">
+          <h3 className="font-black text-lg">Create Challenge</h3>
+          <button onClick={onClose} className="h-8 w-8 flex items-center justify-center rounded-xl hover:bg-accent"><X size={16} /></button>
+        </div>
+        {error && <div className="mb-4 px-3 py-2 bg-destructive/10 border border-destructive/30 rounded-xl text-sm text-destructive">{error}</div>}
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1.5 block">Title *</label>
+            <input type="text" placeholder="e.g. Run 5km in under 30 minutes"
+              value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))}
+              className="w-full px-4 py-3 rounded-xl bg-accent/30 border border-border focus:ring-2 focus:ring-primary/50 outline-none text-sm" />
+          </div>
+          <div>
+            <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1.5 block">Description</label>
+            <textarea rows={3} placeholder="Describe the challenge and what participants need to do..."
+              value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))}
+              className="w-full px-4 py-3 rounded-xl bg-accent/30 border border-border focus:ring-2 focus:ring-primary/50 outline-none text-sm resize-none" />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1.5 block">Difficulty</label>
+              <select value={form.difficulty} onChange={e => setForm(p => ({ ...p, difficulty: e.target.value }))}
+                className="w-full px-4 py-3 rounded-xl bg-accent/30 border border-border focus:ring-2 focus:ring-primary/50 outline-none text-sm">
+                <option>Easy</option><option>Medium</option><option>Hard</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1.5 block">Points</label>
+              <input type="number" min={1} max={1000} value={form.points}
+                onChange={e => setForm(p => ({ ...p, points: e.target.value }))}
+                className="w-full px-4 py-3 rounded-xl bg-accent/30 border border-border focus:ring-2 focus:ring-primary/50 outline-none text-sm" />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1.5 block">Start Date</label>
+              <input type="date" value={form.startDate} onChange={e => setForm(p => ({ ...p, startDate: e.target.value }))}
+                className="w-full px-4 py-3 rounded-xl bg-accent/30 border border-border focus:ring-2 focus:ring-primary/50 outline-none text-sm" />
+            </div>
+            <div>
+              <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1.5 block">End Date</label>
+              <input type="date" value={form.endDate} onChange={e => setForm(p => ({ ...p, endDate: e.target.value }))}
+                className="w-full px-4 py-3 rounded-xl bg-accent/30 border border-border focus:ring-2 focus:ring-primary/50 outline-none text-sm" />
+            </div>
+          </div>
+          <button type="submit" disabled={loading}
+            className="w-full py-3 bg-primary text-primary-foreground rounded-2xl font-bold shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-2">
+            {loading ? <Loader2 size={18} className="animate-spin" /> : <Trophy size={18} />}
+            {loading ? 'Creating...' : 'Create Challenge'}
+          </button>
+        </form>
+      </motion.div>
+    </motion.div>
+  );
+};
+
 const SubmitModal = ({ challenge, onClose, onSuccess }) => {
   const [submissionData, setSubmissionData] = useState('');
   const [loading, setLoading] = useState(false);
@@ -22,16 +106,13 @@ const SubmitModal = ({ challenge, onClose, onSuccess }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!submissionData.trim()) { setError('Please describe your submission'); return; }
-    setLoading(true);
-    setError('');
+    setLoading(true); setError('');
     try {
       await api.post(`/challenges/${challenge._id}/submit`, { submissionData });
       onSuccess();
     } catch (err) {
       setError(err?.response?.data?.error || 'Submission failed');
-    } finally {
-      setLoading(false);
-    }
+    } finally { setLoading(false); }
   };
 
   return (
@@ -41,18 +122,15 @@ const SubmitModal = ({ challenge, onClose, onSuccess }) => {
       <motion.div initial={{ y: 40, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 40, opacity: 0 }}
         className="w-full max-w-md glass-card rounded-3xl border border-border shadow-2xl p-6">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="font-black text-lg">Submit Challenge</h3>
+          <h3 className="font-black text-lg">Submit Entry</h3>
           <button onClick={onClose} className="h-8 w-8 flex items-center justify-center rounded-xl hover:bg-accent"><X size={16} /></button>
         </div>
         <p className="text-sm text-muted-foreground mb-5 font-medium">{challenge.title}</p>
         {error && <div className="mb-4 px-3 py-2 bg-destructive/10 border border-destructive/30 rounded-xl text-sm text-destructive">{error}</div>}
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1.5 block">Your Submission *</label>
-            <textarea rows={4} placeholder="Describe what you did, share a link, or explain your approach..."
-              value={submissionData} onChange={e => setSubmissionData(e.target.value)}
-              className="w-full px-4 py-3 rounded-xl bg-accent/30 border border-border focus:ring-2 focus:ring-primary/50 outline-none text-sm resize-none" />
-          </div>
+          <textarea rows={4} placeholder="Describe what you did, share a link, or explain your approach..."
+            value={submissionData} onChange={e => setSubmissionData(e.target.value)}
+            className="w-full px-4 py-3 rounded-xl bg-accent/30 border border-border focus:ring-2 focus:ring-primary/50 outline-none text-sm resize-none" />
           <button type="submit" disabled={loading}
             className="w-full py-3 bg-primary text-primary-foreground rounded-2xl font-bold shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-2">
             {loading ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
@@ -100,9 +178,7 @@ const LeaderboardModal = ({ challenge, onClose }) => {
                   <p className="text-sm font-bold truncate">{s.userId?.name || 'Anonymous'}</p>
                   <p className="text-xs text-muted-foreground truncate">{s.submissionData}</p>
                 </div>
-                {s.score != null && (
-                  <span className="text-xs font-bold text-primary">{s.score}pts</span>
-                )}
+                {s.score != null && <span className="text-xs font-bold text-primary">{s.score}pts</span>}
               </div>
             ))}
           </div>
@@ -116,42 +192,50 @@ export default function Challenges() {
   const { user } = useAuth();
   const [challenges, setChallenges] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showCreate, setShowCreate] = useState(false);
   const [submitChallenge, setSubmitChallenge] = useState(null);
   const [leaderboardChallenge, setLeaderboardChallenge] = useState(null);
   const [submitted, setSubmitted] = useState(new Set());
 
-  useEffect(() => {
+  const fetchChallenges = () => {
     api.get('/challenges')
       .then(({ data }) => setChallenges(data))
       .catch(console.error)
       .finally(() => setLoading(false));
-  }, []);
+  };
+
+  useEffect(() => { fetchChallenges(); }, []);
 
   const isActive = (c) => {
     const now = new Date();
-    const start = c.startDate ? new Date(c.startDate) : null;
-    const end = c.endDate ? new Date(c.endDate) : null;
-    if (start && now < start) return false;
-    if (end && now > end) return false;
+    if (c.startDate && now < new Date(c.startDate)) return false;
+    if (c.endDate && now > new Date(c.endDate)) return false;
     return true;
   };
 
   return (
     <div className="max-w-2xl mx-auto pb-24">
-      <div className="flex items-center gap-3 mb-6">
-        <Trophy size={24} className="text-primary" />
-        <h1 className="text-2xl font-black tracking-tight">Challenges</h1>
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-3">
+          <Trophy size={24} className="text-primary" />
+          <h1 className="text-2xl font-black tracking-tight">Challenges</h1>
+        </div>
+        <button onClick={() => setShowCreate(true)}
+          className="flex items-center gap-1.5 px-3 py-2 bg-primary text-primary-foreground rounded-xl text-sm font-bold hover:scale-[1.02] active:scale-95 transition-all shadow-lg shadow-primary/20">
+          <Plus size={16} /> Create
+        </button>
       </div>
 
       {loading ? (
-        <div className="space-y-4">
-          {[1, 2, 3].map(i => <div key={i} className="glass-card p-5 rounded-2xl animate-pulse h-40" />)}
-        </div>
+        <div className="space-y-4">{[1,2,3].map(i => <div key={i} className="glass-card p-5 rounded-2xl animate-pulse h-40" />)}</div>
       ) : challenges.length === 0 ? (
         <div className="py-20 text-center text-muted-foreground flex flex-col items-center gap-3">
           <Trophy size={48} className="opacity-20" />
           <p className="font-bold">No challenges yet</p>
-          <p className="text-sm">Check back soon for new skill challenges</p>
+          <button onClick={() => setShowCreate(true)}
+            className="mt-2 px-6 py-2.5 bg-primary text-primary-foreground rounded-xl font-bold hover:scale-[1.02] transition-all shadow-lg shadow-primary/20">
+            Create First Challenge
+          </button>
         </div>
       ) : (
         <div className="space-y-4">
@@ -165,12 +249,16 @@ export default function Challenges() {
                   <div className="flex-1">
                     <div className="flex items-center gap-2 flex-wrap mb-1">
                       <h3 className="font-black text-base">{challenge.title}</h3>
+                      {challenge.isCreator && (
+                        <span className="px-2 py-0.5 bg-primary/20 text-primary text-[10px] font-bold rounded-full uppercase tracking-wider">You</span>
+                      )}
                       {!active && (
                         <span className="px-2 py-0.5 bg-accent text-muted-foreground text-[10px] font-bold rounded-full uppercase tracking-wider">Ended</span>
                       )}
                     </div>
-                    {challenge.description && (
-                      <p className="text-sm text-muted-foreground leading-relaxed">{challenge.description}</p>
+                    {challenge.description && <p className="text-sm text-muted-foreground leading-relaxed">{challenge.description}</p>}
+                    {challenge.creatorName && (
+                      <p className="text-[10px] text-muted-foreground mt-1 font-bold uppercase tracking-widest">by {challenge.creatorName}</p>
                     )}
                   </div>
                   <div className="flex flex-col items-end gap-2 flex-shrink-0">
@@ -193,13 +281,14 @@ export default function Challenges() {
                   {challenge.startDate && (
                     <span className="flex items-center gap-1">
                       <Clock size={12} />
-                      {format(new Date(challenge.startDate), 'MMM d')} — {challenge.endDate ? format(new Date(challenge.endDate), 'MMM d, yyyy') : 'Ongoing'}
+                      {format(new Date(challenge.startDate), 'MMM d')}
+                      {challenge.endDate ? ` — ${format(new Date(challenge.endDate), 'MMM d, yyyy')}` : ' — Ongoing'}
                     </span>
                   )}
                 </div>
 
                 <div className="flex gap-2">
-                  {active && !hasSubmitted && (
+                  {active && !hasSubmitted && !challenge.isCreator && (
                     <button onClick={() => setSubmitChallenge(challenge)}
                       className="flex-1 py-2.5 bg-primary text-primary-foreground rounded-xl text-sm font-bold shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all">
                       Submit Entry
@@ -223,16 +312,12 @@ export default function Challenges() {
       )}
 
       <AnimatePresence>
+        {showCreate && <CreateChallengeModal onClose={() => setShowCreate(false)} onSuccess={() => { setShowCreate(false); fetchChallenges(); }} />}
         {submitChallenge && (
           <SubmitModal challenge={submitChallenge} onClose={() => setSubmitChallenge(null)}
-            onSuccess={() => {
-              setSubmitted(prev => new Set([...prev, submitChallenge._id]));
-              setSubmitChallenge(null);
-            }} />
+            onSuccess={() => { setSubmitted(prev => new Set([...prev, submitChallenge._id])); setSubmitChallenge(null); }} />
         )}
-        {leaderboardChallenge && (
-          <LeaderboardModal challenge={leaderboardChallenge} onClose={() => setLeaderboardChallenge(null)} />
-        )}
+        {leaderboardChallenge && <LeaderboardModal challenge={leaderboardChallenge} onClose={() => setLeaderboardChallenge(null)} />}
       </AnimatePresence>
     </div>
   );

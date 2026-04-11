@@ -7,6 +7,7 @@ const qaRoomSchema = new mongoose.Schema({
   title: { type: String, required: true },
   scheduledAt: Date,
   status: { type: String, default: 'scheduled' },
+  price: { type: Number, default: 0 }, // 0 = free
   createdAt: { type: Date, default: Date.now }
 });
 

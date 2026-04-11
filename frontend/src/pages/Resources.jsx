@@ -1,41 +1,39 @@
 import React, { useState, useEffect } from 'react';
-import { BookOpen, Link as LinkIcon, Heart, ExternalLink, X, Plus, Loader2, Filter } from 'lucide-react';
+import { BookOpen, Link as LinkIcon, Heart, ExternalLink, X, Plus, Loader2, Filter, Lock } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 
 const RESOURCE_TYPES = ['article', 'video', 'course', 'book', 'tool', 'other'];
 
 const typeColor = (t) => {
-  const map = {
-    article: 'bg-blue-500/20 text-blue-400',
-    video: 'bg-red-500/20 text-red-400',
-    course: 'bg-purple-500/20 text-purple-400',
-    book: 'bg-amber-500/20 text-amber-400',
-    tool: 'bg-emerald-500/20 text-emerald-400',
-    other: 'bg-accent text-muted-foreground',
-  };
+  const map = { article: 'bg-blue-500/20 text-blue-400', video: 'bg-red-500/20 text-red-400', course: 'bg-purple-500/20 text-purple-400', book: 'bg-amber-500/20 text-amber-400', tool: 'bg-emerald-500/20 text-emerald-400', other: 'bg-accent text-muted-foreground' };
   return map[t?.toLowerCase()] || map.other;
 };
 
+const loadRazorpay = () => new Promise((resolve) => {
+  if (window.Razorpay) return resolve(true);
+  const script = document.createElement('script');
+  script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+  script.onload = () => resolve(true);
+  script.onerror = () => resolve(false);
+  document.body.appendChild(script);
+});
+
 const AddResourceModal = ({ onClose, onSuccess }) => {
-  const [form, setForm] = useState({ title: '', description: '', type: 'article', url: '', category: '' });
+  const [form, setForm] = useState({ title: '', description: '', type: 'article', url: '', category: '', price: '' });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!form.title || !form.type) { setError('Title and type are required'); return; }
-    setLoading(true);
-    setError('');
+    setLoading(true); setError('');
     try {
-      await api.post('/resources', form);
+      await api.post('/resources', { ...form, price: form.price ? parseFloat(form.price) : 0 });
       onSuccess();
     } catch (err) {
       setError(err?.response?.data?.error || 'Failed to add resource');
-    } finally {
-      setLoading(false);
-    }
+    } finally { setLoading(false); }
   };
 
   return (
@@ -56,12 +54,20 @@ const AddResourceModal = ({ onClose, onSuccess }) => {
               value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))}
               className="w-full px-4 py-3 rounded-xl bg-accent/30 border border-border focus:ring-2 focus:ring-primary/50 outline-none text-sm" />
           </div>
-          <div>
-            <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1.5 block">Type *</label>
-            <select value={form.type} onChange={e => setForm(p => ({ ...p, type: e.target.value }))}
-              className="w-full px-4 py-3 rounded-xl bg-accent/30 border border-border focus:ring-2 focus:ring-primary/50 outline-none text-sm">
-              {RESOURCE_TYPES.map(t => <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>)}
-            </select>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1.5 block">Type *</label>
+              <select value={form.type} onChange={e => setForm(p => ({ ...p, type: e.target.value }))}
+                className="w-full px-4 py-3 rounded-xl bg-accent/30 border border-border focus:ring-2 focus:ring-primary/50 outline-none text-sm">
+                {RESOURCE_TYPES.map(t => <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1.5 block">Price (₹) — 0 = free</label>
+              <input type="number" min={0} placeholder="0"
+                value={form.price} onChange={e => setForm(p => ({ ...p, price: e.target.value }))}
+                className="w-full px-4 py-3 rounded-xl bg-accent/30 border border-border focus:ring-2 focus:ring-primary/50 outline-none text-sm" />
+            </div>
           </div>
           <div>
             <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1.5 block">URL</label>
@@ -93,24 +99,22 @@ const AddResourceModal = ({ onClose, onSuccess }) => {
 };
 
 export default function Resources() {
-  const { user } = useAuth();
   const [resources, setResources] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
   const [favorites, setFavorites] = useState(new Set());
+  const [unlocked, setUnlocked] = useState(new Set());
   const [filterType, setFilterType] = useState('all');
   const [showFilters, setShowFilters] = useState(false);
+  const [payingId, setPayingId] = useState(null);
 
   const fetchResources = async () => {
     try {
       const params = filterType !== 'all' ? { type: filterType } : {};
       const { data } = await api.get('/resources', { params });
       setResources(data);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
+    } catch (err) { console.error(err); }
+    finally { setLoading(false); }
   };
 
   useEffect(() => { fetchResources(); }, [filterType]);
@@ -126,8 +130,40 @@ export default function Resources() {
         await api.post(`/resources/${id}/favorite`);
         setFavorites(prev => new Set([...prev, id]));
       }
+    } catch (err) { console.error(err); }
+  };
+
+  const handlePay = async (resource) => {
+    setPayingId(resource._id);
+    try {
+      const loaded = await loadRazorpay();
+      if (!loaded) { alert('Failed to load payment gateway'); setPayingId(null); return; }
+
+      const { data } = await api.post(`/resources/${resource._id}/payment/order`);
+      const options = {
+        key: data.keyId,
+        amount: data.amount,
+        currency: data.currency,
+        name: 'Collabro',
+        description: data.resourceTitle,
+        order_id: data.orderId,
+        prefill: { name: data.userName, email: data.userEmail },
+        theme: { color: '#3b82f6' },
+        handler: async (response) => {
+          try {
+            const { data: verifyData } = await api.post(`/resources/${resource._id}/payment/verify`, response);
+            if (verifyData.success) {
+              setUnlocked(prev => new Set([...prev, resource._id]));
+              if (verifyData.url) window.open(verifyData.url, '_blank');
+            }
+          } catch { alert('Payment succeeded but verification failed. Contact support.'); }
+        },
+        modal: { ondismiss: () => setPayingId(null) }
+      };
+      new window.Razorpay(options).open();
     } catch (err) {
-      console.error(err);
+      alert(err?.response?.data?.error || 'Payment failed');
+      setPayingId(null);
     }
   };
 
@@ -169,14 +205,11 @@ export default function Resources() {
       </div>
 
       {loading ? (
-        <div className="space-y-4">
-          {[1, 2, 3].map(i => <div key={i} className="glass-card p-5 rounded-2xl animate-pulse h-32" />)}
-        </div>
+        <div className="space-y-4">{[1,2,3].map(i => <div key={i} className="glass-card p-5 rounded-2xl animate-pulse h-32" />)}</div>
       ) : filtered.length === 0 ? (
         <div className="py-20 text-center text-muted-foreground flex flex-col items-center gap-3">
           <BookOpen size={48} className="opacity-20" />
           <p className="font-bold">No resources yet</p>
-          <p className="text-sm">Be the first to share a learning resource</p>
           <button onClick={() => setShowAdd(true)}
             className="mt-2 px-6 py-2.5 bg-primary text-primary-foreground rounded-xl font-bold hover:scale-[1.02] transition-all shadow-lg shadow-primary/20">
             Share Resource
@@ -184,49 +217,60 @@ export default function Resources() {
         </div>
       ) : (
         <div className="space-y-4">
-          {filtered.map((resource, idx) => (
-            <motion.div key={resource._id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.04 }}
-              className="glass-card rounded-2xl border border-border p-5 hover:border-primary/30 transition-all group">
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap mb-1">
-                    <h3 className="font-black text-base group-hover:text-primary transition-colors">{resource.title}</h3>
-                    <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full uppercase tracking-wider ${typeColor(resource.type)}`}>
-                      {resource.type}
-                    </span>
+          {filtered.map((resource, idx) => {
+            const isPaid = resource.price > 0;
+            const isUnlocked = unlocked.has(resource._id);
+            const isPaying = payingId === resource._id;
+            return (
+              <motion.div key={resource._id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.04 }}
+                className="glass-card rounded-2xl border border-border p-5 hover:border-primary/30 transition-all group">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap mb-1">
+                      <h3 className="font-black text-base group-hover:text-primary transition-colors">{resource.title}</h3>
+                      <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full uppercase tracking-wider ${typeColor(resource.type)}`}>{resource.type}</span>
+                      {isPaid && (
+                        <span className="flex items-center gap-1 px-2 py-0.5 bg-primary/20 text-primary text-[10px] font-bold rounded-full">
+                          {isUnlocked ? '✓ Unlocked' : `₹${resource.price}`}
+                        </span>
+                      )}
+                    </div>
+                    {resource.category && <p className="text-xs text-primary font-bold mb-1">{resource.category}</p>}
+                    {resource.description && <p className="text-sm text-muted-foreground leading-relaxed">{resource.description}</p>}
+                    <p className="text-[10px] text-muted-foreground mt-2 font-bold uppercase tracking-widest">
+                      Shared by {resource.userId?.name || 'Anonymous'}
+                    </p>
                   </div>
-                  {resource.category && (
-                    <p className="text-xs text-primary font-bold mb-1">{resource.category}</p>
-                  )}
-                  {resource.description && (
-                    <p className="text-sm text-muted-foreground leading-relaxed">{resource.description}</p>
-                  )}
-                  <p className="text-[10px] text-muted-foreground mt-2 font-bold uppercase tracking-widest">
-                    Shared by {resource.userId?.name || 'Anonymous'}
-                  </p>
+                  <button onClick={() => handleFavorite(resource)}
+                    className={`flex-shrink-0 h-9 w-9 flex items-center justify-center rounded-xl transition-all ${favorites.has(resource._id) ? 'bg-red-500/20 text-red-400' : 'bg-accent text-muted-foreground hover:text-red-400'}`}>
+                    <Heart size={16} className={favorites.has(resource._id) ? 'fill-current' : ''} />
+                  </button>
                 </div>
-                <button onClick={() => handleFavorite(resource)}
-                  className={`flex-shrink-0 h-9 w-9 flex items-center justify-center rounded-xl transition-all ${favorites.has(resource._id) ? 'bg-red-500/20 text-red-400' : 'bg-accent text-muted-foreground hover:text-red-400'}`}>
-                  <Heart size={16} className={favorites.has(resource._id) ? 'fill-current' : ''} />
-                </button>
-              </div>
-              {resource.url && (
-                <a href={resource.url} target="_blank" rel="noopener noreferrer"
-                  className="mt-4 flex items-center gap-2 px-4 py-2.5 bg-accent/50 hover:bg-primary hover:text-primary-foreground rounded-xl text-sm font-bold transition-all group/link">
-                  <LinkIcon size={14} />
-                  <span className="flex-1 truncate text-xs">{resource.url}</span>
-                  <ExternalLink size={12} className="flex-shrink-0 opacity-60 group-hover/link:opacity-100" />
-                </a>
-              )}
-            </motion.div>
-          ))}
+
+                {/* URL / Pay button */}
+                {resource.url && (!isPaid || isUnlocked) && (
+                  <a href={resource.url} target="_blank" rel="noopener noreferrer"
+                    className="mt-4 flex items-center gap-2 px-4 py-2.5 bg-accent/50 hover:bg-primary hover:text-primary-foreground rounded-xl text-sm font-bold transition-all group/link">
+                    <LinkIcon size={14} />
+                    <span className="flex-1 truncate text-xs">{resource.url}</span>
+                    <ExternalLink size={12} className="flex-shrink-0 opacity-60 group-hover/link:opacity-100" />
+                  </a>
+                )}
+                {isPaid && !isUnlocked && (
+                  <button onClick={() => handlePay(resource)} disabled={isPaying}
+                    className="mt-4 w-full flex items-center justify-center gap-2 py-2.5 bg-primary text-primary-foreground rounded-xl text-sm font-bold shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50">
+                    {isPaying ? <Loader2 size={16} className="animate-spin" /> : <Lock size={16} />}
+                    {isPaying ? 'Processing...' : `Pay ₹${resource.price} to Access`}
+                  </button>
+                )}
+              </motion.div>
+            );
+          })}
         </div>
       )}
 
       <AnimatePresence>
-        {showAdd && (
-          <AddResourceModal onClose={() => setShowAdd(false)} onSuccess={() => { setShowAdd(false); fetchResources(); }} />
-        )}
+        {showAdd && <AddResourceModal onClose={() => setShowAdd(false)} onSuccess={() => { setShowAdd(false); fetchResources(); }} />}
       </AnimatePresence>
     </div>
   );
