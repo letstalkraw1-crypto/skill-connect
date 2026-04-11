@@ -1,4 +1,5 @@
 const profileService = require('../services/profile');
+const { searchUsers } = require('../services/userSearch');
 const { User, SkillVerification, Skill, SkillEndorsement, Feedback, Connection, UserSkill } = require('../config/db');
 const { v4: uuidv4 } = require('uuid');
 const { delCache } = require('../utils/cache');
@@ -33,8 +34,27 @@ const getProfileByShortId = async (req, res) => {
   try {
     const user = await User.findOne({ shortId: req.params.shortId });
     if (!user) return res.status(404).json({ error: 'User not found' });
+    
     const profile = await profileService.getProfile(user._id);
-    res.status(200).json(profile);
+    
+    // Determine connection status if user is authenticated
+    let connectionStatus = 'none';
+    if (req.user && req.user.userId !== user._id) {
+      const conn = await Connection.findOne({
+        $or: [
+          { requesterId: req.user.userId, addresseeId: user._id },
+          { requesterId: user._id, addresseeId: req.user.userId }
+        ]
+      });
+      if (conn) {
+        if (conn.status === 'accepted') connectionStatus = 'connected';
+        else if (conn.status === 'pending') {
+          connectionStatus = conn.requesterId.toString() === req.user.userId.toString() ? 'requested' : 'pending';
+        }
+      }
+    }
+    
+    res.status(200).json({ ...profile, connectionStatus, connection_status: connectionStatus });
   } catch (err) {
     res.status(err.status || 500).json({ error: err.message });
   }
@@ -255,8 +275,25 @@ const getShareData = async (req, res) => {
   }
 };
 
+const searchUsersEndpoint = async (req, res) => {
+  try {
+    const { q, limit } = req.query;
+    
+    if (!q || typeof q !== 'string' || q.trim().length < 2) {
+      return res.status(200).json({ users: [] });
+    }
+
+    const limitNum = limit ? parseInt(limit, 10) : 10;
+    const users = await searchUsers(q, req.user.userId, limitNum);
+    
+    res.status(200).json({ users });
+  } catch (err) {
+    res.status(500).json({ error: err.message || 'Search failed' });
+  }
+};
+
 module.exports = {
   getProfile, getProfileByShortId, updateProfile, updateMyProfile, completeOnboarding,
   getSkillsList, addSkills, updateSkill, deleteSkill, submitVerification, getVerifications,
-  addEndorsement, getEndorsements, addFeedback, getFeedback, getShareData
+  addEndorsement, getEndorsements, addFeedback, getFeedback, getShareData, searchUsersEndpoint
 };

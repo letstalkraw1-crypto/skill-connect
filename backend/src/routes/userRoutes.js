@@ -7,8 +7,9 @@ const router = express.Router();
 const certUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
 router.post('/onboarding', verifyToken, userController.completeOnboarding);
+router.get('/search', verifyToken, userController.searchUsersEndpoint);
 router.get('/skills-list', userController.getSkillsList);
-router.get('/by-short-id/:shortId', userController.getProfileByShortId);
+router.get('/by-short-id/:shortId', optionalVerifyToken, userController.getProfileByShortId);
 router.post('/skills', verifyToken, userController.addSkills);
 router.put('/skills', verifyToken, userController.updateSkill);
 router.delete('/skills/:skillId', verifyToken, userController.deleteSkill);

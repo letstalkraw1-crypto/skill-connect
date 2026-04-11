@@ -9,6 +9,7 @@ import BottomNav from './components/BottomNav';
 const Home = lazy(() => import('./pages/Home'));
 const Auth = lazy(() => import('./pages/Auth'));
 const Profile = lazy(() => import('./pages/Profile'));
+const ProfileByShortId = lazy(() => import('./pages/ProfileByShortId'));
 const Chat = lazy(() => import('./pages/Chat'));
 const Discovery = lazy(() => import('./pages/Discovery'));
 const Notifications = lazy(() => import('./pages/Notifications'));
@@ -49,7 +50,8 @@ const App = () => {
                 <Route path="/auth/callback" element={<OAuthCallback />} />
                 <Route path="/admin" element={<Admin />} />
                 <Route path="/" element={<PrivateRoute><Home /></PrivateRoute>} />
-                <Route path="/profile/:id" element={<PrivateRoute><Profile /></PrivateRoute>} />
+                <Route path="/profile/:id" element={<PrivateRoute><ProfileByShortId /></PrivateRoute>} />
+                <Route path="/u/:shortId" element={<PrivateRoute><ProfileByShortId /></PrivateRoute>} />
                 <Route path="/chat/:id?" element={<PrivateRoute><Chat /></PrivateRoute>} />
                 <Route path="/discovery" element={<PrivateRoute><Discovery /></PrivateRoute>} />
                 <Route path="/notifications" element={<PrivateRoute><Notifications /></PrivateRoute>} />

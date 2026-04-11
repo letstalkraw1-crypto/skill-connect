@@ -1,4 +1,4 @@
-import { Edit3, MapPin, Calendar, Link as LinkIcon, Instagram, Github, Chrome, MessageCircle, UserPlus, Check, X, Shield, Star, Camera, Loader2, PlusCircle } from 'lucide-react';
+import { Edit3, MapPin, Calendar, Link as LinkIcon, Instagram, Github, Chrome, MessageCircle, UserPlus, Check, X, Shield, Star, Camera, Loader2, PlusCircle, Copy } from 'lucide-react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
@@ -7,6 +7,7 @@ import { getAssetUrl, safeFormat } from '../utils/utils';
 import EditProfileModal from '../components/EditProfileModal';
 import AddSkillModal from '../components/AddSkillModal';
 import EditSkillModal from '../components/EditSkillModal';
+import ConnectionSearchModal from '../components/ConnectionSearchModal';
 import Avatar from '../components/Avatar';
 import { userService, connectionService, authService, notificationService } from '../services/api';
 import ProfileSkeleton from '../components/ProfileSkeleton';
@@ -34,8 +35,10 @@ const Profile = () => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showAddSkillModal, setShowAddSkillModal] = useState(false);
   const [showEditSkillModal, setShowEditSkillModal] = useState(false);
+  const [showConnectionSearchModal, setShowConnectionSearchModal] = useState(false);
   const [selectedSkill, setSelectedSkill] = useState(null);
   const [uploading, setUploading] = useState(false);
+  const [copiedUrl, setCopiedUrl] = useState(false);
   const fileInputRef = React.useRef(null);
 
   const fetchProfile = async (connPage = 1) => {
@@ -249,6 +252,19 @@ const Profile = () => {
     }
   };
 
+  const handleCopyUrl = async () => {
+    const baseUrl = window.location.origin;
+    const shareableUrl = `${baseUrl}/u/${user.shortId || user.short_id}`;
+    
+    try {
+      await navigator.clipboard.writeText(shareableUrl);
+      setCopiedUrl(true);
+      setTimeout(() => setCopiedUrl(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy URL:', err);
+    }
+  };
+
   if (loading && !user) return <ProfileSkeleton />;
   if (!user) return <div className="text-center py-20 text-muted-foreground">User not found</div>;
 
@@ -337,6 +353,27 @@ const Profile = () => {
             <p className="text-sm text-muted-foreground leading-relaxed italic border-l-4 border-primary/20 pl-4">
               {user.bio || "No bio yet. Passionate about learning and sharing skills with the community."}
             </p>
+            
+            {isOwnProfile && (user.shortId || user.short_id) && (
+              <div className="pt-4 border-t border-border">
+                <p className="text-xs font-bold text-muted-foreground mb-2">SHAREABLE PROFILE URL</p>
+                <button
+                  onClick={handleCopyUrl}
+                  className="w-full flex items-center gap-2 px-3 py-2 bg-accent/50 hover:bg-accent rounded-xl text-xs font-mono text-foreground transition-all group"
+                >
+                  <LinkIcon size={14} className="text-primary" />
+                  <span className="flex-1 text-left truncate">/u/{user.shortId || user.short_id}</span>
+                  {copiedUrl ? (
+                    <Check size={14} className="text-emerald-500" />
+                  ) : (
+                    <Copy size={14} className="text-muted-foreground group-hover:text-primary transition-colors" />
+                  )}
+                </button>
+                {copiedUrl && (
+                  <p className="text-xs text-emerald-500 font-bold mt-1">Copied!</p>
+                )}
+              </div>
+            )}
             
             <div className="flex gap-4 pt-4 border-t border-border">
               {user.instagramId && (
@@ -443,6 +480,15 @@ const Profile = () => {
                 <PlusCircle size={20} />
               </button>
             )}
+            {isOwnProfile && activeTab === 'connections' && (
+              <button 
+                onClick={() => setShowConnectionSearchModal(true)}
+                className="mx-2 h-10 w-10 flex items-center justify-center rounded-xl bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground transition-all"
+                title="Add Connection"
+              >
+                <PlusCircle size={20} />
+              </button>
+            )}
           </div>
 
           <div className="min-h-[400px]">
@@ -528,7 +574,18 @@ const Profile = () => {
                       </button>
                     </div>
                   ))}
-                  {connections.length === 0 && (
+                  {connections.length === 0 && isOwnProfile && (
+                    <div className="col-span-full py-20 text-center">
+                      <button
+                        onClick={() => setShowConnectionSearchModal(true)}
+                        className="inline-flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-xl font-bold hover:bg-primary/90 transition-all"
+                      >
+                        <PlusCircle size={20} />
+                        Add My First Connection
+                      </button>
+                    </div>
+                  )}
+                  {connections.length === 0 && !isOwnProfile && (
                     <div className="col-span-full py-20 text-center text-muted-foreground">No connections yet</div>
                   )}
 
@@ -631,6 +688,12 @@ const Profile = () => {
           />
         )}
       </AnimatePresence>
+
+      <ConnectionSearchModal
+        isOpen={showConnectionSearchModal}
+        onClose={() => setShowConnectionSearchModal(false)}
+        onConnectionSent={() => fetchProfile()}
+      />
     </div>
   );
 };

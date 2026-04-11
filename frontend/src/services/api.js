@@ -41,11 +41,13 @@ export const authService = {
 
 export const userService = {
   getProfile: (id) => api.get(`/profile/${id}`),
+  getProfileByShortId: (shortId) => api.get(`/profile/by-short-id/${shortId}`),
   updateProfile: (data) => api.put('/profile', data),
   getSkillsList: () => api.get('/profile/skills-list'),
   addSkills: (skills) => api.post('/profile/skills', { skills }),
   updateSkill: (skill) => api.put('/profile/skills', skill),
   deleteSkill: (skillName) => api.delete(`/profile/skills/${encodeURIComponent(skillName)}`),
+  searchUsers: (query, limit = 10) => api.get('/profile/search', { params: { q: query, limit } }),
 };
 
 export const connectionService = {
