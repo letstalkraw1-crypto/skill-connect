@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Mic, MicOff, Video, VideoOff, Monitor, MonitorOff, MessageSquare, FileText, Hand, LogOut, Users, Smile, X, Send } from 'lucide-react';
+import { Mic, MicOff, Video, VideoOff, Monitor, MonitorOff, MessageSquare, FileText, Hand, LogOut, Users, Smile, X, Send, Copy, Check, Search, Bell } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import api from '../services/api';
 
@@ -325,6 +325,137 @@ const WebinarRoom = ({ roomUrl, token, isHost, onLeave, title }) => {
   );
 };
 
+// ─── Invite Modal ────────────────────────────────────────────────────────────
+const InviteModal = ({ roomName, title, onClose, inline = false }) => {
+  const { user } = useAuth();
+  const [copied, setCopied] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [searching, setSearching] = useState(false);
+  const [sent, setSent] = useState(new Set());
+  const [sending, setSending] = useState(null);
+
+  const inviteLink = `${window.location.origin}/webinar?join=${roomName}`;
+
+  const handleCopy = async () => {
+    await navigator.clipboard.writeText(inviteLink);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  useEffect(() => {
+    if (!searchQuery || searchQuery.length < 2) { setSearchResults([]); return; }
+    const timer = setTimeout(async () => {
+      setSearching(true);
+      try {
+        const { data } = await api.get('/profile/search', { params: { q: searchQuery, limit: 10 } });
+        setSearchResults(data.users || []);
+      } catch { setSearchResults([]); }
+      finally { setSearching(false); }
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  const handleSendInvite = async (targetUser) => {
+    setSending(targetUser._id);
+    try {
+      // Send notification via the notifications API
+      await api.post('/notifications/send', {
+        targetUserId: targetUser._id,
+        type: 'webinar_invite',
+        message: `${user?.name} invited you to join a webinar: "${title}". Room: ${roomName}`,
+        data: { roomName, inviteLink, webinarTitle: title },
+      });
+      setSent(prev => new Set([...prev, targetUser._id]));
+    } catch (err) {
+      // Fallback: send via chat if notification endpoint doesn't exist
+      try {
+        const { data: conv } = await api.post('/conversations', { participantIds: [targetUser._id] });
+        await api.post(`/conversations/${conv._id || conv.id}/messages`, {
+          text: `🎥 You're invited to join my webinar!\n\n*${title}*\n\nJoin link: ${inviteLink}\nRoom name: ${roomName}`,
+        });
+        setSent(prev => new Set([...prev, targetUser._id]));
+      } catch (e) {
+        alert('Failed to send invite');
+      }
+    } finally { setSending(null); }
+  };
+
+  const content = (
+    <div className={inline ? '' : 'w-full max-w-md glass-card rounded-3xl border border-border shadow-2xl p-6 max-h-[85vh] flex flex-col'}>
+      {!inline && (
+        <div className="flex items-center justify-between mb-5">
+          <h3 className="font-black text-lg">Invite Participants</h3>
+          <button onClick={onClose} className="h-8 w-8 flex items-center justify-center rounded-xl hover:bg-accent"><X size={16} /></button>
+        </div>
+      )}
+
+        {/* Copy link */}
+        <div className="mb-5">
+          <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-2">Shareable Invite Link</p>
+          <div className="flex gap-2">
+            <div className="flex-1 px-3 py-2.5 bg-accent/30 border border-border rounded-xl text-xs font-mono text-muted-foreground truncate">
+              {inviteLink}
+            </div>
+            <button onClick={handleCopy}
+              className={`flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-bold transition-all ${copied ? 'bg-emerald-500/20 text-emerald-400' : 'bg-primary text-primary-foreground hover:bg-primary/90'}`}>
+              {copied ? <Check size={14} /> : <Copy size={14} />}
+              {copied ? 'Copied!' : 'Copy'}
+            </button>
+          </div>
+          <p className="text-xs text-muted-foreground mt-1.5">Anyone with this link can join as a participant</p>
+        </div>
+
+        <div className={`border-t border-border pt-4 ${inline ? '' : 'flex-1 flex flex-col overflow-hidden'}`}>
+          <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-3">Invite via App</p>
+          <div className="relative mb-3">
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <input type="text" placeholder="Search connections by name..."
+              value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
+              className="w-full pl-9 pr-4 py-2.5 rounded-xl bg-accent/30 border border-border focus:ring-2 focus:ring-primary/50 outline-none text-sm" />
+          </div>
+
+          <div className={`${inline ? '' : 'flex-1 overflow-y-auto'} space-y-2`}>
+            {searching && <p className="text-xs text-muted-foreground text-center py-4 animate-pulse">Searching...</p>}
+            {!searching && searchQuery.length >= 2 && searchResults.length === 0 && (
+              <p className="text-xs text-muted-foreground text-center py-4">No users found</p>
+            )}
+            {!searching && searchQuery.length < 2 && (
+              <p className="text-xs text-muted-foreground text-center py-4">Type a name to search your connections</p>
+            )}
+            {searchResults.map(u => (
+              <div key={u._id} className="flex items-center gap-3 p-3 bg-accent/30 rounded-xl">
+                <div className="h-9 w-9 rounded-xl bg-primary/20 flex items-center justify-center text-sm font-bold text-primary flex-shrink-0">
+                  {u.name?.[0]?.toUpperCase()}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-bold truncate">{u.name}</p>
+                  <p className="text-xs text-muted-foreground">@{u.shortId}</p>
+                </div>
+                <button onClick={() => handleSendInvite(u)} disabled={sent.has(u._id) || sending === u._id}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${sent.has(u._id) ? 'bg-emerald-500/20 text-emerald-400' : 'bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50'}`}>
+                  {sending === u._id ? '...' : sent.has(u._id) ? '✓ Sent' : 'Invite'}
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+    </div>
+  );
+
+  if (inline) return content;
+
+  return (
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+      onClick={e => e.target === e.currentTarget && onClose()}>
+      <motion.div initial={{ y: 40, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 40, opacity: 0 }}>
+        {content}
+      </motion.div>
+    </motion.div>
+  );
+};
+
 // ─── Webinar Lobby (create / join) ───────────────────────────────────────────
 export default function Webinar() {
   const { user } = useAuth();
@@ -335,8 +466,20 @@ export default function Webinar() {
   const [joinRoomName, setJoinRoomName] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [activeRoom, setActiveRoom] = useState(null); // { roomUrl, token, isHost, title }
+  const [activeRoom, setActiveRoom] = useState(null);
   const [tab, setTab] = useState('create');
+  const [createdRoom, setCreatedRoom] = useState(null); // { roomName, title } — show invite modal
+  const [showInvite, setShowInvite] = useState(false);
+
+  // Handle ?join=roomName in URL (from invite link)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const joinParam = params.get('join');
+    if (joinParam) {
+      setJoinRoomName(joinParam);
+      setTab('join');
+    }
+  }, []);
 
   const handleCreate = async (e) => {
     e.preventDefault();
@@ -344,8 +487,9 @@ export default function Webinar() {
     setLoading(true); setError('');
     try {
       const { data } = await api.post('/webinars', { title, scheduledAt, description });
-      // Get host token
       const { data: tokenData } = await api.post(`/webinars/${data.roomName}/token`, { isHost: true });
+      setCreatedRoom({ roomName: data.roomName, title: data.title });
+      setShowInvite(true);
       setActiveRoom({ roomUrl: data.roomUrl, token: tokenData.token, isHost: true, title: data.title, roomName: data.roomName });
     } catch (err) {
       setError(err?.response?.data?.error || 'Failed to create webinar');
@@ -364,6 +508,42 @@ export default function Webinar() {
       setError(err?.response?.data?.error || 'Failed to join webinar. Check the room name.');
     } finally { setLoading(false); }
   };
+
+  // Show invite modal before entering room (host only)
+  if (showInvite && createdRoom && activeRoom) {
+    return (
+      <div className="max-w-lg mx-auto pb-24 pt-4">
+        <div className="glass-card p-6 rounded-2xl mb-4">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="h-10 w-10 rounded-2xl bg-emerald-500/20 flex items-center justify-center">
+              <Check size={20} className="text-emerald-400" />
+            </div>
+            <div>
+              <h2 className="font-black text-lg">Webinar Created!</h2>
+              <p className="text-xs text-muted-foreground">Invite participants before starting</p>
+            </div>
+          </div>
+
+          <div className="p-3 bg-accent/30 rounded-xl mb-4">
+            <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1">Room Name</p>
+            <p className="font-mono font-bold text-primary">{createdRoom.roomName}</p>
+          </div>
+
+          <InviteModal
+            roomName={createdRoom.roomName}
+            title={createdRoom.title}
+            onClose={() => {}}
+            inline
+          />
+        </div>
+
+        <button onClick={() => setShowInvite(false)}
+          className="w-full py-3 bg-primary text-primary-foreground rounded-2xl font-bold shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-2">
+          <Video size={18} /> Start Webinar Now
+        </button>
+      </div>
+    );
+  }
 
   if (activeRoom) {
     return (

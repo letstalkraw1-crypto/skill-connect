@@ -1,4 +1,5 @@
 const { Notification } = require('../config/db');
+const { v4: uuidv4 } = require('uuid');
 
 const getNotifications = async (req, res) => {
   const start = Date.now();
@@ -32,4 +33,38 @@ const markAsRead = async (req, res) => {
   }
 };
 
-module.exports = { getNotifications, markAsRead };
+const sendNotification = async (req, res) => {
+  try {
+    const { targetUserId, type, message, data } = req.body;
+    if (!targetUserId || !message) return res.status(400).json({ error: 'targetUserId and message required' });
+
+    const notification = new Notification({
+      _id: uuidv4(),
+      recipientId: targetUserId,
+      senderId: req.user.userId,
+      type: type || 'general',
+      message,
+      relatedId: data?.roomName || null,
+      isRead: false,
+    });
+    await notification.save();
+
+    // Real-time push
+    try {
+      const { emitToUser } = require('../socket/index');
+      emitToUser(targetUserId, 'notification', {
+        type: type || 'general',
+        message,
+        senderId: { _id: req.user.userId },
+        createdAt: new Date(),
+        data,
+      });
+    } catch {}
+
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+module.exports = { getNotifications, markAsRead, sendNotification };

@@ -141,6 +141,13 @@ export default function Notifications() {
                       </div>
                     )
                   )}
+
+                  {n.type === 'webinar_invite' && n.relatedId && (
+                    <a href={`/webinar?join=${n.relatedId}`}
+                      className="inline-flex items-center gap-1.5 mt-3 px-4 py-1.5 bg-primary text-primary-foreground rounded-lg text-xs font-bold hover:scale-105 active:scale-95 transition-all">
+                      🎥 Join Webinar
+                    </a>
+                  )}
                 </div>
               </div>
             </motion.div>
