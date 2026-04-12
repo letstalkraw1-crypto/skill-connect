@@ -16,8 +16,6 @@ const loadRazorpay = () => new Promise((resolve) => {
   document.body.appendChild(script);
 });
 
-const REACTIONS = ['👍', '👏', '❤️', '😂', '😮', '🔥'];
-
 const WebinarRoom = ({ roomUrl, token, isHost, onLeave, title }) => {
   const iframeRef = useRef(null);
   const callRef = useRef(null);
