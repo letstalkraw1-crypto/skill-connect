@@ -1,9 +1,20 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Mic, MicOff, Video, VideoOff, Monitor, MonitorOff, MessageSquare, FileText, Hand, LogOut, Users, Smile, X, Send, Copy, Check, Search, Bell } from 'lucide-react';
+import { Mic, MicOff, Video, VideoOff, Monitor, MonitorOff, MessageSquare, FileText, Hand, LogOut, Users, Smile, X, Send, Copy, Check, Search, Lock, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import api from '../services/api';
+
+const REACTIONS = ['👍', '👏', '❤️', '😂', '😮', '🔥'];
+
+const loadRazorpay = () => new Promise((resolve) => {
+  if (window.Razorpay) return resolve(true);
+  const script = document.createElement('script');
+  script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+  script.onload = () => resolve(true);
+  script.onerror = () => resolve(false);
+  document.body.appendChild(script);
+});
 
 const REACTIONS = ['👍', '👏', '❤️', '😂', '😮', '🔥'];
 
@@ -463,15 +474,17 @@ export default function Webinar() {
   const [title, setTitle] = useState('');
   const [scheduledAt, setScheduledAt] = useState('');
   const [description, setDescription] = useState('');
+  const [price, setPrice] = useState('');
   const [joinRoomName, setJoinRoomName] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [activeRoom, setActiveRoom] = useState(null);
   const [tab, setTab] = useState('create');
-  const [createdRoom, setCreatedRoom] = useState(null); // { roomName, title } — show invite modal
+  const [createdRoom, setCreatedRoom] = useState(null);
   const [showInvite, setShowInvite] = useState(false);
+  const [webinarInfo, setWebinarInfo] = useState(null); // for paid join paywall
+  const [paying, setPaying] = useState(false);
 
-  // Handle ?join=roomName in URL (from invite link)
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const joinParam = params.get('join');
@@ -486,7 +499,7 @@ export default function Webinar() {
     if (!title.trim()) { setError('Title is required'); return; }
     setLoading(true); setError('');
     try {
-      const { data } = await api.post('/webinars', { title, scheduledAt, description });
+      const { data } = await api.post('/webinars', { title, scheduledAt, description, price: price || 0 });
       const { data: tokenData } = await api.post(`/webinars/${data.roomName}/token`, { isHost: true });
       setCreatedRoom({ roomName: data.roomName, title: data.title });
       setShowInvite(true);
@@ -501,13 +514,89 @@ export default function Webinar() {
     if (!joinRoomName.trim()) { setError('Room name is required'); return; }
     setLoading(true); setError('');
     try {
-      const { data: tokenData } = await api.post(`/webinars/${joinRoomName.trim()}/token`, { isHost: false });
+      // First check webinar info (price etc.)
+      const { data: info } = await api.get(`/webinars/${joinRoomName.trim()}`);
+
+      if (info.price > 0 && !info.isHost && !info.hasPaid) {
+        // Show paywall
+        setWebinarInfo({ ...info, roomName: joinRoomName.trim() });
+        setLoading(false);
+        return;
+      }
+
+      // Free or already paid — get token directly
+      const { data: tokenData } = await api.post(`/webinars/${joinRoomName.trim()}/token`, { isHost: info.isHost });
       const roomUrl = `https://collabro.daily.co/${joinRoomName.trim()}`;
-      setActiveRoom({ roomUrl, token: tokenData.token, isHost: false, title: joinRoomName.trim(), roomName: joinRoomName.trim() });
+      setActiveRoom({ roomUrl, token: tokenData.token, isHost: info.isHost, title: info.title || joinRoomName.trim(), roomName: joinRoomName.trim() });
     } catch (err) {
-      setError(err?.response?.data?.error || 'Failed to join webinar. Check the room name.');
+      if (err?.response?.status === 404) {
+        setError('Webinar not found. Check the room name.');
+      } else {
+        setError(err?.response?.data?.error || 'Failed to join webinar.');
+      }
     } finally { setLoading(false); }
   };
+
+  const handlePayAndJoin = async () => {
+    if (!webinarInfo) return;
+    setPaying(true);
+    try {
+      const loaded = await loadRazorpay();
+      if (!loaded) { alert('Failed to load payment gateway'); setPaying(false); return; }
+
+      const { data } = await api.post(`/webinars/${webinarInfo.roomName}/payment/order`);
+      const options = {
+        key: data.keyId,
+        amount: data.amount,
+        currency: data.currency,
+        name: 'Collabro',
+        description: data.webinarTitle,
+        order_id: data.orderId,
+        prefill: { name: data.userName, email: data.userEmail },
+        theme: { color: '#3b82f6' },
+        handler: async (response) => {
+          try {
+            await api.post(`/webinars/${webinarInfo.roomName}/payment/verify`, response);
+            // Now get token
+            const { data: tokenData } = await api.post(`/webinars/${webinarInfo.roomName}/token`, { isHost: false });
+            const roomUrl = `https://collabro.daily.co/${webinarInfo.roomName}`;
+            setWebinarInfo(null);
+            setActiveRoom({ roomUrl, token: tokenData.token, isHost: false, title: webinarInfo.title, roomName: webinarInfo.roomName });
+          } catch { alert('Payment succeeded but joining failed. Contact support.'); }
+        },
+        modal: { ondismiss: () => setPaying(false) }
+      };
+      new window.Razorpay(options).open();
+    } catch (err) {
+      alert(err?.response?.data?.error || 'Payment failed');
+      setPaying(false);
+    }
+  };
+
+  // Paywall screen
+  if (webinarInfo) {
+    return (
+      <div className="max-w-sm mx-auto pt-12 pb-24 px-4">
+        <div className="glass-card p-8 rounded-3xl text-center space-y-4">
+          <div className="h-16 w-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto">
+            <Lock size={28} className="text-primary" />
+          </div>
+          <h2 className="font-black text-xl">{webinarInfo.title}</h2>
+          <p className="text-muted-foreground text-sm">This is a paid webinar</p>
+          <div className="py-4 border-y border-border">
+            <p className="text-3xl font-black text-primary">₹{webinarInfo.price}</p>
+            <p className="text-xs text-muted-foreground mt-1">one-time entry fee</p>
+          </div>
+          <button onClick={handlePayAndJoin} disabled={paying}
+            className="w-full py-3 bg-primary text-primary-foreground rounded-2xl font-bold shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-2">
+            {paying ? <Loader2 size={18} className="animate-spin" /> : null}
+            {paying ? 'Processing...' : `Pay ₹${webinarInfo.price} & Join`}
+          </button>
+          <button onClick={() => setWebinarInfo(null)} className="text-sm text-muted-foreground hover:text-foreground">Cancel</button>
+        </div>
+      </div>
+    );
+  }
 
   // Show invite modal before entering room (host only)
   if (showInvite && createdRoom && activeRoom) {
@@ -603,6 +692,14 @@ export default function Webinar() {
             <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1.5 block">Schedule (optional)</label>
             <input type="datetime-local" value={scheduledAt} onChange={e => setScheduledAt(e.target.value)}
               className="w-full px-4 py-3 rounded-xl bg-accent/30 border border-border focus:ring-2 focus:ring-primary/50 outline-none text-sm" />
+          </div>
+
+          <div>
+            <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1.5 block">Entry Fee (₹) — 0 = free</label>
+            <input type="number" min={0} placeholder="0"
+              value={price} onChange={e => setPrice(e.target.value)}
+              className="w-full px-4 py-3 rounded-xl bg-accent/30 border border-border focus:ring-2 focus:ring-primary/50 outline-none text-sm" />
+            <p className="text-xs text-muted-foreground mt-1">Participants will pay this amount via Razorpay before joining</p>
           </div>
 
           <div className="p-3 bg-primary/5 border border-primary/20 rounded-xl text-xs text-muted-foreground space-y-1">
