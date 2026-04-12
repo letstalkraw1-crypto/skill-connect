@@ -13,6 +13,9 @@ const logger = require('./utils/logger');
 const app = express();
 const server = http.createServer(app);
 
+// Trust Render's proxy (required for rate limiting and IP detection behind load balancers)
+app.set('trust proxy', 1);
+
 // Security
 app.use(helmet({ contentSecurityPolicy: false, crossOriginEmbedderPolicy: false }));
 
