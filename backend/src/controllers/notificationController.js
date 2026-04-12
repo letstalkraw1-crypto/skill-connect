@@ -1,21 +1,29 @@
-const { Notification } = require('../config/db');
+const { Notification, User } = require('../config/db');
 const { v4: uuidv4 } = require('uuid');
 
 const getNotifications = async (req, res) => {
-  const start = Date.now();
   try {
+    // Fetch notifications without populate (faster)
     const notifications = await Notification.find({ recipientId: req.user.userId })
       .sort({ createdAt: -1 })
       .limit(20)
-      .populate('senderId', 'name avatarUrl')
       .lean();
-    
-    const duration = Date.now() - start;
-    if (duration > 100) {
-      console.warn(`[Performance Warning] getNotifications took ${duration}ms for user ${req.user.userId}`);
-    }
 
-    res.json(notifications);
+    if (!notifications.length) return res.json([]);
+
+    // Batch fetch all unique senderIds in one query instead of N populate calls
+    const senderIds = [...new Set(notifications.map(n => n.senderId).filter(Boolean))];
+    const senders = await User.find({ _id: { $in: senderIds } })
+      .select('name avatarUrl')
+      .lean();
+    const senderMap = Object.fromEntries(senders.map(s => [s._id.toString(), s]));
+
+    const enriched = notifications.map(n => ({
+      ...n,
+      senderId: n.senderId ? (senderMap[n.senderId.toString()] || { _id: n.senderId }) : null,
+    }));
+
+    res.json(enriched);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
