@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { Video, Copy, Check, Search, Lock, Loader2, X, Plus } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -15,100 +15,38 @@ const loadRazorpay = () => new Promise((resolve) => {
 
 // ─── Jitsi Room ──────────────────────────────────────────────────────────────
 const JitsiRoom = ({ roomName, isHost, displayName, onLeave, title }) => {
-  const jitsiContainerRef = useRef(null);
-  const apiRef = useRef(null);
-  const [loading, setLoading] = useState(true);
+  const jitsiUrl = `https://meet.jit.si/collabro-${roomName}#userInfo.displayName="${encodeURIComponent(displayName || 'Participant')}"`;
 
   useEffect(() => {
-    const loadJitsi = () => {
-      if (!window.JitsiMeetExternalAPI) {
-        const script = document.createElement('script');
-        script.src = 'https://meet.jit.si/external_api.js';
-        script.onload = initJitsi;
-        document.head.appendChild(script);
-      } else {
-        initJitsi();
-      }
-    };
-
-    const initJitsi = () => {
-      if (!jitsiContainerRef.current) return;
-
-      const options = {
-        roomName: `collabro-${roomName}`,
-        parentNode: jitsiContainerRef.current,
-        width: '100%',
-        height: '100%',
-        configOverwrite: {
-          startWithAudioMuted: !isHost,
-          startWithVideoMuted: false,
-          enableWelcomePage: false,
-          prejoinPageEnabled: false,
-          disableDeepLinking: true,
-          toolbarButtons: [
-            'microphone', 'camera', 'desktop', 'chat',
-            'raisehand', 'tileview', 'participants-pane',
-            'reactions', 'settings', 'fullscreen',
-            ...(isHost ? ['mute-everyone', 'kick'] : []),
-          ],
-        },
-        interfaceConfigOverwrite: {
-          SHOW_JITSI_WATERMARK: false,
-          SHOW_WATERMARK_FOR_GUESTS: false,
-          SHOW_BRAND_WATERMARK: false,
-          BRAND_WATERMARK_LINK: '',
-          SHOW_POWERED_BY: false,
-          TOOLBAR_ALWAYS_VISIBLE: true,
-          MOBILE_APP_PROMO: false,
-        },
-        userInfo: {
-          displayName: displayName || 'Participant',
-        },
-      };
-
-      const jitsiApi = new window.JitsiMeetExternalAPI('meet.jit.si', options);
-      apiRef.current = jitsiApi;
-
-      jitsiApi.addEventListener('videoConferenceJoined', () => setLoading(false));
-      jitsiApi.addEventListener('readyToClose', onLeave);
-    };
-
-    loadJitsi();
-
-    return () => {
-      if (apiRef.current) {
-        apiRef.current.dispose();
-        apiRef.current = null;
-      }
-    };
-  }, [roomName, isHost, displayName]);
+    // Open Jitsi in new tab
+    const win = window.open(jitsiUrl, '_blank');
+    if (!win) {
+      alert('Popup blocked! Please allow popups for this site and try again.');
+    }
+  }, []);
 
   return (
-    <div className="fixed inset-0 bg-black z-50 flex flex-col">
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 py-2 bg-black/80 border-b border-white/10 flex-shrink-0">
-        <h2 className="text-white font-bold text-sm truncate">{title}</h2>
-        <div className="flex items-center gap-2">
-          {isHost && <span className="px-2 py-0.5 bg-primary/30 text-primary text-[10px] font-bold rounded-full">HOST</span>}
-          <button onClick={onLeave}
-            className="px-3 py-1.5 bg-red-500 text-white rounded-lg text-xs font-bold hover:bg-red-600 transition-colors">
-            Leave
-          </button>
+    <div className="max-w-sm mx-auto pt-12 pb-24 px-4 text-center">
+      <div className="glass-card p-8 rounded-3xl space-y-5">
+        <div className="h-16 w-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto">
+          <Video size={28} className="text-primary" />
         </div>
-      </div>
-
-      {/* Jitsi container */}
-      <div className="flex-1 relative">
-        {loading && (
-          <div className="absolute inset-0 flex items-center justify-center bg-black z-10">
-            <div className="text-center text-white">
-              <div className="h-12 w-12 border-4 border-primary/30 border-t-primary rounded-full animate-spin mx-auto mb-4"></div>
-              <p className="font-bold animate-pulse">Joining webinar...</p>
-              <p className="text-xs text-white/50 mt-1">Powered by Jitsi Meet</p>
-            </div>
-          </div>
-        )}
-        <div ref={jitsiContainerRef} className="w-full h-full" />
+        <div>
+          <h2 className="font-black text-xl mb-1">{title}</h2>
+          <p className="text-sm text-muted-foreground">Your webinar has opened in a new tab</p>
+        </div>
+        <div className="p-3 bg-accent/30 rounded-xl text-left">
+          <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1">Room Name</p>
+          <p className="font-mono font-bold text-primary text-sm">{roomName}</p>
+        </div>
+        <a href={jitsiUrl} target="_blank" rel="noopener noreferrer"
+          className="w-full py-3 bg-primary text-primary-foreground rounded-2xl font-bold shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-2">
+          <Video size={18} /> Open Webinar Again
+        </a>
+        <button onClick={onLeave}
+          className="w-full py-3 bg-accent text-foreground rounded-2xl font-bold hover:bg-accent/80 transition-all">
+          Back to App
+        </button>
       </div>
     </div>
   );
@@ -275,12 +213,10 @@ export default function Webinar() {
       const roomName = generateRoomName(title);
       const entryFee = price ? parseFloat(price) : 0;
 
-      // Store webinar metadata in backend (for paid webinars)
-      if (entryFee > 0) {
-        await api.post('/webinars', { title, scheduledAt, description, price: entryFee, roomName });
-      }
+      // Always register to get a code
+      const { data } = await api.post('/webinars', { title, scheduledAt, description, price: entryFee, roomName });
 
-      setCreatedRoom({ roomName, title });
+      setCreatedRoom({ roomName, title, code: data.code });
       setShowInvite(true);
       setActiveRoom({ roomName, isHost: true, title, displayName: user?.name || 'Host' });
     } catch (err) {
@@ -290,22 +226,42 @@ export default function Webinar() {
 
   const handleJoin = async (e) => {
     e.preventDefault();
-    const room = joinRoomName.trim();
-    if (!room) { setError('Room name is required'); return; }
+    const input = joinRoomName.trim().toUpperCase();
+    if (!input) { setError('Code or room name is required'); return; }
     setLoading(true); setError('');
     try {
-      // Check if paid webinar
-      try {
-        const { data: info } = await api.get(`/webinars/${room}`);
-        if (info.price > 0 && !info.isHost && !info.hasPaid) {
-          setWebinarInfo({ ...info, roomName: room });
+      let roomName = input;
+      let info = null;
+
+      // If it looks like a 5-char code, resolve it
+      if (/^[A-Z0-9]{5}$/.test(input)) {
+        try {
+          const { data } = await api.get(`/webinars/by-code/${input}`);
+          roomName = data.roomName;
+          info = data;
+        } catch {
+          setError('Invalid webinar code. Check with the host.');
           setLoading(false);
           return;
         }
-      } catch {
-        // No backend record = free webinar, just join
+      } else {
+        // Try as room name
+        try {
+          const { data } = await api.get(`/webinars/${input.toLowerCase()}`);
+          info = data;
+          roomName = input.toLowerCase();
+        } catch {
+          // No backend record = free webinar, just join
+        }
       }
-      setActiveRoom({ roomName: room, isHost: false, title: room, displayName: user?.name || 'Participant' });
+
+      if (info && info.price > 0 && !info.isHost && !info.hasPaid) {
+        setWebinarInfo({ ...info, roomName });
+        setLoading(false);
+        return;
+      }
+
+      setActiveRoom({ roomName, isHost: info?.isHost || false, title: info?.title || roomName, displayName: user?.name || 'Participant' });
     } catch (err) {
       setError(err?.response?.data?.error || 'Failed to join webinar.');
     } finally { setLoading(false); }
@@ -382,6 +338,13 @@ export default function Webinar() {
             <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1">Room Name</p>
             <p className="font-mono font-bold text-primary">{createdRoom.roomName}</p>
           </div>
+          {createdRoom.code && (
+            <div className="p-4 bg-primary/10 border border-primary/20 rounded-xl mb-4 text-center">
+              <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-2">Webinar Code</p>
+              <p className="text-4xl font-black text-primary tracking-[0.3em]">{createdRoom.code}</p>
+              <p className="text-xs text-muted-foreground mt-2">Share this code — participants enter it to join</p>
+            </div>
+          )}
           <InviteModal roomName={createdRoom.roomName} title={createdRoom.title} onClose={() => {}} inline />
         </div>
         <button onClick={() => setShowInvite(false)}
@@ -475,11 +438,11 @@ export default function Webinar() {
       {tab === 'join' && (
         <form onSubmit={handleJoin} className="glass-card p-6 rounded-2xl space-y-4">
           <div>
-            <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1.5 block">Room Name *</label>
-            <input type="text" placeholder="Enter the room name shared by the host"
+            <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1.5 block">Webinar Code or Room Name *</label>
+            <input type="text" placeholder="Enter 5-digit code (e.g. AB3X9) or room name"
               value={joinRoomName} onChange={e => setJoinRoomName(e.target.value)}
               className="w-full px-4 py-3 rounded-xl bg-accent/30 border border-border focus:ring-2 focus:ring-primary/50 outline-none text-sm" />
-            <p className="text-xs text-muted-foreground mt-1">The host will share the room name or invite link with you</p>
+            <p className="text-xs text-muted-foreground mt-1">Ask the host for the 5-digit code or invite link</p>
           </div>
           <button type="submit" disabled={loading}
             className="w-full py-3 bg-primary text-primary-foreground rounded-2xl font-bold shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-2">

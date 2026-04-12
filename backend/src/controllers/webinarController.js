@@ -9,14 +9,26 @@ const razorpay = new Razorpay({
 
 // In-memory store for paid webinar sessions
 const webinarStore = new Map();
+// Code → roomName lookup
+const codeToRoom = new Map();
 
-// POST /api/webinars — register a paid webinar
+const generateCode = () => {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  let code;
+  do {
+    code = Array.from({ length: 5 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+  } while (codeToRoom.has(code));
+  return code;
+};
+
+// POST /api/webinars — register a webinar
 const createWebinar = async (req, res) => {
   try {
     const { title, scheduledAt, description, price, roomName } = req.body;
     if (!title || !roomName) return res.status(400).json({ error: 'Title and roomName are required' });
 
     const entryFee = price ? parseFloat(price) : 0;
+    const code = generateCode();
 
     webinarStore.set(roomName, {
       title,
@@ -24,11 +36,29 @@ const createWebinar = async (req, res) => {
       scheduledAt,
       hostId: req.user.userId,
       price: entryFee,
+      code,
       paidUsers: new Set(),
       createdAt: new Date(),
     });
+    codeToRoom.set(code, roomName);
 
-    res.json({ ok: true, roomName, title, price: entryFee });
+    res.json({ ok: true, roomName, title, price: entryFee, code });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// GET /api/webinars/by-code/:code — resolve code to roomName
+const getWebinarByCode = async (req, res) => {
+  try {
+    const { code } = req.params;
+    const roomName = codeToRoom.get(code.toUpperCase());
+    if (!roomName) return res.status(404).json({ error: 'Invalid webinar code' });
+    const info = webinarStore.get(roomName);
+    if (!info) return res.status(404).json({ error: 'Webinar not found or expired' });
+    const isHost = info.hostId === req.user.userId;
+    const hasPaid = info.paidUsers.has(req.user.userId);
+    res.json({ roomName, title: info.title, price: info.price, isHost, hasPaid, canJoin: isHost || info.price === 0 || hasPaid });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -113,4 +143,4 @@ const verifyPayment = async (req, res) => {
   }
 };
 
-module.exports = { createWebinar, getWebinarInfo, createPaymentOrder, verifyPayment };
+module.exports = { createWebinar, getWebinarByCode, getWebinarInfo, createPaymentOrder, verifyPayment };
