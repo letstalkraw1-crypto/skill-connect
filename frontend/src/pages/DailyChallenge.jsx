@@ -10,33 +10,11 @@ const FeedbackModal = ({ video, onClose, onSubmitted }) => {
   const [positive, setPositive] = useState('');
   const [improvement, setImprovement] = useState('');
   const [ratings, setRatings] = useState({ confidence: 0, clarity: 0, structure: 0 });
+  const [showRatings, setShowRatings] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const scrollRef = React.useRef(null);
 
-  // Force scroll to top when modal opens
-  React.useLayoutEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = 0;
-    }
-  }, []);
-
-  // Prevent background scroll — works on iOS too
-  React.useEffect(() => {
-    const scrollY = window.scrollY;
-    document.body.style.position = 'fixed';
-    document.body.style.top = `-${scrollY}px`;
-    document.body.style.width = '100%';
-    return () => {
-      document.body.style.position = '';
-      document.body.style.top = '';
-      document.body.style.width = '';
-      window.scrollTo(0, scrollY);
-    };
-  }, []);
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleSubmit = async () => {
     if (!positive.trim() || !improvement.trim()) {
       setError('Both fields are required');
       return;
@@ -57,32 +35,17 @@ const FeedbackModal = ({ video, onClose, onSubmitted }) => {
     }
   };
 
-  const RatingStars = ({ label, field }) => (
-    <div className="space-y-1">
-      <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">{label}</p>
-      <div className="flex gap-2">
-        {[1, 2, 3, 4, 5].map(n => (
-          <button key={n} type="button" onClick={() => setRatings(r => ({ ...r, [field]: n }))}
-            className={`p-1 transition-colors ${n <= ratings[field] ? 'text-amber-400' : 'text-muted-foreground/30'}`}>
-            <Star size={22} className={n <= ratings[field] ? 'fill-current' : ''} />
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-
   return (
     <div className="fixed inset-0 z-[100] flex items-end justify-center bg-black/70"
-      style={{ overscrollBehavior: 'contain' }}
       onClick={e => e.target === e.currentTarget && onClose()}>
-      <div className="w-full max-w-lg bg-background rounded-t-3xl border-t border-border shadow-2xl flex flex-col"
-        style={{ height: '85vh', overscrollBehavior: 'contain' }}>
+      <div className="w-full max-w-lg bg-background rounded-t-3xl border-t border-border shadow-2xl"
+        style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
         {/* Drag handle */}
-        <div className="flex justify-center pt-3 pb-1 flex-shrink-0">
+        <div className="flex justify-center pt-3 pb-1">
           <div className="h-1 w-10 rounded-full bg-border" />
         </div>
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-3 border-b border-border flex-shrink-0">
+        <div className="flex items-center justify-between px-5 py-3 border-b border-border">
           <div>
             <h3 className="font-black text-base">Give Feedback</h3>
             <p className="text-xs text-muted-foreground">to {video.user?.name}</p>
@@ -92,8 +55,8 @@ const FeedbackModal = ({ video, onClose, onSubmitted }) => {
           </button>
         </div>
 
-        {/* Scrollable content — text fields FIRST */}
-        <div ref={scrollRef} className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+        {/* Content — no scroll container, fields always visible */}
+        <div className="px-5 pt-4 pb-2 space-y-4">
           {error && <div className="px-3 py-2 bg-destructive/10 border border-destructive/30 rounded-xl text-sm text-destructive">{error}</div>}
 
           <div>
@@ -110,16 +73,38 @@ const FeedbackModal = ({ video, onClose, onSubmitted }) => {
               className="w-full px-4 py-3 rounded-xl bg-accent/30 border border-border focus:ring-2 focus:ring-amber-500/50 outline-none text-sm resize-none" />
           </div>
 
-          <div className="p-4 bg-accent/20 rounded-xl space-y-3">
-            <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Optional Ratings</p>
-            <RatingStars label="Confidence" field="confidence" />
-            <RatingStars label="Clarity" field="clarity" />
-            <RatingStars label="Structure" field="structure" />
-          </div>
+          {/* Ratings — collapsible to save space */}
+          <button type="button" onClick={() => setShowRatings(s => !s)}
+            className="flex items-center gap-2 text-xs font-bold text-muted-foreground hover:text-foreground transition-colors">
+            {showRatings ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+            Optional Ratings
+          </button>
+          <AnimatePresence>
+            {showRatings && (
+              <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}
+                className="overflow-hidden">
+                <div className="p-4 bg-accent/20 rounded-xl space-y-3">
+                  {(['confidence', 'clarity', 'structure']).map(field => (
+                    <div key={field} className="space-y-1">
+                      <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">{field}</p>
+                      <div className="flex gap-2">
+                        {[1,2,3,4,5].map(n => (
+                          <button key={n} type="button" onClick={() => setRatings(r => ({ ...r, [field]: n }))}
+                            className={`p-1 transition-colors ${n <= ratings[field] ? 'text-amber-400' : 'text-muted-foreground/30'}`}>
+                            <Star size={20} className={n <= ratings[field] ? 'fill-current' : ''} />
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
 
-        {/* Submit button — always visible at bottom */}
-        <div className="px-5 py-4 border-t border-border flex-shrink-0">
+        {/* Submit button */}
+        <div className="px-5 py-4 border-t border-border mt-2">
           <button onClick={handleSubmit} disabled={loading || !positive.trim() || !improvement.trim()}
             className="w-full py-4 bg-primary text-primary-foreground rounded-2xl font-bold shadow-lg shadow-primary/20 active:scale-95 transition-all disabled:opacity-40 flex items-center justify-center gap-2 text-base">
             {loading ? <Loader2 size={20} className="animate-spin" /> : <Send size={20} />}
