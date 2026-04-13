@@ -281,7 +281,21 @@ async function updateStreak(userId) {
   }
 }
 
-// GET /api/daily-challenge/ai/:videoId — get AI analysis for a video (owner only)
+// POST /api/daily-challenge/ai/:videoId/retry — re-trigger AI analysis
+const retryAIAnalysis = async (req, res) => {
+  try {
+    const { videoId } = req.params;
+    const video = await ChallengeVideo.findById(videoId).lean();
+    if (!video) return res.status(404).json({ error: 'Video not found' });
+    if (video.userId !== req.user.userId) return res.status(403).json({ error: 'Only the video owner can retry' });
+
+    const challenge = await DailyChallenge.findById(video.challengeId).lean();
+    analyzeVideo(video._id, video.videoUrl, challenge?.topic || 'Communication challenge').catch(() => {});
+    res.json({ ok: true, status: 'processing' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
 const getAIAnalysis = async (req, res) => {
   try {
     const { videoId } = req.params;
@@ -340,14 +354,7 @@ const deleteFeedback = async (req, res) => {
 };
 
 module.exports = {
-  getTodayChallenge,
-  createChallenge,
-  submitVideo,
-  getChallengeFeed,
-  giveFeedback,
-  getVideoFeedback,
-  getMySubmissions,
-  replyToFeedback,
-  deleteFeedback,
-  getAIAnalysis,
+  getTodayChallenge, createChallenge, submitVideo, getChallengeFeed,
+  giveFeedback, getVideoFeedback, getMySubmissions,
+  replyToFeedback, deleteFeedback, getAIAnalysis, retryAIAnalysis,
 };

@@ -1,16 +1,9 @@
 const express = require('express');
 const multer = require('multer');
 const {
-  getTodayChallenge,
-  createChallenge,
-  submitVideo,
-  getChallengeFeed,
-  giveFeedback,
-  getVideoFeedback,
-  getMySubmissions,
-  replyToFeedback,
-  deleteFeedback,
-  getAIAnalysis,
+  getTodayChallenge, createChallenge, submitVideo, getChallengeFeed,
+  giveFeedback, getVideoFeedback, getMySubmissions,
+  replyToFeedback, deleteFeedback, getAIAnalysis, retryAIAnalysis,
 } = require('../controllers/dailyChallengeController');
 const { verifyToken } = require('../middleware/authMiddleware');
 
@@ -37,5 +30,6 @@ router.get('/feedback/:videoId', verifyToken, getVideoFeedback);
 router.post('/feedback/:feedbackId/reply', verifyToken, replyToFeedback);
 router.delete('/feedback/:feedbackId', verifyToken, deleteFeedback);
 router.get('/ai/:videoId', verifyToken, getAIAnalysis);
+router.post('/ai/:videoId/retry', verifyToken, retryAIAnalysis);
 
 module.exports = router;

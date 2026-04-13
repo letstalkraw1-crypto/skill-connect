@@ -207,11 +207,18 @@ const VideoCard = ({ video, currentUserId, onFeedbackGiven, onOpenFeedback, alre
 
   const loadAI = async () => {
     if (aiData?.status === 'done') { setShowAI(s => !s); return; }
+    if (aiData?.status === 'processing') return; // already running, just wait
     setLoadingAI(true);
     try {
-      const { data } = await api.get(`/daily-challenge/ai/${video._id}`);
-      setAiData(data);
-      setShowAI(true);
+      // For failed or pending, trigger a retry then poll
+      if (aiData?.status === 'failed' || !aiData?.status || aiData?.status === 'pending') {
+        await api.post(`/daily-challenge/ai/${video._id}/retry`);
+        setAiData(d => ({ ...d, status: 'processing' }));
+      } else {
+        const { data } = await api.get(`/daily-challenge/ai/${video._id}`);
+        setAiData(data);
+        if (data.status === 'done') setShowAI(true);
+      }
     } catch {}
     finally { setLoadingAI(false); }
   };
@@ -282,8 +289,8 @@ const VideoCard = ({ video, currentUserId, onFeedbackGiven, onOpenFeedback, alre
             <span className="flex-1 text-left">
               {loadingAI ? 'Loading AI analysis...' :
                aiData?.status === 'done' ? (showAI ? 'Hide AI Feedback' : 'View AI Feedback') :
-               aiData?.status === 'processing' ? 'AI is analyzing...' :
-               aiData?.status === 'failed' ? 'AI analysis unavailable' :
+               aiData?.status === 'processing' ? 'AI is analyzing... check back soon' :
+               aiData?.status === 'failed' ? '⚠️ AI analysis failed — tap to retry' :
                'Get AI Feedback'}
             </span>
             {aiData?.status === 'done' && !loadingAI && (
