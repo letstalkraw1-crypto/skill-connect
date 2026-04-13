@@ -82,6 +82,10 @@ const completeOnboardingChallenge = async (req, res) => {
       onboardingDone: true,
     });
 
+    // Clear cache so getMe returns updated onboardingDone
+    const { delCache } = require('../utils/cache');
+    await delCache(`user:${req.user.userId}`);
+
     // Start the selected challenge
     const type = challengeType || (comfortLevel === 'beginner' ? 'starter' : comfortLevel === 'intermediate' ? 'builder' : 'pro');
     const config = CHALLENGE_CONFIG[type] || CHALLENGE_CONFIG.starter;
