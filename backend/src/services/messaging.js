@@ -42,9 +42,9 @@ async function createConversation(creatorId, participantIds) {
 async function listConversations(userId) {
   const conversations = await Conversation.find({
     participants: userId
-  }).sort({ createdAt: -1 }).lean();
+  }).lean();
 
-  return Promise.all(conversations.map(async (conv) => {
+  const mapped = await Promise.all(conversations.map(async (conv) => {
     const lastMessage = await Message.findOne({ conversationId: conv._id })
       .sort({ sentAt: -1 })
       .lean();
@@ -79,6 +79,9 @@ async function listConversations(userId) {
       lastAt: lastMessage?.sentAt || conv.createdAt,
     };
   }));
+
+  // Sort by most recent message (or creation time if no messages)
+  return mapped.sort((a, b) => new Date(b.lastAt) - new Date(a.lastAt));
 }
 
 async function getMessages(conversationId, userId) {
