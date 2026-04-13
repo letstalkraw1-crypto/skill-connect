@@ -6,26 +6,23 @@ import Avatar from '../components/Avatar';
 import api from '../services/api';
 
 // ─── Feedback Modal ───────────────────────────────────────────────────────────
-// Step-based: first "What they did well", then "One thing to improve", then submit
 const FeedbackModal = ({ video, onClose, onSubmitted }) => {
-  const [step, setStep] = useState(0); // 0 = positive, 1 = improvement
-  const [positive, setPositive] = useState('');
-  const [improvement, setImprovement] = useState('');
+  const [text, setText] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const inputRef = useRef(null);
 
-  // Auto-focus input on each step
   useEffect(() => {
     const t = setTimeout(() => inputRef.current?.focus(), 100);
     return () => clearTimeout(t);
-  }, [step]);
+  }, []);
 
   const handleSubmit = async () => {
+    if (!text.trim()) return;
     setLoading(true);
     setError('');
     try {
-      await api.post(`/daily-challenge/feedback/${video._id}`, { positive, improvement });
+      await api.post(`/daily-challenge/feedback/${video._id}`, { positive: text, improvement: text });
       onSubmitted();
       onClose();
     } catch (err) {
@@ -34,90 +31,41 @@ const FeedbackModal = ({ video, onClose, onSubmitted }) => {
     }
   };
 
-  const steps = [
-    {
-      emoji: '✅',
-      label: 'What did they do well?',
-      placeholder: 'e.g. Great eye contact, confident tone...',
-      value: positive,
-      onChange: setPositive,
-      color: 'text-emerald-400',
-      next: () => { if (positive.trim()) { setError(''); setStep(1); } else setError('Please write something first'); },
-    },
-    {
-      emoji: '💡',
-      label: 'One thing to improve?',
-      placeholder: 'e.g. Try to slow down, use more examples...',
-      value: improvement,
-      onChange: setImprovement,
-      color: 'text-amber-400',
-      next: handleSubmit,
-    },
-  ];
-
-  const current = steps[step];
-
   return (
-    <div className="fixed inset-0 z-[100] flex flex-col bg-black/80"
-      onClick={e => e.target === e.currentTarget && onClose()}>
-      {/* Top area — tappable to close */}
+    <div className="fixed inset-0 z-[100] flex flex-col bg-black/80" onClick={e => e.target === e.currentTarget && onClose()}>
+      {/* Tappable backdrop */}
       <div className="flex-1" onClick={onClose} />
 
-      {/* Sheet — sits above keyboard naturally */}
-      <div className="bg-background border-t border-border w-full"
-        style={{ paddingBottom: 'env(safe-area-inset-bottom, 8px)' }}>
-
-        {/* Handle + header */}
+      {/* Sheet — keyboard pushes this up automatically */}
+      <div className="bg-background border-t border-border w-full" style={{ paddingBottom: 'env(safe-area-inset-bottom, 8px)' }}>
         <div className="flex justify-center pt-2 pb-1">
           <div className="h-1 w-10 rounded-full bg-border" />
         </div>
         <div className="flex items-center justify-between px-4 py-2 border-b border-border">
-          <div className="flex items-center gap-2">
-            {step === 1 && (
-              <button onClick={() => { setStep(0); setError(''); }}
-                className="text-xs text-muted-foreground hover:text-foreground font-bold px-2 py-1 rounded-lg hover:bg-accent">
-                ← Back
-              </button>
-            )}
-            <span className={`text-sm font-black ${current.color}`}>{current.emoji} {current.label}</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-muted-foreground">{step + 1}/2</span>
-            <button onClick={onClose} className="h-7 w-7 flex items-center justify-center rounded-lg bg-accent">
-              <X size={14} />
-            </button>
-          </div>
+          <span className="text-sm font-black">Feedback for {video.user?.name}</span>
+          <button onClick={onClose} className="h-7 w-7 flex items-center justify-center rounded-lg bg-accent"><X size={14} /></button>
         </div>
 
-        {/* Previous answer preview on step 2 */}
-        {step === 1 && positive && (
-          <div className="mx-4 mt-3 px-3 py-2 bg-emerald-500/10 border border-emerald-500/20 rounded-xl">
-            <p className="text-xs text-emerald-400 font-bold">✅ {positive}</p>
-          </div>
-        )}
+        {error && <p className="px-4 pt-2 text-xs text-destructive">{error}</p>}
 
-        {error && (
-          <div className="mx-4 mt-2 px-3 py-2 bg-destructive/10 border border-destructive/30 rounded-xl">
-            <p className="text-xs text-destructive">{error}</p>
-          </div>
-        )}
-
-        {/* Input row — Instagram style */}
         <div className="flex items-end gap-2 px-3 py-3">
           <Avatar src={video.user?.avatarUrl} name={video.user?.name} size="8" />
           <div className="flex-1 flex items-end gap-2 bg-accent/30 border border-border rounded-2xl px-3 py-2">
             <textarea
               ref={inputRef}
               rows={1}
-              placeholder={current.placeholder}
-              value={current.value}
-              onChange={e => { current.onChange(e.target.value); e.target.style.height = 'auto'; e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px'; }}
+              placeholder="Write your feedback..."
+              value={text}
+              onChange={e => {
+                setText(e.target.value);
+                e.target.style.height = 'auto';
+                e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px';
+              }}
+              onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSubmit(); } }}
               className="flex-1 bg-transparent outline-none text-sm resize-none leading-5 max-h-[120px] overflow-y-auto"
               style={{ height: '24px' }}
             />
-            <button
-              onClick={current.next}
-              disabled={!current.value.trim() || loading}
+            <button onClick={handleSubmit} disabled={!text.trim() || loading}
               className="h-8 w-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center flex-shrink-0 disabled:opacity-40 active:scale-90 transition-all">
               {loading ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
             </button>
