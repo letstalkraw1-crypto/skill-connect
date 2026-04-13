@@ -119,14 +119,15 @@ const completeOnboarding = async (req, res) => {
 
 const getSkillsList = (req, res) => {
   const SKILLS_DATA = {
-    'Coding': ['Web Development', 'App Development', 'DSA / Competitive Programming'],
-    'Content Creation': ['Short-form (Reels)', 'Long-form (YouTube)', 'Personal Branding'],
-    'Professional Communication': ['Public Speaking', 'Debate / Discussion', 'Hosting (Webinar / Seminar)'],
-    'Photography / Videography': ['Photography', 'Videography', 'Editing'],
-    'Research': ['Academic Research', 'Technical Research', 'Market Research'],
-    'Design': ['UI/UX Design', 'Graphic Design', 'Thumbnail Design'],
-    'Business / Entrepreneurship': ['Marketing', 'Sales', 'Startup Building'],
-    'Personal Development': ['Leadership', 'Time Management', 'Problem Solving'],
+    'Professional Communication': [
+      'Public Speaking',
+      'Interview Preparation',
+      'Debate / Discussion',
+      'Presentation Skills',
+      'Hosting (Webinar / Seminar)',
+      'Storytelling',
+      'English Fluency',
+    ],
   };
   res.json(SKILLS_DATA);
 };
