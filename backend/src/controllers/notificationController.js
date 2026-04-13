@@ -67,7 +67,9 @@ const sendNotification = async (req, res) => {
         createdAt: new Date(),
         data,
       });
-    } catch {}
+    } catch (emitErr) {
+      console.error('Failed to emit notification:', emitErr.message);
+    }
 
     res.json({ ok: true });
   } catch (err) {

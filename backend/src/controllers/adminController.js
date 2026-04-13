@@ -222,7 +222,9 @@ const reviewVerification = async (req, res) => {
           message,
           createdAt: new Date(),
         });
-      } catch {}
+      } catch (emitErr) {
+        console.error('Failed to emit notification:', emitErr.message);
+      }
     } catch (notifErr) {
       console.error('Failed to send verification notification:', notifErr.message);
     }

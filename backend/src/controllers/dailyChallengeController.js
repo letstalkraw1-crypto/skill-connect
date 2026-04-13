@@ -176,7 +176,9 @@ const giveFeedback = async (req, res) => {
         senderId: { _id: req.user.userId, name: reviewer?.name },
         createdAt: new Date(),
       });
-    } catch {}
+    } catch (emitErr) {
+      console.error('Failed to emit feedback notification:', emitErr.message);
+    }
 
     res.status(201).json(feedback);
   } catch (err) {

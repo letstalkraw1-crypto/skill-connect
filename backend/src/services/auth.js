@@ -88,7 +88,7 @@ async function login(email, password) {
   }
   console.log(`👤 User found: ${user._id}`);
   
-  let match = false;
+  let match;
   const isBcryptHash = user.password.startsWith('$2b$') || user.password.startsWith('$2a$');
 
   if (isBcryptHash) {
@@ -332,3 +332,4 @@ module.exports = {
   forgotPassword, resetPassword,
   verifyToken, optionalVerifyToken
 };
+
