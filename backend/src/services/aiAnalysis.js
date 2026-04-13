@@ -1,47 +1,62 @@
 /**
  * AI Analysis Service
- * Uses AssemblyAI for transcription + OpenAI GPT-4o for scoring
+ * Uses OpenAI GPT-4o-mini for scoring (text-based, no video processing)
+ * AssemblyAI for transcription (optional — set ASSEMBLYAI_API_KEY)
  * Gracefully skips if API keys are not configured
  */
+
+const https = require('https');
 
 const OPENAI_KEY = process.env.OPENAI_API_KEY;
 const ASSEMBLYAI_KEY = process.env.ASSEMBLYAI_API_KEY;
 
-/**
- * Transcribe audio from a video URL using AssemblyAI
- */
+function httpsPost(hostname, path, headers, body) {
+  return new Promise((resolve, reject) => {
+    const data = JSON.stringify(body);
+    const req = https.request({ hostname, path, method: 'POST', headers: { ...headers, 'Content-Length': Buffer.byteLength(data) } }, res => {
+      let raw = '';
+      res.on('data', chunk => raw += chunk);
+      res.on('end', () => { try { resolve(JSON.parse(raw)); } catch (e) { reject(e); } });
+    });
+    req.on('error', reject);
+    req.write(data);
+    req.end();
+  });
+}
+
+function httpsGet(hostname, path, headers) {
+  return new Promise((resolve, reject) => {
+    const req = https.request({ hostname, path, method: 'GET', headers }, res => {
+      let raw = '';
+      res.on('data', chunk => raw += chunk);
+      res.on('end', () => { try { resolve(JSON.parse(raw)); } catch (e) { reject(e); } });
+    });
+    req.on('error', reject);
+    req.end();
+  });
+}
+
 async function transcribeVideo(videoUrl) {
   if (!ASSEMBLYAI_KEY) return null;
 
-  const fetch = (...args) => import('node-fetch').then(({ default: f }) => f(...args));
+  const submit = await httpsPost('api.assemblyai.com', '/v2/transcript',
+    { authorization: ASSEMBLYAI_KEY, 'content-type': 'application/json' },
+    { audio_url: videoUrl, language_detection: true }
+  );
 
-  // Submit transcription job
-  const submitRes = await (await fetch('https://api.assemblyai.com/v2/transcript', {
-    method: 'POST',
-    headers: { authorization: ASSEMBLYAI_KEY, 'content-type': 'application/json' },
-    body: JSON.stringify({ audio_url: videoUrl, language_detection: true }),
-  })).json();
+  if (!submit.id) throw new Error('AssemblyAI submission failed');
 
-  if (!submitRes.id) throw new Error('AssemblyAI submission failed');
-
-  // Poll until done (max 2 minutes)
-  const pollUrl = `https://api.assemblyai.com/v2/transcript/${submitRes.id}`;
   for (let i = 0; i < 24; i++) {
     await new Promise(r => setTimeout(r, 5000));
-    const poll = await (await fetch(pollUrl, { headers: { authorization: ASSEMBLYAI_KEY } })).json();
+    const poll = await httpsGet('api.assemblyai.com', `/v2/transcript/${submit.id}`, { authorization: ASSEMBLYAI_KEY });
     if (poll.status === 'completed') return poll.text || '';
     if (poll.status === 'error') throw new Error(`Transcription error: ${poll.error}`);
   }
   throw new Error('Transcription timed out');
 }
 
-/**
- * Score a video transcript using OpenAI GPT-4o
- */
 async function scoreWithGPT(transcript, challengeTopic) {
   if (!OPENAI_KEY) return null;
-
-  const fetch = (...args) => import('node-fetch').then(({ default: f }) => f(...args));
 
   const prompt = `You are an expert communication coach evaluating a short speaking video for the challenge: "${challengeTopic}".
 
@@ -68,19 +83,17 @@ Respond ONLY with valid JSON in this exact format:
   "feedback": "You showed great enthusiasm and relevance to the topic. Focus on reducing filler words to sound more polished."
 }`;
 
-  const res = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: { authorization: `Bearer ${OPENAI_KEY}`, 'content-type': 'application/json' },
-    body: JSON.stringify({
-      model: 'gpt-4o-mini', // cheaper, fast
+  const data = await httpsPost('api.openai.com', '/v1/chat/completions',
+    { authorization: `Bearer ${OPENAI_KEY}`, 'content-type': 'application/json' },
+    {
+      model: 'gpt-4o-mini',
       messages: [{ role: 'user', content: prompt }],
       temperature: 0.3,
       max_tokens: 500,
       response_format: { type: 'json_object' },
-    }),
-  });
+    }
+  );
 
-  const data = await res.json();
   if (!data.choices?.[0]?.message?.content) throw new Error('GPT response empty');
   return JSON.parse(data.choices[0].message.content);
 }
@@ -90,7 +103,7 @@ Respond ONLY with valid JSON in this exact format:
  * Call this after saving the video — it updates the DB itself
  */
 async function analyzeVideo(videoId, videoUrl, challengeTopic) {
-  if (!OPENAI_KEY && !ASSEMBLYAI_KEY) return; // silently skip if no keys
+  if (!OPENAI_KEY && !ASSEMBLYAI_KEY) return;
 
   const { ChallengeVideo } = require('../config/db');
 
@@ -99,15 +112,11 @@ async function analyzeVideo(videoId, videoUrl, challengeTopic) {
 
     let transcript = null;
     if (ASSEMBLYAI_KEY) {
-      try {
-        transcript = await transcribeVideo(videoUrl);
-      } catch (err) {
-        console.error('[AI] Transcription failed:', err.message);
-      }
+      try { transcript = await transcribeVideo(videoUrl); }
+      catch (err) { console.error('[AI] Transcription failed:', err.message); }
     }
 
-    // If no transcript (no AssemblyAI key or failed), use a placeholder for GPT
-    const textForGPT = transcript || `[No transcript available — video submitted for topic: "${challengeTopic}"]`;
+    const textForGPT = transcript || `[No transcript — video submitted for topic: "${challengeTopic}"]`;
 
     let result = null;
     if (OPENAI_KEY) {
