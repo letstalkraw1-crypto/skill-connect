@@ -26,7 +26,14 @@ const FeedbackModal = ({ video, onClose, onSubmitted }) => {
       onSubmitted();
       onClose();
     } catch (err) {
-      setError(err?.response?.data?.error || 'Failed to submit');
+      const msg = err?.response?.data?.error || 'Failed to submit';
+      if (err?.response?.status === 409) {
+        // Already gave feedback — treat as success, close modal
+        onSubmitted();
+        onClose();
+        return;
+      }
+      setError(msg);
       setLoading(false);
     }
   };
@@ -76,12 +83,134 @@ const FeedbackModal = ({ video, onClose, onSubmitted }) => {
   );
 };
 
+// ─── Feedback Item (with long-press actions) ──────────────────────────────────
+const FeedbackItem = ({ feedback: f, currentUserId, isVideoOwner, onDeleted, onReplied }) => {
+  const [showMenu, setShowMenu] = useState(false);
+  const [showReplyInput, setShowReplyInput] = useState(false);
+  const [replyText, setReplyText] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const pressTimer = useRef(null);
+
+  const canDelete = f.reviewerId === currentUserId || isVideoOwner;
+  const canReply = isVideoOwner && !f.ownerReply;
+
+  const startPress = () => { pressTimer.current = setTimeout(() => setShowMenu(true), 500); };
+  const endPress = () => { if (pressTimer.current) clearTimeout(pressTimer.current); };
+
+  const handleDelete = async () => {
+    setShowMenu(false);
+    try {
+      await api.delete(`/daily-challenge/feedback/${f._id}`);
+      onDeleted();
+    } catch (err) {
+      alert(err?.response?.data?.error || 'Failed to delete');
+    }
+  };
+
+  const handleReply = async () => {
+    if (!replyText.trim()) return;
+    setSubmitting(true);
+    try {
+      await api.post(`/daily-challenge/feedback/${f._id}/reply`, { reply: replyText.trim() });
+      onReplied(replyText.trim());
+      setReplyText('');
+      setShowReplyInput(false);
+    } catch (err) {
+      alert(err?.response?.data?.error || 'Failed to reply');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="relative">
+      {showMenu && (
+        <>
+          <div className="fixed inset-0 z-[60]" onClick={() => setShowMenu(false)} />
+          <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
+            className="absolute right-0 top-0 z-[70] bg-background border border-border rounded-2xl shadow-2xl py-1 min-w-[140px]">
+            {canReply && (
+              <button onClick={() => { setShowMenu(false); setShowReplyInput(true); }}
+                className="w-full text-left px-4 py-2.5 text-xs font-bold hover:bg-accent transition-colors">
+                💬 Reply
+              </button>
+            )}
+            {canDelete && (
+              <button onClick={handleDelete}
+                className="w-full text-left px-4 py-2.5 text-xs font-bold text-destructive hover:bg-destructive/10 transition-colors">
+                🗑 Delete
+              </button>
+            )}
+          </motion.div>
+        </>
+      )}
+
+      <div
+        className="p-3 bg-accent/30 rounded-xl space-y-2 select-none"
+        onMouseDown={startPress} onMouseUp={endPress} onMouseLeave={endPress}
+        onTouchStart={startPress} onTouchEnd={endPress}
+        onContextMenu={e => { e.preventDefault(); if (canDelete || canReply) setShowMenu(true); }}>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Avatar src={f.reviewer?.avatarUrl} name={f.reviewer?.name} size="8" />
+            <p className="text-xs font-bold">{f.reviewer?.name || 'Anonymous'}</p>
+          </div>
+          {(canDelete || canReply) && (
+            <p className="text-[10px] text-muted-foreground">hold to act</p>
+          )}
+        </div>
+        <p className="text-xs">{f.positive}</p>
+
+        {/* Owner reply */}
+        {f.ownerReply && (
+          <div className="ml-4 pl-3 border-l-2 border-primary/30 mt-2">
+            <p className="text-[10px] text-primary font-bold mb-0.5">Owner replied:</p>
+            <p className="text-xs text-muted-foreground">{f.ownerReply}</p>
+          </div>
+        )}
+      </div>
+
+      {/* Reply input */}
+      {showReplyInput && (
+        <div className="mt-2 flex gap-2">
+          <input
+            autoFocus
+            type="text"
+            placeholder="Write your reply..."
+            value={replyText}
+            onChange={e => setReplyText(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') handleReply(); if (e.key === 'Escape') setShowReplyInput(false); }}
+            className="flex-1 px-3 py-2 rounded-xl bg-accent/30 border border-border outline-none text-xs"
+          />
+          <button onClick={handleReply} disabled={!replyText.trim() || submitting}
+            className="px-3 py-2 bg-primary text-primary-foreground rounded-xl text-xs font-bold disabled:opacity-40">
+            {submitting ? '...' : 'Send'}
+          </button>
+          <button onClick={() => setShowReplyInput(false)} className="px-3 py-2 bg-accent rounded-xl text-xs">✕</button>
+        </div>
+      )}
+    </div>
+  );
+};
+
 // ─── Video Card ───────────────────────────────────────────────────────────────
-const VideoCard = ({ video, currentUserId, onFeedbackGiven, onOpenFeedback }) => {
+const VideoCard = ({ video, currentUserId, onFeedbackGiven, onOpenFeedback, alreadyGaveFeedback }) => {
   const [feedbacks, setFeedbacks] = useState([]);
   const [loadingFeedback, setLoadingFeedback] = useState(false);
   const [showFeedbacks, setShowFeedbacks] = useState(false);
-  const [hasFeedback, setHasFeedback] = useState(false);
+  const [hasFeedback, setHasFeedback] = useState(alreadyGaveFeedback || false);
+
+  // Check on mount if current user already gave feedback
+  useEffect(() => {
+    if (!currentUserId || video.userId === currentUserId) return;
+    if (alreadyGaveFeedback) { setHasFeedback(true); return; }
+    api.get(`/daily-challenge/feedback/${video._id}`)
+      .then(({ data }) => {
+        setFeedbacks(data);
+        setHasFeedback(data.some(f => f.reviewerId === currentUserId));
+      })
+      .catch(() => {});
+  }, [video._id, currentUserId, alreadyGaveFeedback]);
 
   const loadFeedbacks = async () => {
     if (loadingFeedback) return;
@@ -161,21 +290,17 @@ const VideoCard = ({ video, currentUserId, onFeedbackGiven, onOpenFeedback }) =>
                 <p className="text-xs text-muted-foreground">No feedback yet. Be the first!</p>
               )}
               {feedbacks.map(f => (
-                <div key={f._id} className="p-3 bg-accent/30 rounded-xl space-y-2">
-                  <div className="flex items-center gap-2">
-                    <Avatar src={f.reviewer?.avatarUrl} name={f.reviewer?.name} size="8" />
-                    <p className="text-xs font-bold">{f.reviewer?.name || 'Anonymous'}</p>
-                  </div>
-                  <p className="text-xs text-emerald-400"><span className="font-bold">✅ </span>{f.positive}</p>
-                  <p className="text-xs text-amber-400"><span className="font-bold">💡 </span>{f.improvement}</p>
-                  {f.ratings && Object.values(f.ratings).some(v => v > 0) && (
-                    <div className="flex gap-3 text-[10px] text-muted-foreground">
-                      {f.ratings.confidence > 0 && <span>Confidence: {'⭐'.repeat(f.ratings.confidence)}</span>}
-                      {f.ratings.clarity > 0 && <span>Clarity: {'⭐'.repeat(f.ratings.clarity)}</span>}
-                      {f.ratings.structure > 0 && <span>Structure: {'⭐'.repeat(f.ratings.structure)}</span>}
-                    </div>
-                  )}
-                </div>
+                <FeedbackItem
+                  key={f._id}
+                  feedback={f}
+                  currentUserId={currentUserId}
+                  isVideoOwner={video.userId === currentUserId}
+                  onDeleted={() => {
+                    setFeedbacks(prev => prev.filter(x => x._id !== f._id));
+                    if (f.reviewerId === currentUserId) setHasFeedback(false);
+                  }}
+                  onReplied={(reply) => setFeedbacks(prev => prev.map(x => x._id === f._id ? { ...x, ownerReply: reply, ownerRepliedAt: new Date() } : x))}
+                />
               ))}
             </div>
           </motion.div>
@@ -381,6 +506,8 @@ export default function DailyChallenge() {
   const [feedTotal, setFeedTotal] = useState(0);
   // Single global feedback modal — only one can be open at a time
   const [activeFeedback, setActiveFeedback] = useState(null); // { video, onSubmitted }
+  // Track which video IDs current user already gave feedback on — persists across re-renders
+  const [feedbackGivenSet, setFeedbackGivenSet] = useState(new Set());
 
   useEffect(() => {
     api.get('/daily-challenge/today')
@@ -516,6 +643,7 @@ export default function DailyChallenge() {
 
         {feed.map(video => (
           <VideoCard key={video._id} video={video} currentUserId={user?._id || user?.id}
+            alreadyGaveFeedback={feedbackGivenSet.has(video._id)}
             onFeedbackGiven={() => {}}
             onOpenFeedback={(v, cb) => setActiveFeedback({ video: v, onSubmitted: cb })} />
         ))}
@@ -534,7 +662,11 @@ export default function DailyChallenge() {
           <FeedbackModal
             video={activeFeedback.video}
             onClose={() => setActiveFeedback(null)}
-            onSubmitted={() => { activeFeedback.onSubmitted(); setActiveFeedback(null); }}
+            onSubmitted={() => {
+              setFeedbackGivenSet(prev => new Set([...prev, activeFeedback.video._id]));
+              activeFeedback.onSubmitted();
+              setActiveFeedback(null);
+            }}
           />
         )}
       </AnimatePresence>

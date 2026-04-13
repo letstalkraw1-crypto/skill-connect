@@ -8,6 +8,8 @@ const {
   giveFeedback,
   getVideoFeedback,
   getMySubmissions,
+  replyToFeedback,
+  deleteFeedback,
 } = require('../controllers/dailyChallengeController');
 const { verifyToken } = require('../middleware/authMiddleware');
 
@@ -31,5 +33,7 @@ router.post('/:id/submit', verifyToken, videoUpload.single('video'), submitVideo
 router.get('/:id/feed', verifyToken, getChallengeFeed);
 router.post('/feedback/:videoId', verifyToken, giveFeedback);
 router.get('/feedback/:videoId', verifyToken, getVideoFeedback);
+router.post('/feedback/:feedbackId/reply', verifyToken, replyToFeedback);
+router.delete('/feedback/:feedbackId', verifyToken, deleteFeedback);
 
 module.exports = router;

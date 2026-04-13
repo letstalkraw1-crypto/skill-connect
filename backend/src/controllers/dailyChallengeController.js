@@ -275,6 +275,53 @@ async function updateStreak(userId) {
   }
 }
 
+// POST /api/daily-challenge/feedback/:feedbackId/reply — video owner replies
+const replyToFeedback = async (req, res) => {
+  try {
+    const { feedbackId } = req.params;
+    const { reply } = req.body;
+    if (!reply?.trim()) return res.status(400).json({ error: 'Reply text is required' });
+
+    const feedback = await VideoFeedback.findById(feedbackId);
+    if (!feedback) return res.status(404).json({ error: 'Feedback not found' });
+
+    // Only the video owner can reply
+    const video = await ChallengeVideo.findById(feedback.videoId);
+    if (!video) return res.status(404).json({ error: 'Video not found' });
+    if (video.userId !== req.user.userId) return res.status(403).json({ error: 'Only the video owner can reply' });
+
+    feedback.ownerReply = reply.trim();
+    feedback.ownerRepliedAt = new Date();
+    await feedback.save();
+
+    res.json(feedback);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// DELETE /api/daily-challenge/feedback/:feedbackId — reviewer or video owner can delete
+const deleteFeedback = async (req, res) => {
+  try {
+    const { feedbackId } = req.params;
+    const feedback = await VideoFeedback.findById(feedbackId);
+    if (!feedback) return res.status(404).json({ error: 'Feedback not found' });
+
+    const video = await ChallengeVideo.findById(feedback.videoId);
+    const isReviewer = feedback.reviewerId === req.user.userId;
+    const isOwner = video?.userId === req.user.userId;
+
+    if (!isReviewer && !isOwner) return res.status(403).json({ error: 'Not allowed' });
+
+    await VideoFeedback.deleteOne({ _id: feedbackId });
+    await ChallengeVideo.findByIdAndUpdate(feedback.videoId, { $inc: { feedbackCount: -1 } });
+
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
 module.exports = {
   getTodayChallenge,
   createChallenge,
@@ -283,4 +330,6 @@ module.exports = {
   giveFeedback,
   getVideoFeedback,
   getMySubmissions,
+  replyToFeedback,
+  deleteFeedback,
 };
