@@ -1,6 +1,7 @@
 const { DailyChallenge, ChallengeVideo, VideoFeedback, User, Notification } = require('../config/db');
 const { v4: uuidv4 } = require('uuid');
 const { uploadToCloudinary } = require('../config/cloudinary');
+const { analyzeVideo } = require('../services/aiAnalysis');
 
 const todayStr = () => new Date().toISOString().slice(0, 10);
 
@@ -88,6 +89,11 @@ const submitVideo = async (req, res) => {
 
     // Update user streak
     await updateStreak(req.user.userId);
+
+    // Trigger AI analysis asynchronously (non-blocking)
+    analyzeVideo(video._id, result.secure_url, challenge.topic).catch(err =>
+      console.error('[AI] Background analysis error:', err.message)
+    );
 
     res.status(201).json(video);
   } catch (err) {
@@ -275,7 +281,18 @@ async function updateStreak(userId) {
   }
 }
 
-// POST /api/daily-challenge/feedback/:feedbackId/reply — video owner replies
+// GET /api/daily-challenge/ai/:videoId — get AI analysis for a video (owner only)
+const getAIAnalysis = async (req, res) => {
+  try {
+    const { videoId } = req.params;
+    const video = await ChallengeVideo.findById(videoId).lean();
+    if (!video) return res.status(404).json({ error: 'Video not found' });
+    if (video.userId !== req.user.userId) return res.status(403).json({ error: 'Only the video owner can view AI analysis' });
+    res.json(video.aiAnalysis || { status: 'pending' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
 const replyToFeedback = async (req, res) => {
   try {
     const { feedbackId } = req.params;
@@ -332,4 +349,5 @@ module.exports = {
   getMySubmissions,
   replyToFeedback,
   deleteFeedback,
+  getAIAnalysis,
 };

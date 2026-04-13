@@ -10,6 +10,7 @@ const {
   getMySubmissions,
   replyToFeedback,
   deleteFeedback,
+  getAIAnalysis,
 } = require('../controllers/dailyChallengeController');
 const { verifyToken } = require('../middleware/authMiddleware');
 
@@ -35,5 +36,6 @@ router.post('/feedback/:videoId', verifyToken, giveFeedback);
 router.get('/feedback/:videoId', verifyToken, getVideoFeedback);
 router.post('/feedback/:feedbackId/reply', verifyToken, replyToFeedback);
 router.delete('/feedback/:feedbackId', verifyToken, deleteFeedback);
+router.get('/ai/:videoId', verifyToken, getAIAnalysis);
 
 module.exports = router;

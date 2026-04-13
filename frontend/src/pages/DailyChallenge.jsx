@@ -199,10 +199,26 @@ const VideoCard = ({ video, currentUserId, onFeedbackGiven, onOpenFeedback, alre
   const [loadingFeedback, setLoadingFeedback] = useState(false);
   const [showFeedbacks, setShowFeedbacks] = useState(false);
   const [hasFeedback, setHasFeedback] = useState(alreadyGaveFeedback || false);
+  const [aiData, setAiData] = useState(video.aiAnalysis || null);
+  const [showAI, setShowAI] = useState(false);
+  const [loadingAI, setLoadingAI] = useState(false);
+
+  const isOwn = video.userId === currentUserId;
+
+  const loadAI = async () => {
+    if (aiData?.status === 'done') { setShowAI(s => !s); return; }
+    setLoadingAI(true);
+    try {
+      const { data } = await api.get(`/daily-challenge/ai/${video._id}`);
+      setAiData(data);
+      setShowAI(true);
+    } catch {}
+    finally { setLoadingAI(false); }
+  };
 
   // Check on mount if current user already gave feedback
   useEffect(() => {
-    if (!currentUserId || video.userId === currentUserId) return;
+    if (!currentUserId || isOwn) return;
     if (alreadyGaveFeedback) { setHasFeedback(true); return; }
     api.get(`/daily-challenge/feedback/${video._id}`)
       .then(({ data }) => {
@@ -227,8 +243,6 @@ const VideoCard = ({ video, currentUserId, onFeedbackGiven, onOpenFeedback, alre
     if (!showFeedbacks) loadFeedbacks();
     setShowFeedbacks(s => !s);
   };
-
-  const isOwn = video.userId === currentUserId;
 
   return (
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
@@ -257,6 +271,73 @@ const VideoCard = ({ video, currentUserId, onFeedbackGiven, onOpenFeedback, alre
       {/* Caption */}
       {video.caption && (
         <p className="px-4 pt-3 text-sm text-muted-foreground">{video.caption}</p>
+      )}
+
+      {/* AI Feedback — only visible to video owner */}
+      {isOwn && (
+        <div className="mx-4 mt-3">
+          <button onClick={loadAI} disabled={loadingAI}
+            className="flex items-center gap-2 px-3 py-2 bg-violet-500/10 border border-violet-500/20 text-violet-400 rounded-xl text-xs font-bold hover:bg-violet-500/20 transition-all w-full">
+            <span>🤖</span>
+            <span className="flex-1 text-left">
+              {loadingAI ? 'Loading AI analysis...' :
+               aiData?.status === 'done' ? (showAI ? 'Hide AI Feedback' : 'View AI Feedback') :
+               aiData?.status === 'processing' ? 'AI is analyzing...' :
+               aiData?.status === 'failed' ? 'AI analysis unavailable' :
+               'Get AI Feedback'}
+            </span>
+            {aiData?.status === 'done' && !loadingAI && (
+              <span className="px-2 py-0.5 bg-violet-500/20 rounded-full text-[10px] font-black">
+                {aiData.scores?.overall}/10
+              </span>
+            )}
+          </button>
+
+          <AnimatePresence>
+            {showAI && aiData?.status === 'done' && (
+              <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}
+                className="overflow-hidden">
+                <div className="mt-2 p-4 bg-violet-500/5 border border-violet-500/20 rounded-xl space-y-3">
+                  {/* Score grid */}
+                  <div className="grid grid-cols-2 gap-2">
+                    {Object.entries(aiData.scores || {}).map(([key, val]) => (
+                      <div key={key} className="flex items-center justify-between px-3 py-2 bg-background/50 rounded-lg">
+                        <span className="text-xs text-muted-foreground capitalize">{key}</span>
+                        <div className="flex items-center gap-1">
+                          <div className="w-16 h-1.5 bg-border rounded-full overflow-hidden">
+                            <div className="h-full bg-violet-500 rounded-full" style={{ width: `${val * 10}%` }} />
+                          </div>
+                          <span className="text-xs font-black text-violet-400">{val}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* AI written feedback */}
+                  {aiData.feedback && (
+                    <p className="text-xs text-muted-foreground italic border-l-2 border-violet-500/40 pl-3">{aiData.feedback}</p>
+                  )}
+
+                  {/* Strengths */}
+                  {aiData.strengths?.length > 0 && (
+                    <div>
+                      <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest mb-1">Strengths</p>
+                      {aiData.strengths.map((s, i) => <p key={i} className="text-xs text-emerald-400">✅ {s}</p>)}
+                    </div>
+                  )}
+
+                  {/* Improvements */}
+                  {aiData.improvements?.length > 0 && (
+                    <div>
+                      <p className="text-[10px] font-black text-amber-400 uppercase tracking-widest mb-1">To Improve</p>
+                      {aiData.improvements.map((s, i) => <p key={i} className="text-xs text-amber-400">💡 {s}</p>)}
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
       )}
 
       {/* Actions */}
