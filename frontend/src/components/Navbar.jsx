@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Home, Search, MessageSquare, User, LogOut, Plus, Calendar, Users, X, Trophy, BookOpen, MessageCircleQuestion, Video } from 'lucide-react';
+import { Home, Search, MessageSquare, User, LogOut, Plus, Calendar, Users, X, Trophy, BookOpen, MessageCircleQuestion, Video, Mic2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { AnimatePresence, motion } from 'framer-motion';
 import Avatar from './Avatar';
@@ -72,6 +72,7 @@ const Navbar = () => {
 
           <div className="hidden md:flex items-center gap-2 ml-8 flex-1">
             <NavItem to="/" icon={Home} label="Home" active={location.pathname === '/'} />
+            <NavItem to="/daily-challenge" icon={Mic2} label="Daily Challenge" active={location.pathname.startsWith('/daily-challenge')} />
             <NavItem to="/discovery" icon={Search} label="Discover" active={location.pathname.startsWith('/discovery')} />
             <NavItem to="/chat" icon={MessageSquare} label="Messages" active={location.pathname.startsWith('/chat')} />
             <NavItem to={`/profile/${user._id || user.id}`} icon={User} label="Profile" active={location.pathname.startsWith('/profile')} />

@@ -33,6 +33,9 @@ const userSchema = new mongoose.Schema({
   onboardingComplete: { type: Boolean, default: false },
   isEmailVerified: { type: Boolean, default: false },
   passwordResetToken: { type: String },
+  // Streak tracking
+  streakCount: { type: Number, default: 0 },
+  lastActiveDate: { type: String, default: null }, // YYYY-MM-DD
   passwordResetExpires: { type: Date },
   createdAt: { type: Date, default: Date.now }
 });

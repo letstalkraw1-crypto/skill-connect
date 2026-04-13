@@ -100,6 +100,9 @@ module.exports = {
   Event: require('../models/Event'),
   EventRsvp: require('../models/EventRsvp'),
   Notification: require('../models/Notification'),
+  DailyChallenge: require('../models/DailyChallenge'),
+  ChallengeVideo: require('../models/ChallengeVideo'),
+  VideoFeedback: require('../models/VideoFeedback'),
   mongoose,
   connectDB
 };

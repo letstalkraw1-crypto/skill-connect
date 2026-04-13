@@ -203,7 +203,8 @@ const Admin = () => {
             { id: 'stats', label: 'Dashboard', icon: BarChart3 },
             { id: 'users', label: 'Users', icon: Users },
             { id: 'verifications', label: 'Verifications', icon: CheckCircle },
-            { id: 'events', label: 'Events', icon: Calendar }
+            { id: 'events', label: 'Events', icon: Calendar },
+            { id: 'daily', label: 'Daily Challenge', icon: Shield }
           ].map(tab => (
             <button
               key={tab.id}
@@ -225,6 +226,7 @@ const Admin = () => {
         {activeTab === 'users' && <UsersView users={users} onViewUser={viewUser} />}
         {activeTab === 'verifications' && <VerificationsView verifications={verifications} onReview={reviewVerification} />}
         {activeTab === 'events' && <EventsView events={events} onDelete={deleteEvent} />}
+        {activeTab === 'daily' && <DailyChallengeAdmin token={token} />}
       </div>
 
       {selectedUser && (
@@ -582,3 +584,69 @@ const UserDetailModal = ({ user, editMode, onClose, onEdit, onSave, onDelete }) 
 };
 
 export default Admin;
+
+// ─── Daily Challenge Admin ────────────────────────────────────────────────────
+const DailyChallengeAdmin = ({ token }) => {
+  const [form, setForm] = useState({ date: new Date().toISOString().slice(0, 10), topic: '', description: '', tips: '' });
+  const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState('');
+  const [error, setError] = useState('');
+
+  const handleCreate = async (e) => {
+    e.preventDefault();
+    if (!form.topic.trim()) { setError('Topic is required'); return; }
+    setLoading(true); setError(''); setSuccess('');
+    try {
+      const headers = { Authorization: `Bearer ${localStorage.getItem('token')}` };
+      await axios.post('/api/daily-challenge', {
+        date: form.date,
+        topic: form.topic.trim(),
+        description: form.description.trim(),
+        tips: form.tips.split('\n').map(t => t.trim()).filter(Boolean),
+      }, { headers });
+      setSuccess(`✅ Challenge created for ${form.date}`);
+      setForm(f => ({ ...f, topic: '', description: '', tips: '' }));
+    } catch (err) {
+      setError(err?.response?.data?.error || 'Failed to create challenge');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="max-w-lg">
+      <h2 className="text-xl font-black mb-4">Create Daily Challenge</h2>
+      {success && <div className="mb-4 px-4 py-3 bg-emerald-500/10 border border-emerald-500/30 rounded-xl text-sm text-emerald-400">{success}</div>}
+      {error && <div className="mb-4 px-4 py-3 bg-destructive/10 border border-destructive/30 rounded-xl text-sm text-destructive">{error}</div>}
+      <form onSubmit={handleCreate} className="space-y-4">
+        <div>
+          <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1.5 block">Date *</label>
+          <input type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))}
+            className="w-full px-4 py-3 rounded-xl bg-accent/30 border border-border outline-none text-sm" />
+        </div>
+        <div>
+          <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1.5 block">Topic / Question *</label>
+          <input type="text" placeholder='e.g. "Tell me about yourself"'
+            value={form.topic} onChange={e => setForm(f => ({ ...f, topic: e.target.value }))}
+            className="w-full px-4 py-3 rounded-xl bg-accent/30 border border-border outline-none text-sm" />
+        </div>
+        <div>
+          <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1.5 block">Description (optional)</label>
+          <textarea rows={2} placeholder="Context or instructions for the user..."
+            value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
+            className="w-full px-4 py-3 rounded-xl bg-accent/30 border border-border outline-none text-sm resize-none" />
+        </div>
+        <div>
+          <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1.5 block">Tips (one per line, optional)</label>
+          <textarea rows={3} placeholder={"Maintain eye contact\nSpeak clearly\nKeep it under 60 seconds"}
+            value={form.tips} onChange={e => setForm(f => ({ ...f, tips: e.target.value }))}
+            className="w-full px-4 py-3 rounded-xl bg-accent/30 border border-border outline-none text-sm resize-none font-mono text-xs" />
+        </div>
+        <button type="submit" disabled={loading}
+          className="w-full py-3 bg-primary text-primary-foreground rounded-2xl font-bold hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50">
+          {loading ? 'Creating...' : 'Create Challenge'}
+        </button>
+      </form>
+    </div>
+  );
+};

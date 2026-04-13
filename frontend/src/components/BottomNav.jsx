@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Home, Calendar, MessageSquare, Bell, User, Grid3X3, Trophy, BookOpen, MessageCircleQuestion, Users, Search, X, Video } from 'lucide-react';
+import { Home, Calendar, MessageSquare, Bell, User, Grid3X3, Trophy, BookOpen, MessageCircleQuestion, Users, Search, X, Video, Mic2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useSocketContext } from '../context/SocketContext';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -47,12 +47,13 @@ const BottomNav = () => {
 
   const mainNav = [
     { to: '/', icon: Home, label: 'Home' },
-    { to: '/events', icon: Calendar, label: 'Events' },
+    { to: '/daily-challenge', icon: Mic2, label: 'Challenge' },
     { to: '/chat', icon: MessageSquare, label: 'Messages', dot: unreadMessages > 0 },
     { to: '/notifications', icon: Bell, label: 'Activity', badge: unreadCount > 0 ? (unreadCount > 9 ? '9+' : unreadCount) : null },
   ];
 
   const moreItems = [
+    { to: '/events', icon: Calendar, label: 'Events' },
     { to: '/challenges', icon: Trophy, label: 'Challenges' },
     { to: '/resources', icon: BookOpen, label: 'Resources' },
     { to: '/qa', icon: MessageCircleQuestion, label: 'Q&A' },
