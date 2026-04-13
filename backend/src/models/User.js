@@ -36,6 +36,13 @@ const userSchema = new mongoose.Schema({
   // Streak tracking
   streakCount: { type: Number, default: 0 },
   lastActiveDate: { type: String, default: null }, // YYYY-MM-DD
+  // Onboarding
+  userIntent: { type: String, enum: ['interview', 'confidence', 'creator', 'communication', ''], default: '' },
+  comfortLevel: { type: String, enum: ['beginner', 'intermediate', 'confident', ''], default: '' },
+  onboardingDone: { type: Boolean, default: false },
+  // Progress
+  activeDays: { type: Number, default: 0 },
+  totalVideos: { type: Number, default: 0 },
   passwordResetExpires: { type: Date },
   createdAt: { type: Date, default: Date.now }
 });

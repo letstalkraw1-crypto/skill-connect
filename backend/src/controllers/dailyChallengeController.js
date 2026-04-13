@@ -232,10 +232,10 @@ const getMySubmissions = async (req, res) => {
   }
 };
 
-// Helper: update streak
+// Helper: update streak and progress
 async function updateStreak(userId) {
   try {
-    const user = await User.findById(userId).select('lastActiveDate streakCount').lean();
+    const user = await User.findById(userId).select('lastActiveDate streakCount activeDays totalVideos').lean();
     const today = todayStr();
     const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
 
@@ -243,13 +243,33 @@ async function updateStreak(userId) {
     if (user.lastActiveDate === yesterday) {
       newStreak = (user.streakCount || 0) + 1;
     } else if (user.lastActiveDate === today) {
-      return; // Already counted today
+      // Already counted today — just increment totalVideos
+      await User.findByIdAndUpdate(userId, { $inc: { totalVideos: 1 } });
+      return;
     }
+
+    const isNewDay = user.lastActiveDate !== today;
 
     await User.findByIdAndUpdate(userId, {
       streakCount: newStreak,
       lastActiveDate: today,
+      $inc: {
+        totalVideos: 1,
+        activeDays: isNewDay ? 1 : 0,
+      },
     });
+
+    // Update active challenge progress
+    const { UserChallenge } = require('../config/db');
+    const activeChallenge = await UserChallenge.findOne({ userId, status: 'active' });
+    if (activeChallenge) {
+      activeChallenge.videosCompleted += 1;
+      if (activeChallenge.videosCompleted >= activeChallenge.targetVideos) {
+        activeChallenge.status = 'completed';
+        activeChallenge.completedAt = new Date();
+      }
+      await activeChallenge.save();
+    }
   } catch (err) {
     console.error('Streak update failed:', err.message);
   }

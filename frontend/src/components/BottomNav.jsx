@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Home, Mic2, Bell, User } from 'lucide-react';
+import { Home, Mic2, Bell, User, TrendingUp } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useSocketContext } from '../context/SocketContext';
 import api from '../services/api';
@@ -35,7 +35,7 @@ const BottomNav = () => {
   const navItems = [
     { to: '/', icon: Home, label: 'Home' },
     { to: '/daily-challenge', icon: Mic2, label: 'Challenge' },
-    { to: '/notifications', icon: Bell, label: 'Activity', badge: unreadCount > 0 ? (unreadCount > 9 ? '9+' : unreadCount) : null },
+    { to: '/progress', icon: TrendingUp, label: 'Progress' },
     { to: `/profile/${user._id || user.id}`, icon: User, label: 'Profile' },
   ];
 

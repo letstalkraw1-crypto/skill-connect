@@ -103,6 +103,7 @@ module.exports = {
   DailyChallenge: require('../models/DailyChallenge'),
   ChallengeVideo: require('../models/ChallengeVideo'),
   VideoFeedback: require('../models/VideoFeedback'),
+  UserChallenge: require('../models/UserChallenge'),
   mongoose,
   connectDB
 };

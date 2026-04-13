@@ -1,5 +1,5 @@
 import { Suspense, lazy, useEffect } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { SocketProvider, useSocketContext } from './context/SocketContext';
 import Navbar from './components/Navbar';
@@ -20,6 +20,8 @@ const Challenges = lazy(() => import('./pages/Challenges'));
 const Resources = lazy(() => import('./pages/Resources'));
 const QARooms = lazy(() => import('./pages/QARooms'));
 const DailyChallenge = lazy(() => import('./pages/DailyChallenge'));
+const Onboarding = lazy(() => import('./pages/Onboarding'));
+const Progress = lazy(() => import('./pages/Progress'));
 
 // Lightweight loading fallback
 const LoadingFallback = () => (
@@ -33,8 +35,14 @@ const LoadingFallback = () => (
 
 const PrivateRoute = ({ children }) => {
   const { user, loading } = useAuth();
+  const location = useLocation();
   if (loading) return <div className="flex h-screen items-center justify-center bg-background text-primary">Loading...</div>;
-  return user ? children : <Navigate to="/auth" />;
+  if (!user) return <Navigate to="/auth" />;
+  // Redirect to onboarding if not done yet (skip if already on onboarding)
+  if (user && !user.onboardingDone && location.pathname !== '/onboarding') {
+    return <Navigate to="/onboarding" />;
+  }
+  return children;
 };
 
 const App = () => {
@@ -59,6 +67,8 @@ const App = () => {
                 <Route path="/resources" element={<PrivateRoute><Resources /></PrivateRoute>} />
                 <Route path="/qa" element={<PrivateRoute><QARooms /></PrivateRoute>} />
                 <Route path="/daily-challenge" element={<PrivateRoute><DailyChallenge /></PrivateRoute>} />
+                <Route path="/onboarding" element={<PrivateRoute><Onboarding /></PrivateRoute>} />
+                <Route path="/progress" element={<PrivateRoute><Progress /></PrivateRoute>} />
                 <Route path="/legal/:type" element={<Legal />} />
                 <Route path="*" element={<Navigate to="/" />} />
               </Routes>
