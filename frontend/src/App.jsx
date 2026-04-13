@@ -23,6 +23,7 @@ const Admin = lazy(() => import('./pages/Admin'));
 const Challenges = lazy(() => import('./pages/Challenges'));
 const Resources = lazy(() => import('./pages/Resources'));
 const QARooms = lazy(() => import('./pages/QARooms'));
+const Webinar = lazy(() => import('./pages/Webinar'));
 
 // Lightweight loading fallback
 const LoadingFallback = () => (
@@ -65,6 +66,7 @@ const App = () => {
                 <Route path="/challenges" element={<PrivateRoute><Challenges /></PrivateRoute>} />
                 <Route path="/resources" element={<PrivateRoute><Resources /></PrivateRoute>} />
                 <Route path="/qa" element={<PrivateRoute><QARooms /></PrivateRoute>} />
+                <Route path="/webinar" element={<PrivateRoute><Webinar /></PrivateRoute>} />
                 <Route path="/legal/:type" element={<Legal />} />
                 <Route path="*" element={<Navigate to="/" />} />
               </Routes>
