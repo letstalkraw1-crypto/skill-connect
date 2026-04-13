@@ -1,10 +1,9 @@
 import React from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Home, Search, MessageSquare, User, LogOut, Plus, X, Mic2, TrendingUp } from 'lucide-react';
+import { Home, Search, MessageSquare, User, LogOut, X, Mic2, TrendingUp } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { AnimatePresence, motion } from 'framer-motion';
 import Avatar from './Avatar';
-import CreateModal from './CreateModal';
 import api from '../services/api';
 
 const NavItem = ({ to, icon: Icon, label, active }) => (
@@ -23,7 +22,6 @@ const NavItem = ({ to, icon: Icon, label, active }) => (
 
 const Navbar = () => {
   const { user, logout } = useAuth();
-  const [showCreate, setShowCreate] = React.useState(false);
   const [showSearch, setShowSearch] = React.useState(false);
   const [searchQuery, setSearchQuery] = React.useState('');
   const [searchResults, setSearchResults] = React.useState([]);
@@ -122,12 +120,12 @@ const Navbar = () => {
               </AnimatePresence>
             </div>
 
-            {/* + Create Button */}
-            <button onClick={() => setShowCreate(true)}
-              className="h-10 w-10 flex items-center justify-center rounded-full bg-primary text-primary-foreground hover:scale-105 active:scale-95 transition-all shadow-lg shadow-primary/20"
-              title="Create Event or Community">
-              <Plus size={22} />
-            </button>
+            {/* Messages quick access */}
+            <Link to="/chat"
+              className={`h-10 w-10 flex items-center justify-center rounded-full hover:bg-accent transition-colors text-muted-foreground hover:text-foreground relative`}
+              title="Messages">
+              <MessageSquare size={20} />
+            </Link>
 
             <div className="h-8 w-[1px] bg-border mx-1 hidden sm:block"></div>
 
@@ -140,9 +138,6 @@ const Navbar = () => {
         </div>
       </nav>
 
-      <AnimatePresence>
-        {showCreate && <CreateModal onClose={() => setShowCreate(false)} />}
-      </AnimatePresence>
     </>
   );
 };

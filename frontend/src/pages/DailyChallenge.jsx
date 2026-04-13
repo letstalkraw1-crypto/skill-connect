@@ -12,6 +12,18 @@ const FeedbackModal = ({ video, onClose, onSubmitted }) => {
   const [ratings, setRatings] = useState({ confidence: 0, clarity: 0, structure: 0 });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const scrollRef = React.useRef(null);
+
+  // Prevent background scroll when modal is open
+  React.useEffect(() => {
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = ''; };
+  }, []);
+
+  // Scroll to top when modal opens
+  React.useEffect(() => {
+    if (scrollRef.current) scrollRef.current.scrollTop = 0;
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -38,11 +50,11 @@ const FeedbackModal = ({ video, onClose, onSubmitted }) => {
   const RatingStars = ({ label, field }) => (
     <div className="space-y-1">
       <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">{label}</p>
-      <div className="flex gap-1">
+      <div className="flex gap-2">
         {[1, 2, 3, 4, 5].map(n => (
           <button key={n} type="button" onClick={() => setRatings(r => ({ ...r, [field]: n }))}
-            className={`transition-colors ${n <= ratings[field] ? 'text-amber-400' : 'text-muted-foreground/30 hover:text-amber-300'}`}>
-            <Star size={18} className={n <= ratings[field] ? 'fill-current' : ''} />
+            className={`p-1 transition-colors ${n <= ratings[field] ? 'text-amber-400' : 'text-muted-foreground/30'}`}>
+            <Star size={22} className={n <= ratings[field] ? 'fill-current' : ''} />
           </button>
         ))}
       </div>
@@ -50,58 +62,61 @@ const FeedbackModal = ({ video, onClose, onSubmitted }) => {
   );
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm p-0 sm:p-4 sm:items-center"
+    <div className="fixed inset-0 z-[100] flex items-end justify-center bg-black/70"
       onClick={e => e.target === e.currentTarget && onClose()}>
-      <motion.div initial={{ y: '100%', opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: '100%', opacity: 0 }}
-        transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-        className="w-full max-w-md glass-card rounded-t-3xl sm:rounded-3xl border border-border shadow-2xl flex flex-col"
-        style={{ maxHeight: '85vh' }}>
-        {/* Drag handle for mobile */}
-        <div className="flex justify-center pt-3 pb-1 sm:hidden">
+      <div className="w-full max-w-lg bg-background rounded-t-3xl border-t border-border shadow-2xl flex flex-col"
+        style={{ maxHeight: '90vh' }}>
+        {/* Drag handle */}
+        <div className="flex justify-center pt-3 pb-1 flex-shrink-0">
           <div className="h-1 w-10 rounded-full bg-border" />
         </div>
-        <div className="flex items-center justify-between px-6 pt-4 pb-2 flex-shrink-0">
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-3 border-b border-border flex-shrink-0">
           <div>
-            <h3 className="font-black text-lg">Give Feedback</h3>
+            <h3 className="font-black text-base">Give Feedback</h3>
             <p className="text-xs text-muted-foreground">to {video.user?.name}</p>
           </div>
-          <button onClick={onClose} className="h-8 w-8 flex items-center justify-center rounded-xl hover:bg-accent"><X size={16} /></button>
+          <button onClick={onClose} className="h-9 w-9 flex items-center justify-center rounded-xl bg-accent">
+            <X size={18} />
+          </button>
         </div>
 
-        <div className="overflow-y-auto px-6 pb-6 flex-1">
-          {error && <div className="mb-4 px-3 py-2 bg-destructive/10 border border-destructive/30 rounded-xl text-sm text-destructive">{error}</div>}
+        {/* Scrollable content — starts at top */}
+        <div ref={scrollRef} className="overflow-y-auto flex-1 px-5 py-4 space-y-4">
+          {error && <div className="px-3 py-2 bg-destructive/10 border border-destructive/30 rounded-xl text-sm text-destructive">{error}</div>}
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="text-xs font-bold uppercase tracking-widest text-emerald-500 mb-1.5 block">✅ What they did well *</label>
-              <textarea rows={3} placeholder="e.g. Great eye contact, confident tone..."
-                value={positive} onChange={e => setPositive(e.target.value)}
-                className="w-full px-4 py-3 rounded-xl bg-accent/30 border border-border focus:ring-2 focus:ring-emerald-500/50 outline-none text-sm resize-none" />
-            </div>
-            <div>
-              <label className="text-xs font-bold uppercase tracking-widest text-amber-500 mb-1.5 block">💡 One thing to improve *</label>
-              <textarea rows={3} placeholder="e.g. Try to slow down a bit, use more examples..."
-                value={improvement} onChange={e => setImprovement(e.target.value)}
-                className="w-full px-4 py-3 rounded-xl bg-accent/30 border border-border focus:ring-2 focus:ring-amber-500/50 outline-none text-sm resize-none" />
-            </div>
+          <div>
+            <label className="text-xs font-bold uppercase tracking-widest text-emerald-500 mb-2 block">✅ What they did well *</label>
+            <textarea rows={3} placeholder="e.g. Great eye contact, confident tone..."
+              value={positive} onChange={e => setPositive(e.target.value)}
+              className="w-full px-4 py-3 rounded-xl bg-accent/30 border border-border focus:ring-2 focus:ring-emerald-500/50 outline-none text-sm resize-none" />
+          </div>
 
-            <div className="p-4 bg-accent/20 rounded-xl space-y-3">
-              <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Optional Ratings</p>
-              <RatingStars label="Confidence" field="confidence" />
-              <RatingStars label="Clarity" field="clarity" />
-              <RatingStars label="Structure" field="structure" />
-            </div>
+          <div>
+            <label className="text-xs font-bold uppercase tracking-widest text-amber-500 mb-2 block">💡 One thing to improve *</label>
+            <textarea rows={3} placeholder="e.g. Try to slow down a bit, use more examples..."
+              value={improvement} onChange={e => setImprovement(e.target.value)}
+              className="w-full px-4 py-3 rounded-xl bg-accent/30 border border-border focus:ring-2 focus:ring-amber-500/50 outline-none text-sm resize-none" />
+          </div>
 
-            <button type="submit" disabled={loading}
-              className="w-full py-3.5 bg-primary text-primary-foreground rounded-2xl font-bold shadow-lg shadow-primary/20 active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-2">
-              {loading ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
-              {loading ? 'Submitting...' : 'Submit Feedback'}
-            </button>
-          </form>
+          <div className="p-4 bg-accent/20 rounded-xl space-y-3">
+            <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Optional Ratings</p>
+            <RatingStars label="Confidence" field="confidence" />
+            <RatingStars label="Clarity" field="clarity" />
+            <RatingStars label="Structure" field="structure" />
+          </div>
         </div>
-      </motion.div>
-    </motion.div>
+
+        {/* Submit button — always visible at bottom */}
+        <div className="px-5 py-4 border-t border-border flex-shrink-0">
+          <button onClick={handleSubmit} disabled={loading || !positive.trim() || !improvement.trim()}
+            className="w-full py-4 bg-primary text-primary-foreground rounded-2xl font-bold shadow-lg shadow-primary/20 active:scale-95 transition-all disabled:opacity-40 flex items-center justify-center gap-2 text-base">
+            {loading ? <Loader2 size={20} className="animate-spin" /> : <Send size={20} />}
+            {loading ? 'Submitting...' : 'Submit Feedback'}
+          </button>
+        </div>
+      </div>
+    </div>
   );
 };
 
