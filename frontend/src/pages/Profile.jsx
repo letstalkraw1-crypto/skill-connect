@@ -1,4 +1,4 @@
-import { Edit3, MapPin, Calendar, Link as LinkIcon, Instagram, Github, Chrome, MessageCircle, UserPlus, Check, X, Shield, Star, Camera, Loader2, PlusCircle, Copy } from 'lucide-react';
+import { Edit3, MapPin, Calendar, Link as LinkIcon, Instagram, Github, Chrome, MessageCircle, UserPlus, Check, X, Shield, Star, Camera, Loader2, PlusCircle, Copy, Flame, Mic2, Play } from 'lucide-react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
@@ -14,6 +14,124 @@ import ProfileSkeleton from '../components/ProfileSkeleton';
 import { useSocketContext } from '../context/SocketContext';
 import OAuthButtons from '../components/OAuthButtons';
 
+// ─── Video Submissions Tab ────────────────────────────────────────────────────
+const VideoSubmissionsTab = ({ userId, isOwnProfile, streakCount, activeDays, totalVideos }) => {
+  const [videos, setVideos] = React.useState([]);
+  const [loading, setLoading] = React.useState(true);
+  const [selectedVideo, setSelectedVideo] = React.useState(null);
+
+  React.useEffect(() => {
+    import('../services/api').then(({ default: api }) => {
+      api.get('/daily-challenge/my-submissions')
+        .then(({ data }) => setVideos(data))
+        .catch(console.error)
+        .finally(() => setLoading(false));
+    });
+  }, [userId]);
+
+  return (
+    <motion.div key="videos" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
+      className="space-y-4">
+      {/* Streak stats */}
+      <div className="grid grid-cols-3 gap-3">
+        <div className="glass-card p-4 rounded-2xl text-center">
+          <div className="flex items-center justify-center gap-1 mb-1">
+            <Flame size={14} className="text-amber-400" />
+          </div>
+          <p className="text-xl font-black text-amber-400">{streakCount || 0}</p>
+          <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest mt-0.5">Streak</p>
+        </div>
+        <div className="glass-card p-4 rounded-2xl text-center">
+          <p className="text-xl font-black text-primary">{totalVideos || 0}</p>
+          <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest mt-0.5">Videos</p>
+        </div>
+        <div className="glass-card p-4 rounded-2xl text-center">
+          <p className="text-xl font-black text-emerald-400">{activeDays || 0}</p>
+          <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest mt-0.5">Active Days</p>
+        </div>
+      </div>
+
+      {/* Video list */}
+      {loading && (
+        <div className="space-y-3">
+          {[1, 2, 3].map(i => <div key={i} className="glass-card p-4 rounded-2xl animate-pulse h-20" />)}
+        </div>
+      )}
+
+      {!loading && videos.length === 0 && (
+        <div className="py-16 text-center text-muted-foreground bg-accent/20 rounded-2xl border border-dashed border-border flex flex-col items-center gap-3">
+          <Mic2 size={36} className="text-accent/50" />
+          <p className="font-bold text-sm">No videos yet</p>
+          {isOwnProfile && <p className="text-xs">Submit your first daily challenge to get started</p>}
+        </div>
+      )}
+
+      {!loading && videos.map((video, idx) => (
+        <motion.div key={video._id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.04 }}
+          onClick={() => setSelectedVideo(video)}
+          className="glass-card p-4 rounded-2xl flex items-center gap-4 cursor-pointer hover:border-primary/40 transition-all group">
+          {/* Thumbnail / play icon */}
+          <div className="h-14 w-20 rounded-xl bg-black flex items-center justify-center flex-shrink-0 overflow-hidden relative">
+            <video src={video.videoUrl} className="w-full h-full object-cover opacity-70" preload="metadata" />
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="h-8 w-8 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center group-hover:bg-primary/80 transition-colors">
+                <Play size={14} className="text-white ml-0.5" />
+              </div>
+            </div>
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="font-bold text-sm truncate">{video.challenge?.topic || 'Daily Challenge'}</p>
+            {video.caption && <p className="text-xs text-muted-foreground truncate mt-0.5">{video.caption}</p>}
+            <div className="flex items-center gap-3 mt-1">
+              <span className="text-[10px] text-muted-foreground font-bold">
+                {new Date(video.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+              </span>
+              {video.feedbackCount > 0 && (
+                <span className="text-[10px] text-primary font-bold">{video.feedbackCount} feedback</span>
+              )}
+            </div>
+          </div>
+          <Play size={16} className="text-muted-foreground group-hover:text-primary transition-colors flex-shrink-0" />
+        </motion.div>
+      ))}
+
+      {/* Video modal */}
+      <AnimatePresence>
+        {selectedVideo && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
+            onClick={() => setSelectedVideo(null)}>
+            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }}
+              onClick={e => e.stopPropagation()}
+              className="w-full max-w-lg bg-background rounded-3xl overflow-hidden shadow-2xl">
+              <div className="flex items-center justify-between p-4 border-b border-border">
+                <div>
+                  <p className="font-black text-sm">{selectedVideo.challenge?.topic || 'Daily Challenge'}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {new Date(selectedVideo.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}
+                  </p>
+                </div>
+                <button onClick={() => setSelectedVideo(null)}
+                  className="h-8 w-8 flex items-center justify-center rounded-xl hover:bg-accent transition-colors">
+                  <X size={16} />
+                </button>
+              </div>
+              <div className="bg-black aspect-video">
+                <video src={selectedVideo.videoUrl} controls autoPlay playsInline className="w-full h-full object-contain" />
+              </div>
+              {selectedVideo.caption && (
+                <div className="p-4 border-t border-border">
+                  <p className="text-sm text-muted-foreground">{selectedVideo.caption}</p>
+                </div>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
+  );
+};
+
 const Profile = () => {
   const { id } = useParams();
   const { user: currentUser, updateUser } = useAuth();
@@ -27,7 +145,7 @@ const Profile = () => {
   const [connectLoading, setConnectLoading] = useState(false);
   const [points, setPoints] = useState(0);
   const [searchParams, setSearchParams] = useSearchParams();
-  const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'skills');
+  const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'videos');
 // ... rest of state ...
   const [notifications, setNotifications] = useState([]);
   const [notificationsLoading, setNotificationsLoading] = useState(false);
@@ -472,11 +590,11 @@ const Profile = () => {
           )}
         </div>
 
-        {/* Right: Skills & Content */}
+        {/* Right: Videos & Content */}
         <div className="lg:col-span-8 space-y-6">
           <div className="glass-card p-1 rounded-2xl flex items-center">
             <div className="flex-1 flex">
-              {['skills', 'connections', 'activity'].map(tab => (
+              {['videos', 'connections', 'activity'].map(tab => (
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab)}
@@ -488,15 +606,6 @@ const Profile = () => {
                 </button>
               ))}
             </div>
-            {isOwnProfile && activeTab === 'skills' && (
-              <button 
-                onClick={() => setShowAddSkillModal(true)}
-                className="mx-2 h-10 w-10 flex items-center justify-center rounded-xl bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground transition-all"
-                title="Add New Skill"
-              >
-                <PlusCircle size={20} />
-              </button>
-            )}
             {isOwnProfile && activeTab === 'connections' && (
               <button 
                 onClick={() => setShowConnectionSearchModal(true)}
@@ -510,75 +619,8 @@ const Profile = () => {
 
           <div className="min-h-[400px]">
             <AnimatePresence mode="wait">
-              {activeTab === 'skills' && (
-                <motion.div
-                  key="skills"
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  className="grid grid-cols-1 md:grid-cols-2 gap-4"
-                >
-                  {user.skills?.map((skill, idx) => {
-                    return (
-                    <div 
-                      key={idx} 
-                      onClick={() => handleSkillClick(skill)}
-                      className={`glass-card p-6 rounded-2xl border-l-4 border-primary group hover:border-emerald-500 transition-all ${isOwnProfile ? 'cursor-pointer hover:scale-[1.02]' : ''}`}
-                    >
-                      <div className="flex items-center justify-between mb-4">
-                        <div className="h-10 w-10 flex items-center justify-center rounded-xl bg-primary/20 text-primary group-hover:bg-emerald-500/20 group-hover:text-emerald-500 transition-colors">
-                          <Star size={20} />
-                        </div>
-                        <div className="flex items-center gap-2">
-                          {skill.isVerified && (
-                            <span className="flex items-center gap-1 px-2 py-0.5 bg-emerald-500/20 text-emerald-400 text-[9px] font-bold rounded-full">
-                              <Check size={10} /> Verified
-                            </span>
-                          )}
-                          {isOwnProfile && skill.verificationStatus === 'pending' && !skill.isVerified && (
-                            <span className="px-2 py-0.5 bg-amber-500/20 text-amber-400 text-[9px] font-bold rounded-full">Pending</span>
-                          )}
-                          {isOwnProfile && skill.verificationStatus === 'rejected' && (
-                            <span className="px-2 py-0.5 bg-red-500/20 text-red-400 text-[9px] font-bold rounded-full">Rejected</span>
-                          )}
-                          {isOwnProfile && !skill.isVerified && !skill.verificationStatus && (
-                            <span className="px-2 py-0.5 bg-accent text-muted-foreground text-[9px] font-bold rounded-full">Not Verified</span>
-                          )}
-                          <div className="px-2 py-1 bg-accent rounded text-[10px] font-bold uppercase tracking-wider">{skill.proficiency || skill.level || 'Beginner'}</div>
-                        </div>
-                      </div>
-                      <h4 className="text-lg font-bold group-hover:text-primary transition-colors">{skill.name}</h4>
-                      {skill.subSkill && <p className="text-xs text-primary font-bold -mt-1 mb-2">{skill.subSkill}</p>}
-                      <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
-                        <Shield size={12} />
-                        {skill.yearsExp || skill.years_exp || 0} {(skill.yearsExp || skill.years_exp || 0) === 1 ? 'Year' : 'Years'} Experience
-                      </p>
-                      {isOwnProfile && (
-                        <p className="text-[10px] text-primary/60 mt-2 font-bold">
-                          {skill.verificationStatus === 'pending' ? '⏳ Under review by admin' :
-                           skill.verificationStatus === 'rejected' ? '❌ Rejected — click to resubmit' :
-                           skill.isVerified ? '✅ Verified' :
-                           'Click to edit or verify'}
-                        </p>
-                      )}
-                    </div>
-                    );
-                  })}
-                  {(!user.skills || user.skills.length === 0) && (
-                    <div className="col-span-full py-20 text-center text-muted-foreground bg-accent/20 rounded-2xl border border-dashed border-border flex flex-col items-center gap-4">
-                      <Star size={40} className="text-accent/50" />
-                      <p>No skills added yet.</p>
-                      {isOwnProfile && (
-                        <button 
-                          onClick={() => setShowAddSkillModal(true)}
-                          className="bg-primary px-6 py-2 rounded-xl text-primary-foreground font-bold shadow-lg shadow-primary/25 hover:scale-105 active:scale-95 transition-all"
-                        >
-                          Add My First Skill
-                        </button>
-                      )}
-                    </div>
-                  )}
-                </motion.div>
+              {activeTab === 'videos' && (
+                <VideoSubmissionsTab userId={id} isOwnProfile={isOwnProfile} streakCount={user.streakCount} activeDays={user.activeDays} totalVideos={user.totalVideos} />
               )}
 
               {activeTab === 'connections' && (
