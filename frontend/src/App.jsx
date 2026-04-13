@@ -38,9 +38,8 @@ const PrivateRoute = ({ children }) => {
   const location = useLocation();
   if (loading) return <div className="flex h-screen items-center justify-center bg-background text-primary">Loading...</div>;
   if (!user) return <Navigate to="/auth" />;
-  // Redirect to onboarding if not done yet (skip if already on onboarding)
-  // Only redirect if onboardingDone is explicitly false (not undefined — old users)
-  if (user && user.onboardingDone === false && location.pathname !== '/onboarding') {
+  // Only redirect to onboarding if explicitly false (not undefined — handles existing users)
+  if (user.onboardingDone === false && location.pathname !== '/onboarding') {
     return <Navigate to="/onboarding" />;
   }
   return children;

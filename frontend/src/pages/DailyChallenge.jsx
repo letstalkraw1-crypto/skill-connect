@@ -51,11 +51,17 @@ const FeedbackModal = ({ video, onClose, onSubmitted }) => {
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm p-0 sm:p-4 sm:items-center"
       onClick={e => e.target === e.currentTarget && onClose()}>
-      <motion.div initial={{ y: 40, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 40, opacity: 0 }}
-        className="w-full max-w-md glass-card rounded-3xl border border-border shadow-2xl p-6 max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between mb-5">
+      <motion.div initial={{ y: '100%', opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: '100%', opacity: 0 }}
+        transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+        className="w-full max-w-md glass-card rounded-t-3xl sm:rounded-3xl border border-border shadow-2xl flex flex-col"
+        style={{ maxHeight: '85vh' }}>
+        {/* Drag handle for mobile */}
+        <div className="flex justify-center pt-3 pb-1 sm:hidden">
+          <div className="h-1 w-10 rounded-full bg-border" />
+        </div>
+        <div className="flex items-center justify-between px-6 pt-4 pb-2 flex-shrink-0">
           <div>
             <h3 className="font-black text-lg">Give Feedback</h3>
             <p className="text-xs text-muted-foreground">to {video.user?.name}</p>
@@ -63,35 +69,37 @@ const FeedbackModal = ({ video, onClose, onSubmitted }) => {
           <button onClick={onClose} className="h-8 w-8 flex items-center justify-center rounded-xl hover:bg-accent"><X size={16} /></button>
         </div>
 
-        {error && <div className="mb-4 px-3 py-2 bg-destructive/10 border border-destructive/30 rounded-xl text-sm text-destructive">{error}</div>}
+        <div className="overflow-y-auto px-6 pb-6 flex-1">
+          {error && <div className="mb-4 px-3 py-2 bg-destructive/10 border border-destructive/30 rounded-xl text-sm text-destructive">{error}</div>}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="text-xs font-bold uppercase tracking-widest text-emerald-500 mb-1.5 block">✅ What they did well *</label>
-            <textarea rows={2} placeholder="e.g. Great eye contact, confident tone..."
-              value={positive} onChange={e => setPositive(e.target.value)}
-              className="w-full px-4 py-3 rounded-xl bg-accent/30 border border-border focus:ring-2 focus:ring-emerald-500/50 outline-none text-sm resize-none" />
-          </div>
-          <div>
-            <label className="text-xs font-bold uppercase tracking-widest text-amber-500 mb-1.5 block">💡 One thing to improve *</label>
-            <textarea rows={2} placeholder="e.g. Try to slow down a bit, use more examples..."
-              value={improvement} onChange={e => setImprovement(e.target.value)}
-              className="w-full px-4 py-3 rounded-xl bg-accent/30 border border-border focus:ring-2 focus:ring-amber-500/50 outline-none text-sm resize-none" />
-          </div>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="text-xs font-bold uppercase tracking-widest text-emerald-500 mb-1.5 block">✅ What they did well *</label>
+              <textarea rows={3} placeholder="e.g. Great eye contact, confident tone..."
+                value={positive} onChange={e => setPositive(e.target.value)}
+                className="w-full px-4 py-3 rounded-xl bg-accent/30 border border-border focus:ring-2 focus:ring-emerald-500/50 outline-none text-sm resize-none" />
+            </div>
+            <div>
+              <label className="text-xs font-bold uppercase tracking-widest text-amber-500 mb-1.5 block">💡 One thing to improve *</label>
+              <textarea rows={3} placeholder="e.g. Try to slow down a bit, use more examples..."
+                value={improvement} onChange={e => setImprovement(e.target.value)}
+                className="w-full px-4 py-3 rounded-xl bg-accent/30 border border-border focus:ring-2 focus:ring-amber-500/50 outline-none text-sm resize-none" />
+            </div>
 
-          <div className="p-4 bg-accent/20 rounded-xl space-y-3">
-            <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Optional Ratings</p>
-            <RatingStars label="Confidence" field="confidence" />
-            <RatingStars label="Clarity" field="clarity" />
-            <RatingStars label="Structure" field="structure" />
-          </div>
+            <div className="p-4 bg-accent/20 rounded-xl space-y-3">
+              <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Optional Ratings</p>
+              <RatingStars label="Confidence" field="confidence" />
+              <RatingStars label="Clarity" field="clarity" />
+              <RatingStars label="Structure" field="structure" />
+            </div>
 
-          <button type="submit" disabled={loading}
-            className="w-full py-3 bg-primary text-primary-foreground rounded-2xl font-bold shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-2">
-            {loading ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
-            {loading ? 'Submitting...' : 'Submit Feedback'}
-          </button>
-        </form>
+            <button type="submit" disabled={loading}
+              className="w-full py-3.5 bg-primary text-primary-foreground rounded-2xl font-bold shadow-lg shadow-primary/20 active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-2">
+              {loading ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
+              {loading ? 'Submitting...' : 'Submit Feedback'}
+            </button>
+          </form>
+        </div>
       </motion.div>
     </motion.div>
   );
@@ -369,18 +377,24 @@ const SubmitSection = ({ challenge, onSubmitted }) => {
 
       {videoPreview && (
         <div className="space-y-3">
-          <div className="rounded-xl overflow-hidden bg-black aspect-video">
-            <video src={videoPreview} controls className="w-full h-full object-cover" />
+          <div className="rounded-xl overflow-hidden bg-black aspect-video relative">
+            <video src={videoPreview} controls className="w-full h-full object-cover" playsInline />
+            {/* Remove button overlay */}
+            <button onClick={reset}
+              className="absolute top-2 right-2 h-8 w-8 bg-black/70 text-white rounded-full flex items-center justify-center hover:bg-red-500 transition-colors z-10">
+              <X size={16} />
+            </button>
           </div>
           <input type="text" placeholder="Add a caption (optional)"
             value={caption} onChange={e => setCaption(e.target.value)}
             className="w-full px-4 py-3 rounded-xl bg-accent/30 border border-border focus:ring-2 focus:ring-primary/50 outline-none text-sm" />
           <div className="flex gap-2">
-            <button onClick={reset} className="px-4 py-3 bg-accent rounded-xl text-sm font-bold hover:bg-accent/80 transition-all">
-              Redo
+            <button onClick={reset}
+              className="flex items-center gap-1.5 px-4 py-3 bg-destructive/10 text-destructive border border-destructive/20 rounded-xl text-sm font-bold hover:bg-destructive/20 transition-all">
+              <X size={16} /> Remove
             </button>
             <button onClick={handleSubmit} disabled={uploading}
-              className="flex-1 py-3 bg-primary text-primary-foreground rounded-2xl font-bold shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-2">
+              className="flex-1 py-3 bg-primary text-primary-foreground rounded-2xl font-bold shadow-lg shadow-primary/20 active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-2">
               {uploading ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
               {uploading ? 'Uploading...' : 'Submit Response'}
             </button>
