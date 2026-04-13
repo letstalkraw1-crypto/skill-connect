@@ -69,7 +69,7 @@ const FeedbackModal = ({ video, onClose, onSubmitted }) => {
       style={{ overscrollBehavior: 'contain' }}
       onClick={e => e.target === e.currentTarget && onClose()}>
       <div className="w-full max-w-lg bg-background rounded-t-3xl border-t border-border shadow-2xl flex flex-col"
-        style={{ maxHeight: '90vh' }}>
+        style={{ height: '85vh' }}>
         {/* Drag handle */}
         <div className="flex justify-center pt-3 pb-1 flex-shrink-0">
           <div className="h-1 w-10 rounded-full bg-border" />
@@ -85,8 +85,8 @@ const FeedbackModal = ({ video, onClose, onSubmitted }) => {
           </button>
         </div>
 
-        {/* Scrollable content — starts at top */}
-        <div ref={scrollRef} className="overflow-y-auto flex-1 px-5 py-4 space-y-4">
+        {/* Scrollable content — text fields FIRST */}
+        <div ref={scrollRef} className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
           {error && <div className="px-3 py-2 bg-destructive/10 border border-destructive/30 rounded-xl text-sm text-destructive">{error}</div>}
 
           <div>

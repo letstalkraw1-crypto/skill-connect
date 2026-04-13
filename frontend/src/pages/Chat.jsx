@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+﻿import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { chatService } from '../services/api';
 import { useAuth } from '../context/AuthContext';
@@ -24,12 +24,13 @@ const MediaRenderer = ({ url }) => {
 const MessageBubble = ({ msg, isMe, onDelete, onForward }) => {
   const [showActions, setShowActions] = useState(false);
   const timerRef = useRef(null);
+  const bubbleRef = useRef(null);
   const isMedia = msg.text && ['.jpg','.png','.webp','.jpeg','.gif','.mp3','.webm','.ogg','.wav'].some(ext => msg.text.toLowerCase().includes(ext));
   const startPress = () => { timerRef.current = setTimeout(() => setShowActions(true), 500); };
   const endPress = () => { if (timerRef.current) clearTimeout(timerRef.current); };
   return (
     <motion.div initial={{ opacity:0, y:10, scale:0.95 }} animate={{ opacity:1, y:0, scale:1 }} className={`flex ${isMe ? 'justify-end' : 'justify-start'} relative`}>
-      <div className="max-w-[78%] space-y-0.5">
+      <div className="max-w-[78%] space-y-0.5" ref={bubbleRef}>
         <div className={`px-4 py-2.5 rounded-2xl shadow cursor-pointer select-none ${isMe ? 'bg-primary text-primary-foreground rounded-tr-sm' : 'bg-accent/60 rounded-tl-sm border border-border/50'} ${showActions ? 'ring-2 ring-primary/50' : ''}`}
           onMouseDown={startPress} onMouseUp={endPress} onMouseLeave={endPress}
           onTouchStart={startPress} onTouchEnd={endPress}
@@ -37,18 +38,22 @@ const MessageBubble = ({ msg, isMe, onDelete, onForward }) => {
           {isMedia ? <MediaRenderer url={msg.text} /> : <p className="text-sm">{msg.text}</p>}
         </div>
         <p className={`text-[10px] text-muted-foreground px-1 ${isMe ? 'text-right' : 'text-left'}`}>{safeFormat(msg.sentAt)}</p>
-        <AnimatePresence>
-          {showActions && (
+      </div>
+
+      {/* Action menu — fixed position to avoid clipping */}
+      <AnimatePresence>
+        {showActions && (
+          <>
+            <div className="fixed inset-0 z-[60]" onClick={() => setShowActions(false)} />
             <motion.div initial={{ opacity:0, scale:0.8 }} animate={{ opacity:1, scale:1 }} exit={{ opacity:0, scale:0.8 }}
-              className={`absolute bottom-full mb-2 ${isMe ? 'right-0' : 'left-0'} z-[70] flex gap-1 bg-background border border-border rounded-2xl shadow-2xl p-1`}>
+              className={`fixed bottom-24 ${isMe ? 'right-4' : 'left-4'} z-[70] flex gap-1 bg-background border border-border rounded-2xl shadow-2xl p-1`}>
               <button onClick={() => { onForward(); setShowActions(false); }} className="flex items-center gap-1.5 px-3 py-2 rounded-xl hover:bg-accent text-xs font-bold"><Forward size={14} /> Forward</button>
               {isMe && <button onClick={() => { onDelete(); setShowActions(false); }} className="flex items-center gap-1.5 px-3 py-2 rounded-xl hover:bg-destructive/10 text-destructive text-xs font-bold"><Trash2 size={14} /> Delete</button>}
               <button onClick={() => setShowActions(false)} className="flex items-center gap-1.5 px-3 py-2 rounded-xl hover:bg-accent text-xs font-bold"><X size={14} /></button>
             </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
-      {showActions && <div className="fixed inset-0 z-10" onClick={() => setShowActions(false)} />}
+          </>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 };
@@ -59,8 +64,8 @@ const ForwardModal = ({ conversations, onClose, onForward }) => {
   const filtered = conversations.filter(c => !c.isGroup && c.otherUser?.name?.toLowerCase().includes(search.toLowerCase()));
   const toggle = id => setSelected(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s; });
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60" onClick={e => e.target === e.currentTarget && onClose()}>
-      <div className="w-full max-w-md bg-background rounded-t-3xl border-t border-border shadow-2xl flex flex-col" style={{ maxHeight:'70vh' }}>
+    <div className="fixed inset-0 z-[80] flex items-end justify-center bg-black/60" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="w-full max-w-md bg-background rounded-t-3xl border-t border-border shadow-2xl flex flex-col" style={{ maxHeight:'80vh' }}>
         <div className="flex justify-center pt-3 pb-1"><div className="h-1 w-10 rounded-full bg-border" /></div>
         <div className="flex items-center justify-between px-5 py-3 border-b border-border">
           <h3 className="font-black">Forward to...</h3>
@@ -78,7 +83,7 @@ const ForwardModal = ({ conversations, onClose, onForward }) => {
             </button>
           ))}
         </div>
-        <div className="px-4 py-4 border-t border-border">
+        <div className="px-4 pt-4 pb-24 border-t border-border">
           <button onClick={() => { onForward([...selected]); onClose(); }} disabled={selected.size === 0} className="w-full py-3.5 bg-primary text-primary-foreground rounded-2xl font-bold disabled:opacity-40 flex items-center justify-center gap-2">
             <Forward size={18} /> {selected.size > 0 ? `Forward to ${selected.size} person${selected.size > 1 ? 's' : ''}` : 'Forward...'}
           </button>
@@ -206,7 +211,18 @@ const Chat = () => {
     scrollToBottom();
   };
 
-  const handleForwardMessage = convIds => {
+  const handleDeleteMessage = async (msgId, idx) => {
+    // Remove from local state immediately
+    setMessages(prev => prev.filter((_, i) => i !== idx));
+    // Also delete from backend if we have a real message ID
+    if (msgId && !msgId.startsWith(Date.now().toString().slice(0, 5))) {
+      try {
+        await api.delete(`/conversations/${activeChat.id}/messages/${msgId}`);
+      } catch (err) {
+        console.error('Failed to delete message from server:', err.message);
+      }
+    }
+  };
     if (!forwardMsg || !socket) return;
     for (const convId of convIds) socket.emit('send_message', { conversationId: convId, text: forwardMsg.text });
     setForwardMsg(null);
@@ -321,7 +337,7 @@ const Chat = () => {
                   const isMe = msg.senderId?.toString() === myId?.toString();
                   return (
                     <MessageBubble key={msg.id || idx} msg={msg} isMe={isMe}
-                      onDelete={() => setMessages(prev => prev.filter((_, i) => i !== idx))}
+                      onDelete={() => handleDeleteMessage(msg.id, idx)}
                       onForward={() => { setForwardMsg(msg); setShowForward(true); }} />
                   );
                 })}
