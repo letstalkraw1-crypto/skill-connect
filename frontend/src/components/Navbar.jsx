@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Home, Search, MessageSquare, User, LogOut, Plus, Calendar, Users, X, Video, Mic2 } from 'lucide-react';
+import { Home, Search, MessageSquare, User, LogOut, Plus, X, Mic2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { AnimatePresence, motion } from 'framer-motion';
 import Avatar from './Avatar';
@@ -79,10 +79,6 @@ const Navbar = () => {
           </div>
 
           <div className="flex items-center gap-2">
-            <Link to="/webinar"
-              className={`hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${location.pathname === '/webinar' ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-accent hover:text-foreground'}`}>
-              <Video size={16} /> Webinar
-            </Link>
 
             {/* Search */}
             <div className="relative" ref={searchRef}>
