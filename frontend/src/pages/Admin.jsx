@@ -585,7 +585,7 @@ export default Admin;
 
 // ─── Daily Challenge Admin ────────────────────────────────────────────────────
 const DailyChallengeAdmin = ({ token }) => {
-  const [form, setForm] = useState({ date: new Date().toISOString().slice(0, 10), topic: '', description: '', tips: '' });
+  const [form, setForm] = useState({ date: new Date().toISOString().slice(0, 10), topic: '', description: '', tips: '', dueTime: '23:59' });
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState('');
   const [error, setError] = useState('');
@@ -601,6 +601,7 @@ const DailyChallengeAdmin = ({ token }) => {
         topic: form.topic.trim(),
         description: form.description.trim(),
         tips: form.tips.split('\n').map(t => t.trim()).filter(Boolean),
+        dueTime: form.dueTime || '23:59',
       }, { headers });
       setSuccess(`✅ Challenge created for ${form.date}`);
       setForm(f => ({ ...f, topic: '', description: '', tips: '' }));
@@ -633,6 +634,11 @@ const DailyChallengeAdmin = ({ token }) => {
           <textarea rows={2} placeholder="Context or instructions for the user..."
             value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
             className="w-full px-4 py-3 rounded-xl bg-accent/30 border border-border outline-none text-sm resize-none" />
+        </div>
+        <div>
+          <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1.5 block">Due Time (HH:MM)</label>
+          <input type="time" value={form.dueTime} onChange={e => setForm(f => ({ ...f, dueTime: e.target.value }))}
+            className="w-full px-4 py-3 rounded-xl bg-accent/30 border border-border outline-none text-sm" />
         </div>
         <div>
           <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1.5 block">Tips (one per line, optional)</label>

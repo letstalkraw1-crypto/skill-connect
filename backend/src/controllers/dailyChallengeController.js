@@ -32,7 +32,7 @@ const getTodayChallenge = async (req, res) => {
 // POST /api/daily-challenge (admin only — create challenge for a date)
 const createChallenge = async (req, res) => {
   try {
-    const { date, topic, description, tips } = req.body;
+    const { date, topic, description, tips, dueTime } = req.body;
     if (!topic) return res.status(400).json({ error: 'Topic is required' });
 
     const challengeDate = date || todayStr();
@@ -45,6 +45,7 @@ const createChallenge = async (req, res) => {
       topic,
       description: description || '',
       tips: tips || [],
+      dueTime: dueTime || '23:59',
       createdBy: req.user.userId,
     });
     await challenge.save();

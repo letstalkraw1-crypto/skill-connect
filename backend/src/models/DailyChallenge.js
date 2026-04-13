@@ -6,6 +6,7 @@ const dailyChallengeSchema = new mongoose.Schema({
   topic: { type: String, required: true },
   description: { type: String },
   tips: { type: [String], default: [] },
+  dueTime: { type: String, default: '23:59' }, // HH:MM — deadline to submit
   createdBy: { type: String, ref: 'User' },
   createdAt: { type: Date, default: Date.now },
 });

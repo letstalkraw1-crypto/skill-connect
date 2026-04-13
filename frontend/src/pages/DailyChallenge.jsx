@@ -408,7 +408,8 @@ export default function DailyChallenge() {
       .then(({ data }) => {
         setChallenge(data);
         setSubmitted(data.hasSubmitted);
-        if (data.hasSubmitted) loadFeed(data._id, 1);
+        // Always load feed — not gated behind submission
+        loadFeed(data._id, 1);
       })
       .catch(console.error)
       .finally(() => setLoading(false));
@@ -422,8 +423,9 @@ export default function DailyChallenge() {
       else setFeed(prev => [...prev, ...data.videos]);
       setFeedTotal(data.total);
       setFeedPage(page);
-    } catch {}
-    finally { setFeedLoading(false); }
+    } catch (err) {
+      console.error(err);
+    } finally { setFeedLoading(false); }
   };
 
   const handleSubmitted = () => {
@@ -472,12 +474,17 @@ export default function DailyChallenge() {
             </span>
             <span className="text-xs text-muted-foreground">{challenge.date}</span>
           </div>
-          {user?.streakCount > 0 && (
-            <div className="flex items-center gap-1 px-3 py-1 bg-amber-500/20 text-amber-400 rounded-full">
-              <Flame size={14} />
-              <span className="text-xs font-black">{user.streakCount} day streak</span>
-            </div>
-          )}
+          <div className="flex items-center gap-2">
+            {challenge.dueTime && (
+              <span className="text-xs text-muted-foreground font-bold">Due {challenge.dueTime}</span>
+            )}
+            {user?.streakCount > 0 && (
+              <div className="flex items-center gap-1 px-3 py-1 bg-amber-500/20 text-amber-400 rounded-full">
+                <Flame size={14} />
+                <span className="text-xs font-black">{user.streakCount} day streak</span>
+              </div>
+            )}
+          </div>
         </div>
 
         <h2 className="text-2xl font-black mb-2">{challenge.topic}</h2>
@@ -508,46 +515,38 @@ export default function DailyChallenge() {
         )}
       </div>
 
-      {/* Feed */}
-      {submitted && (
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="font-black text-lg">Today's Responses</h3>
-            <span className="text-xs text-muted-foreground">{feedTotal} submissions</span>
+      {/* Feed — always visible */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h3 className="font-black text-lg">Today's Responses</h3>
+          <span className="text-xs text-muted-foreground">{feedTotal} submissions</span>
+        </div>
+
+        {feedLoading && feed.length === 0 && (
+          <div className="space-y-4">
+            {[1, 2].map(i => <div key={i} className="glass-card p-5 rounded-2xl animate-pulse h-64" />)}
           </div>
+        )}
 
-          {feedLoading && feed.length === 0 && (
-            <div className="space-y-4">
-              {[1, 2].map(i => <div key={i} className="glass-card p-5 rounded-2xl animate-pulse h-64" />)}
-            </div>
-          )}
+        {!feedLoading && feed.length === 0 && (
+          <div className="text-center py-12 text-muted-foreground">
+            <p className="font-bold">No submissions yet today</p>
+            <p className="text-sm mt-1">Be the first to submit your response!</p>
+          </div>
+        )}
 
-          {!feedLoading && feed.length === 0 && (
-            <div className="text-center py-12 text-muted-foreground">
-              <p className="font-bold">You're the first one today!</p>
-              <p className="text-sm mt-1">Others will submit soon. Check back later.</p>
-            </div>
-          )}
+        {feed.map(video => (
+          <VideoCard key={video._id} video={video} currentUserId={user?._id || user?.id}
+            onFeedbackGiven={() => {}} />
+        ))}
 
-          {feed.map(video => (
-            <VideoCard key={video._id} video={video} currentUserId={user?._id || user?.id}
-              onFeedbackGiven={() => {}} />
-          ))}
-
-          {feed.length < feedTotal && (
-            <button onClick={() => loadFeed(challenge._id, feedPage + 1)} disabled={feedLoading}
-              className="w-full py-3 bg-accent rounded-xl text-sm font-bold hover:bg-accent/80 transition-all disabled:opacity-50">
-              {feedLoading ? 'Loading...' : 'Load More'}
-            </button>
-          )}
-        </div>
-      )}
-
-      {!submitted && feed.length === 0 && (
-        <div className="text-center py-8 text-muted-foreground text-sm">
-          Submit your response to see what others said today
-        </div>
-      )}
+        {feed.length < feedTotal && (
+          <button onClick={() => loadFeed(challenge._id, feedPage + 1)} disabled={feedLoading}
+            className="w-full py-3 bg-accent rounded-xl text-sm font-bold hover:bg-accent/80 transition-all disabled:opacity-50">
+            {feedLoading ? 'Loading...' : 'Load More'}
+          </button>
+        )}
+      </div>
     </div>
   );
 }
