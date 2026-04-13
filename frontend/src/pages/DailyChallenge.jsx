@@ -77,12 +77,10 @@ const FeedbackModal = ({ video, onClose, onSubmitted }) => {
 };
 
 // ─── Video Card ───────────────────────────────────────────────────────────────
-const VideoCard = ({ video, currentUserId, onFeedbackGiven }) => {
-  const [showFeedback, setShowFeedback] = useState(false);
+const VideoCard = ({ video, currentUserId, onFeedbackGiven, onOpenFeedback }) => {
   const [feedbacks, setFeedbacks] = useState([]);
   const [loadingFeedback, setLoadingFeedback] = useState(false);
   const [showFeedbacks, setShowFeedbacks] = useState(false);
-  const [feedbackModal, setFeedbackModal] = useState(false);
   const [hasFeedback, setHasFeedback] = useState(false);
 
   const loadFeedbacks = async () => {
@@ -135,7 +133,7 @@ const VideoCard = ({ video, currentUserId, onFeedbackGiven }) => {
       {/* Actions */}
       <div className="flex items-center gap-2 p-4">
         {!isOwn && !hasFeedback && (
-          <button onClick={() => setFeedbackModal(true)}
+          <button onClick={() => onOpenFeedback(video, () => { setHasFeedback(true); onFeedbackGiven(); loadFeedbacks(); })}
             className="flex items-center gap-1.5 px-4 py-2 bg-primary text-primary-foreground rounded-xl text-xs font-bold hover:scale-[1.02] active:scale-95 transition-all shadow-lg shadow-primary/20">
             <ThumbsUp size={14} /> Give Feedback
           </button>
@@ -184,12 +182,6 @@ const VideoCard = ({ video, currentUserId, onFeedbackGiven }) => {
         )}
       </AnimatePresence>
 
-      <AnimatePresence>
-        {feedbackModal && (
-          <FeedbackModal video={video} onClose={() => setFeedbackModal(false)}
-            onSubmitted={() => { setHasFeedback(true); onFeedbackGiven(); loadFeedbacks(); }} />
-        )}
-      </AnimatePresence>
     </motion.div>
   );
 };
@@ -387,6 +379,8 @@ export default function DailyChallenge() {
   const [feedLoading, setFeedLoading] = useState(false);
   const [feedPage, setFeedPage] = useState(1);
   const [feedTotal, setFeedTotal] = useState(0);
+  // Single global feedback modal — only one can be open at a time
+  const [activeFeedback, setActiveFeedback] = useState(null); // { video, onSubmitted }
 
   useEffect(() => {
     api.get('/daily-challenge/today')
@@ -522,7 +516,8 @@ export default function DailyChallenge() {
 
         {feed.map(video => (
           <VideoCard key={video._id} video={video} currentUserId={user?._id || user?.id}
-            onFeedbackGiven={() => {}} />
+            onFeedbackGiven={() => {}}
+            onOpenFeedback={(v, cb) => setActiveFeedback({ video: v, onSubmitted: cb })} />
         ))}
 
         {feed.length < feedTotal && (
@@ -532,6 +527,17 @@ export default function DailyChallenge() {
           </button>
         )}
       </div>
+
+      {/* Single global feedback modal — only one open at a time */}
+      <AnimatePresence>
+        {activeFeedback && (
+          <FeedbackModal
+            video={activeFeedback.video}
+            onClose={() => setActiveFeedback(null)}
+            onSubmitted={() => { activeFeedback.onSubmitted(); setActiveFeedback(null); }}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }
