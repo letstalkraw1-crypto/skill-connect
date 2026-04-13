@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { chatService } from '../services/api';
 import { useAuth } from '../context/AuthContext';
@@ -40,7 +40,7 @@ const MessageBubble = ({ msg, isMe, onDelete, onForward }) => {
         <AnimatePresence>
           {showActions && (
             <motion.div initial={{ opacity:0, scale:0.8 }} animate={{ opacity:1, scale:1 }} exit={{ opacity:0, scale:0.8 }}
-              className={`absolute bottom-8 ${isMe ? 'right-0' : 'left-0'} z-20 flex gap-1 bg-background border border-border rounded-2xl shadow-2xl p-1`}>
+              className={`absolute bottom-full mb-2 ${isMe ? 'right-0' : 'left-0'} z-[70] flex gap-1 bg-background border border-border rounded-2xl shadow-2xl p-1`}>
               <button onClick={() => { onForward(); setShowActions(false); }} className="flex items-center gap-1.5 px-3 py-2 rounded-xl hover:bg-accent text-xs font-bold"><Forward size={14} /> Forward</button>
               {isMe && <button onClick={() => { onDelete(); setShowActions(false); }} className="flex items-center gap-1.5 px-3 py-2 rounded-xl hover:bg-destructive/10 text-destructive text-xs font-bold"><Trash2 size={14} /> Delete</button>}
               <button onClick={() => setShowActions(false)} className="flex items-center gap-1.5 px-3 py-2 rounded-xl hover:bg-accent text-xs font-bold"><X size={14} /></button>
