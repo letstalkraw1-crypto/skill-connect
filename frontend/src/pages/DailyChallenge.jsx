@@ -14,6 +14,13 @@ const FeedbackModal = ({ video, onClose, onSubmitted }) => {
   const [error, setError] = useState('');
   const scrollRef = React.useRef(null);
 
+  // Force scroll to top when modal opens
+  React.useLayoutEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = 0;
+    }
+  }, []);
+
   // Prevent background scroll — works on iOS too
   React.useEffect(() => {
     const scrollY = window.scrollY;
@@ -69,7 +76,7 @@ const FeedbackModal = ({ video, onClose, onSubmitted }) => {
       style={{ overscrollBehavior: 'contain' }}
       onClick={e => e.target === e.currentTarget && onClose()}>
       <div className="w-full max-w-lg bg-background rounded-t-3xl border-t border-border shadow-2xl flex flex-col"
-        style={{ height: '85vh' }}>
+        style={{ height: '85vh', overscrollBehavior: 'contain' }}>
         {/* Drag handle */}
         <div className="flex justify-center pt-3 pb-1 flex-shrink-0">
           <div className="h-1 w-10 rounded-full bg-border" />

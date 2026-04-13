@@ -23,30 +23,48 @@ const MediaRenderer = ({ url }) => {
 
 const MessageBubble = ({ msg, isMe, onDelete, onForward }) => {
   const [showActions, setShowActions] = useState(false);
+  const [menuPos, setMenuPos] = useState({ top: 0, left: 0 });
   const timerRef = useRef(null);
   const bubbleRef = useRef(null);
   const isMedia = msg.text && ['.jpg','.png','.webp','.jpeg','.gif','.mp3','.webm','.ogg','.wav'].some(ext => msg.text.toLowerCase().includes(ext));
-  const startPress = () => { timerRef.current = setTimeout(() => setShowActions(true), 500); };
+
+  const openMenu = () => {
+    if (bubbleRef.current) {
+      const rect = bubbleRef.current.getBoundingClientRect();
+      const menuH = 52;
+      const vp = window.innerHeight;
+      // Place above bubble if there's room, else below; clamp to viewport
+      let top = rect.top - menuH - 8;
+      if (top < 60) top = rect.bottom + 8; // below header
+      if (top + menuH > vp - 70) top = vp - menuH - 70; // above bottom nav
+      setMenuPos({ top, left: isMe ? undefined : rect.left, right: isMe ? window.innerWidth - rect.right : undefined });
+    }
+    setShowActions(true);
+  };
+
+  const startPress = () => { timerRef.current = setTimeout(openMenu, 500); };
   const endPress = () => { if (timerRef.current) clearTimeout(timerRef.current); };
+
   return (
     <motion.div initial={{ opacity:0, y:10, scale:0.95 }} animate={{ opacity:1, y:0, scale:1 }} className={`flex ${isMe ? 'justify-end' : 'justify-start'} relative`}>
       <div className="max-w-[78%] space-y-0.5" ref={bubbleRef}>
         <div className={`px-4 py-2.5 rounded-2xl shadow cursor-pointer select-none ${isMe ? 'bg-primary text-primary-foreground rounded-tr-sm' : 'bg-accent/60 rounded-tl-sm border border-border/50'} ${showActions ? 'ring-2 ring-primary/50' : ''}`}
           onMouseDown={startPress} onMouseUp={endPress} onMouseLeave={endPress}
           onTouchStart={startPress} onTouchEnd={endPress}
-          onContextMenu={e => { e.preventDefault(); setShowActions(true); }}>
+          onContextMenu={e => { e.preventDefault(); openMenu(); }}>
           {isMedia ? <MediaRenderer url={msg.text} /> : <p className="text-sm">{msg.text}</p>}
         </div>
         <p className={`text-[10px] text-muted-foreground px-1 ${isMe ? 'text-right' : 'text-left'}`}>{safeFormat(msg.sentAt)}</p>
       </div>
 
-      {/* Action menu — fixed position to avoid clipping */}
+      {/* Action menu — positioned relative to bubble, clamped to viewport */}
       <AnimatePresence>
         {showActions && (
           <>
             <div className="fixed inset-0 z-[60]" onClick={() => setShowActions(false)} />
             <motion.div initial={{ opacity:0, scale:0.8 }} animate={{ opacity:1, scale:1 }} exit={{ opacity:0, scale:0.8 }}
-              className={`fixed bottom-24 ${isMe ? 'right-4' : 'left-4'} z-[70] flex gap-1 bg-background border border-border rounded-2xl shadow-2xl p-1`}>
+              style={{ position: 'fixed', top: menuPos.top, left: menuPos.left, right: menuPos.right }}
+              className="z-[70] flex gap-1 bg-background border border-border rounded-2xl shadow-2xl p-1">
               <button onClick={() => { onForward(); setShowActions(false); }} className="flex items-center gap-1.5 px-3 py-2 rounded-xl hover:bg-accent text-xs font-bold"><Forward size={14} /> Forward</button>
               {isMe && <button onClick={() => { onDelete(); setShowActions(false); }} className="flex items-center gap-1.5 px-3 py-2 rounded-xl hover:bg-destructive/10 text-destructive text-xs font-bold"><Trash2 size={14} /> Delete</button>}
               <button onClick={() => setShowActions(false)} className="flex items-center gap-1.5 px-3 py-2 rounded-xl hover:bg-accent text-xs font-bold"><X size={14} /></button>
@@ -83,7 +101,7 @@ const ForwardModal = ({ conversations, onClose, onForward }) => {
             </button>
           ))}
         </div>
-        <div className="px-4 pt-4 pb-24 border-t border-border">
+        <div className="px-4 pt-4 pb-6 border-t border-border" style={{ paddingBottom: 'max(1.5rem, env(safe-area-inset-bottom, 1.5rem))' }}>
           <button onClick={() => { onForward([...selected]); onClose(); }} disabled={selected.size === 0} className="w-full py-3.5 bg-primary text-primary-foreground rounded-2xl font-bold disabled:opacity-40 flex items-center justify-center gap-2">
             <Forward size={18} /> {selected.size > 0 ? `Forward to ${selected.size} person${selected.size > 1 ? 's' : ''}` : 'Forward...'}
           </button>
@@ -212,10 +230,8 @@ const Chat = () => {
   };
 
   const handleDeleteMessage = async (msgId, idx) => {
-    // Remove from local state immediately
     setMessages(prev => prev.filter((_, i) => i !== idx));
-    // Also delete from backend if we have a real message ID
-    if (msgId && !msgId.startsWith(Date.now().toString().slice(0, 5))) {
+    if (msgId && String(msgId).length > 10) {
       try {
         await api.delete(`/conversations/${activeChat.id}/messages/${msgId}`);
       } catch (err) {
@@ -223,6 +239,8 @@ const Chat = () => {
       }
     }
   };
+
+  const handleForwardMessage = (convIds) => {
     if (!forwardMsg || !socket) return;
     for (const convId of convIds) socket.emit('send_message', { conversationId: convId, text: forwardMsg.text });
     setForwardMsg(null);
