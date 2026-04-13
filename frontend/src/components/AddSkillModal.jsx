@@ -26,7 +26,7 @@ const AddSkillModal = ({ onClose, onSave }) => {
   const [gamingRole, setGamingRole] = useState('');
   const [screenshotFile, setScreenshotFile] = useState(null);
 
-  const isGaming = selectedCategory === 'Online Gaming';
+  const isGaming = false; // Online Gaming skill removed
 
   useEffect(() => {
     const fetchSkills = async () => {

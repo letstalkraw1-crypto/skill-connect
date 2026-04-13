@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Home, Calendar, MessageSquare, Bell, User, Grid3X3, Trophy, BookOpen, MessageCircleQuestion, Users, Search, X, Video } from 'lucide-react';
+import { Home, Calendar, MessageSquare, Bell, User, Grid3X3, Trophy, BookOpen, MessageCircleQuestion, Users, Search, X } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useSocketContext } from '../context/SocketContext';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -56,7 +56,6 @@ const BottomNav = () => {
     { to: '/challenges', icon: Trophy, label: 'Challenges' },
     { to: '/resources', icon: BookOpen, label: 'Resources' },
     { to: '/qa', icon: MessageCircleQuestion, label: 'Q&A' },
-    { to: '/webinar', icon: Video, label: 'Webinar' },
     { to: '/communities', icon: Users, label: 'Communities' },
     { to: '/discovery', icon: Search, label: 'Discover' },
     { to: `/profile/${user._id || user.id}`, icon: User, label: 'Profile' },

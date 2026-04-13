@@ -119,21 +119,14 @@ const completeOnboarding = async (req, res) => {
 
 const getSkillsList = (req, res) => {
   const SKILLS_DATA = {
-    'Running': ['Fitness Running', 'Marathon / Endurance', 'Sprinting'],
-    'Cycling': ['Road Cycling', 'Mountain Biking', 'Fitness Cycling'],
-    'Swimming': ['Fitness Swimming', 'Competitive Swimming', 'Coaching'],
-    'Gym / Fitness': ['Weight Training', 'Calisthenics', 'Personal Training'],
-    'Content Creation': ['Short-form (Reels)', 'Long-form (YouTube)', 'Personal Branding'],
     'Coding': ['Web Development', 'App Development', 'DSA / Competitive Programming'],
+    'Content Creation': ['Short-form (Reels)', 'Long-form (YouTube)', 'Personal Branding'],
     'Professional Communication': ['Public Speaking', 'Debate / Discussion', 'Hosting (Webinar / Seminar)'],
     'Photography / Videography': ['Photography', 'Videography', 'Editing'],
     'Research': ['Academic Research', 'Technical Research', 'Market Research'],
     'Design': ['UI/UX Design', 'Graphic Design', 'Thumbnail Design'],
     'Business / Entrepreneurship': ['Marketing', 'Sales', 'Startup Building'],
     'Personal Development': ['Leadership', 'Time Management', 'Problem Solving'],
-    'Yoga': ['Hatha Yoga', 'Power Yoga', 'Meditation'],
-    'Hiking': ['Trail Hiking', 'Mountain Trekking', 'Backpacking'],
-    'Online Gaming': ['BGMI', 'Free Fire', 'Valorant', 'COD Mobile', 'Chess', 'Other']
   };
   res.json(SKILLS_DATA);
 };

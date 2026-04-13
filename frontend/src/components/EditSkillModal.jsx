@@ -22,7 +22,7 @@ const EditSkillModal = ({ skill, onClose, onUpdate, onDelete }) => {
   const [screenshotFile, setScreenshotFile] = useState(null);
   const [uploadingScreenshot, setUploadingScreenshot] = useState(false);
 
-  const isGaming = skill.name === 'Online Gaming';
+  const isGaming = false; // Online Gaming skill removed
 
   const getOAuthProvider = (skillName) => {
     const s = skillName.toLowerCase();

@@ -104,7 +104,6 @@ app.use('/api/documents', require('./routes/documentRoutes'));
 app.use('/api/admin', require('./routes/adminRoutes'));
 app.use('/api/notifications', require('./routes/notificationRoutes'));
 app.use('/api/upload', require('./routes/upload'));
-app.use('/api/webinars', require('./routes/webinarRoutes'));
 
 // Socket.io
 const { initSocket } = require('./socket/index');
