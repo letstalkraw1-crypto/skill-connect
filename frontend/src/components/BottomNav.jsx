@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Home, Calendar, MessageSquare, Bell, User, Grid3X3, Trophy, BookOpen, MessageCircleQuestion, Users, Search, X, Video, Mic2 } from 'lucide-react';
+import { Home, Calendar, MessageSquare, Bell, User, Grid3X3, Video, Mic2, X } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useSocketContext } from '../context/SocketContext';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -50,20 +50,15 @@ const BottomNav = () => {
     { to: '/daily-challenge', icon: Mic2, label: 'Challenge' },
     { to: '/chat', icon: MessageSquare, label: 'Messages', dot: unreadMessages > 0 },
     { to: '/notifications', icon: Bell, label: 'Activity', badge: unreadCount > 0 ? (unreadCount > 9 ? '9+' : unreadCount) : null },
+    { to: '/webinar', icon: Video, label: 'Webinar' },
   ];
 
   const moreItems = [
-    { to: '/events', icon: Calendar, label: 'Events' },
-    { to: '/challenges', icon: Trophy, label: 'Challenges' },
-    { to: '/resources', icon: BookOpen, label: 'Resources' },
-    { to: '/qa', icon: MessageCircleQuestion, label: 'Q&A' },
     { to: '/webinar', icon: Video, label: 'Webinar' },
-    { to: '/communities', icon: Users, label: 'Communities' },
-    { to: '/discovery', icon: Search, label: 'Discover' },
     { to: `/profile/${user._id || user.id}`, icon: User, label: 'Profile' },
   ];
 
-  const isMoreActive = moreItems.some(item => location.pathname.startsWith(item.to));
+  const isMoreActive = false; // no more menu needed
 
   return (
     <>
@@ -130,19 +125,6 @@ const BottomNav = () => {
               </Link>
             );
           })}
-
-          {/* More Button */}
-          <button
-            onClick={() => setShowMore(s => !s)}
-            className={`flex flex-col items-center justify-center flex-1 h-full transition-colors ${showMore || isMoreActive ? 'text-primary' : 'text-muted-foreground'}`}>
-            <div className="relative">
-              {showMore ? <X size={22} /> : <Grid3X3 size={22} />}
-              {isMoreActive && !showMore && (
-                <span className="absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-primary border-2 border-background"></span>
-              )}
-            </div>
-            <span className="text-[9px] font-bold mt-1 uppercase tracking-tighter">More</span>
-          </button>
         </div>
       </div>
     </>

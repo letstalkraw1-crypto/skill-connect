@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Home, Search, MessageSquare, User, LogOut, Plus, Calendar, Users, X, Trophy, BookOpen, MessageCircleQuestion, Video, Mic2 } from 'lucide-react';
+import { Home, Search, MessageSquare, User, LogOut, Plus, Calendar, Users, X, Video, Mic2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { AnimatePresence, motion } from 'framer-motion';
 import Avatar from './Avatar';
@@ -79,29 +79,8 @@ const Navbar = () => {
           </div>
 
           <div className="flex items-center gap-2">
-            {/* Events & Communities quick links */}
-            <Link to="/events"
-              className={`hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${location.pathname === '/events' ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-accent hover:text-foreground'}`}>
-              <Calendar size={16} /> Events
-            </Link>
-            <Link to="/communities"
-              className={`hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${location.pathname === '/communities' ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-accent hover:text-foreground'}`}>
-              <Users size={16} /> Groups
-            </Link>
-            <Link to="/challenges"
-              className={`hidden lg:flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${location.pathname === '/challenges' ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-accent hover:text-foreground'}`}>
-              <Trophy size={16} /> Challenges
-            </Link>
-            <Link to="/resources"
-              className={`hidden lg:flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${location.pathname === '/resources' ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-accent hover:text-foreground'}`}>
-              <BookOpen size={16} /> Resources
-            </Link>
-            <Link to="/qa"
-              className={`hidden lg:flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${location.pathname === '/qa' ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-accent hover:text-foreground'}`}>
-              <MessageCircleQuestion size={16} /> Q&A
-            </Link>
             <Link to="/webinar"
-              className={`hidden lg:flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${location.pathname === '/webinar' ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-accent hover:text-foreground'}`}>
+              className={`hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${location.pathname === '/webinar' ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-accent hover:text-foreground'}`}>
               <Video size={16} /> Webinar
             </Link>
 
