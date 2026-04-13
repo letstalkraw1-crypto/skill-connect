@@ -1,115 +1,127 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Video, Upload, Send, Star, ThumbsUp, ArrowRight, Loader2, X, ChevronDown, ChevronUp, Flame } from 'lucide-react';
+import { Video, Upload, Send, ThumbsUp, ArrowRight, Loader2, X, ChevronDown, ChevronUp, Flame } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Avatar from '../components/Avatar';
 import api from '../services/api';
 
 // ─── Feedback Modal ───────────────────────────────────────────────────────────
+// Step-based: first "What they did well", then "One thing to improve", then submit
 const FeedbackModal = ({ video, onClose, onSubmitted }) => {
+  const [step, setStep] = useState(0); // 0 = positive, 1 = improvement
   const [positive, setPositive] = useState('');
   const [improvement, setImprovement] = useState('');
-  const [ratings, setRatings] = useState({ confidence: 0, clarity: 0, structure: 0 });
-  const [showRatings, setShowRatings] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const inputRef = useRef(null);
+
+  // Auto-focus input on each step
+  useEffect(() => {
+    const t = setTimeout(() => inputRef.current?.focus(), 100);
+    return () => clearTimeout(t);
+  }, [step]);
 
   const handleSubmit = async () => {
-    if (!positive.trim() || !improvement.trim()) {
-      setError('Both fields are required');
-      return;
-    }
     setLoading(true);
     setError('');
     try {
-      await api.post(`/daily-challenge/feedback/${video._id}`, {
-        positive, improvement,
-        ratings: Object.values(ratings).some(v => v > 0) ? ratings : undefined,
-      });
+      await api.post(`/daily-challenge/feedback/${video._id}`, { positive, improvement });
       onSubmitted();
       onClose();
     } catch (err) {
-      setError(err?.response?.data?.error || 'Failed to submit feedback');
-    } finally {
+      setError(err?.response?.data?.error || 'Failed to submit');
       setLoading(false);
     }
   };
 
+  const steps = [
+    {
+      emoji: '✅',
+      label: 'What did they do well?',
+      placeholder: 'e.g. Great eye contact, confident tone...',
+      value: positive,
+      onChange: setPositive,
+      color: 'text-emerald-400',
+      next: () => { if (positive.trim()) { setError(''); setStep(1); } else setError('Please write something first'); },
+    },
+    {
+      emoji: '💡',
+      label: 'One thing to improve?',
+      placeholder: 'e.g. Try to slow down, use more examples...',
+      value: improvement,
+      onChange: setImprovement,
+      color: 'text-amber-400',
+      next: handleSubmit,
+    },
+  ];
+
+  const current = steps[step];
+
   return (
-    <div className="fixed inset-0 z-[100] flex items-end justify-center bg-black/70"
+    <div className="fixed inset-0 z-[100] flex flex-col bg-black/80"
       onClick={e => e.target === e.currentTarget && onClose()}>
-      <div className="w-full max-w-lg bg-background rounded-t-3xl border-t border-border shadow-2xl"
-        style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
-        {/* Drag handle */}
-        <div className="flex justify-center pt-3 pb-1">
+      {/* Top area — tappable to close */}
+      <div className="flex-1" onClick={onClose} />
+
+      {/* Sheet — sits above keyboard naturally */}
+      <div className="bg-background border-t border-border w-full"
+        style={{ paddingBottom: 'env(safe-area-inset-bottom, 8px)' }}>
+
+        {/* Handle + header */}
+        <div className="flex justify-center pt-2 pb-1">
           <div className="h-1 w-10 rounded-full bg-border" />
         </div>
-        {/* Header */}
-        <div className="flex items-center justify-between px-5 py-3 border-b border-border">
-          <div>
-            <h3 className="font-black text-base">Give Feedback</h3>
-            <p className="text-xs text-muted-foreground">to {video.user?.name}</p>
-          </div>
-          <button onClick={onClose} className="h-9 w-9 flex items-center justify-center rounded-xl bg-accent">
-            <X size={18} />
-          </button>
-        </div>
-
-        {/* Content — no scroll container, fields always visible */}
-        <div className="px-5 pt-4 pb-2 space-y-4">
-          {error && <div className="px-3 py-2 bg-destructive/10 border border-destructive/30 rounded-xl text-sm text-destructive">{error}</div>}
-
-          <div>
-            <label className="text-xs font-bold uppercase tracking-widest text-emerald-500 mb-2 block">✅ What they did well *</label>
-            <textarea rows={3} placeholder="e.g. Great eye contact, confident tone..."
-              value={positive} onChange={e => setPositive(e.target.value)}
-              className="w-full px-4 py-3 rounded-xl bg-accent/30 border border-border focus:ring-2 focus:ring-emerald-500/50 outline-none text-sm resize-none" />
-          </div>
-
-          <div>
-            <label className="text-xs font-bold uppercase tracking-widest text-amber-500 mb-2 block">💡 One thing to improve *</label>
-            <textarea rows={3} placeholder="e.g. Try to slow down a bit, use more examples..."
-              value={improvement} onChange={e => setImprovement(e.target.value)}
-              className="w-full px-4 py-3 rounded-xl bg-accent/30 border border-border focus:ring-2 focus:ring-amber-500/50 outline-none text-sm resize-none" />
-          </div>
-
-          {/* Ratings — collapsible to save space */}
-          <button type="button" onClick={() => setShowRatings(s => !s)}
-            className="flex items-center gap-2 text-xs font-bold text-muted-foreground hover:text-foreground transition-colors">
-            {showRatings ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-            Optional Ratings
-          </button>
-          <AnimatePresence>
-            {showRatings && (
-              <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}
-                className="overflow-hidden">
-                <div className="p-4 bg-accent/20 rounded-xl space-y-3">
-                  {(['confidence', 'clarity', 'structure']).map(field => (
-                    <div key={field} className="space-y-1">
-                      <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">{field}</p>
-                      <div className="flex gap-2">
-                        {[1,2,3,4,5].map(n => (
-                          <button key={n} type="button" onClick={() => setRatings(r => ({ ...r, [field]: n }))}
-                            className={`p-1 transition-colors ${n <= ratings[field] ? 'text-amber-400' : 'text-muted-foreground/30'}`}>
-                            <Star size={20} className={n <= ratings[field] ? 'fill-current' : ''} />
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </motion.div>
+        <div className="flex items-center justify-between px-4 py-2 border-b border-border">
+          <div className="flex items-center gap-2">
+            {step === 1 && (
+              <button onClick={() => { setStep(0); setError(''); }}
+                className="text-xs text-muted-foreground hover:text-foreground font-bold px-2 py-1 rounded-lg hover:bg-accent">
+                ← Back
+              </button>
             )}
-          </AnimatePresence>
+            <span className={`text-sm font-black ${current.color}`}>{current.emoji} {current.label}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground">{step + 1}/2</span>
+            <button onClick={onClose} className="h-7 w-7 flex items-center justify-center rounded-lg bg-accent">
+              <X size={14} />
+            </button>
+          </div>
         </div>
 
-        {/* Submit button */}
-        <div className="px-5 py-4 border-t border-border mt-2">
-          <button onClick={handleSubmit} disabled={loading || !positive.trim() || !improvement.trim()}
-            className="w-full py-4 bg-primary text-primary-foreground rounded-2xl font-bold shadow-lg shadow-primary/20 active:scale-95 transition-all disabled:opacity-40 flex items-center justify-center gap-2 text-base">
-            {loading ? <Loader2 size={20} className="animate-spin" /> : <Send size={20} />}
-            {loading ? 'Submitting...' : 'Submit Feedback'}
-          </button>
+        {/* Previous answer preview on step 2 */}
+        {step === 1 && positive && (
+          <div className="mx-4 mt-3 px-3 py-2 bg-emerald-500/10 border border-emerald-500/20 rounded-xl">
+            <p className="text-xs text-emerald-400 font-bold">✅ {positive}</p>
+          </div>
+        )}
+
+        {error && (
+          <div className="mx-4 mt-2 px-3 py-2 bg-destructive/10 border border-destructive/30 rounded-xl">
+            <p className="text-xs text-destructive">{error}</p>
+          </div>
+        )}
+
+        {/* Input row — Instagram style */}
+        <div className="flex items-end gap-2 px-3 py-3">
+          <Avatar src={video.user?.avatarUrl} name={video.user?.name} size="8" />
+          <div className="flex-1 flex items-end gap-2 bg-accent/30 border border-border rounded-2xl px-3 py-2">
+            <textarea
+              ref={inputRef}
+              rows={1}
+              placeholder={current.placeholder}
+              value={current.value}
+              onChange={e => { current.onChange(e.target.value); e.target.style.height = 'auto'; e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px'; }}
+              className="flex-1 bg-transparent outline-none text-sm resize-none leading-5 max-h-[120px] overflow-y-auto"
+              style={{ height: '24px' }}
+            />
+            <button
+              onClick={current.next}
+              disabled={!current.value.trim() || loading}
+              className="h-8 w-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center flex-shrink-0 disabled:opacity-40 active:scale-90 transition-all">
+              {loading ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
+            </button>
+          </div>
         </div>
       </div>
     </div>
