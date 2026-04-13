@@ -53,10 +53,18 @@ function initSocket(httpServer) {
     socket.userId = userId;
     socket.join(userId);
 
+    // Broadcast online status to all connected users
+    socket.broadcast.emit('user_online', { userId });
+
     // Rate limit: max 30 messages per minute
     let msgCount = 0;
     const msgReset = setInterval(() => { msgCount = 0; }, 60000);
-    socket.on('disconnect', () => clearInterval(msgReset));
+    socket.on('disconnect', () => {
+      clearInterval(msgReset);
+      // Broadcast offline status
+      socket.broadcast.emit('user_offline', { userId });
+      console.log(`[Socket] User ${socket.userId} disconnected`);
+    });
 
     // --- send_message ---
     socket.on('send_message', async ({ conversationId, text, content, replyToMessageId }) => {

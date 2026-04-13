@@ -325,16 +325,14 @@ const Chat = () => {
                 />
                 <div>
                   <h3 className="font-bold text-sm leading-tight">{activeChat.isGroup ? activeChat.groupName : activeChat.otherUser?.name}</h3>
-                  <p className="text-[10px] uppercase tracking-widest text-emerald-500 font-bold flex items-center gap-1">
-                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                    {activeChat.isGroup ? 'Group Chat' : 'Online'}
+                  <p className="text-[10px] uppercase tracking-widest font-bold flex items-center gap-1">
+                    <span className={"h-1.5 w-1.5 rounded-full " + (onlineUsers.has(activeChat.otherUser?._id || activeChat.otherUser?.id) ? 'bg-emerald-500 animate-pulse' : 'bg-muted-foreground')}></span>
+                    <span className={onlineUsers.has(activeChat.otherUser?._id || activeChat.otherUser?.id) ? 'text-emerald-500' : 'text-muted-foreground'}>{activeChat.isGroup ? 'Group Chat' : (onlineUsers.has(activeChat.otherUser?._id || activeChat.otherUser?.id) ? 'Online' : 'Offline')}</span>
                   </p>
                 </div>
               </div>
               <div className="flex gap-1">
-                <button className="p-2 hover:bg-accent rounded-xl transition-colors text-muted-foreground hover:text-foreground"><Phone size={18} /></button>
-                <button className="p-2 hover:bg-accent rounded-xl transition-colors text-muted-foreground hover:text-foreground"><Video size={18} /></button>
-                <button className="p-2 hover:bg-accent rounded-xl transition-colors text-muted-foreground hover:text-foreground"><MoreVertical size={18} /></button>
+                <button onClick={() => navigate(`/webinar?join=${activeChat.id}`)} className="p-2 hover:bg-accent rounded-xl transition-colors text-muted-foreground hover:text-primary" title="Video Call"><Video size={18} /></button><button onClick={() => setShowChatMenu(s => !s)} className="p-2 hover:bg-accent rounded-xl transition-colors text-muted-foreground hover:text-foreground relative" title="More"><MoreVertical size={18} /></button>
               </div>
             </div>
 
@@ -423,4 +421,6 @@ const Chat = () => {
 };
 
 export default Chat;
+
+
 
