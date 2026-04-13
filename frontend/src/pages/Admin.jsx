@@ -203,7 +203,6 @@ const Admin = () => {
             { id: 'stats', label: 'Dashboard', icon: BarChart3 },
             { id: 'users', label: 'Users', icon: Users },
             { id: 'verifications', label: 'Verifications', icon: CheckCircle },
-            { id: 'events', label: 'Events', icon: Calendar },
             { id: 'daily', label: 'Daily Challenge', icon: Shield }
           ].map(tab => (
             <button
@@ -225,7 +224,6 @@ const Admin = () => {
         {activeTab === 'stats' && stats && <StatsView stats={stats} />}
         {activeTab === 'users' && <UsersView users={users} onViewUser={viewUser} />}
         {activeTab === 'verifications' && <VerificationsView verifications={verifications} onReview={reviewVerification} />}
-        {activeTab === 'events' && <EventsView events={events} onDelete={deleteEvent} />}
         {activeTab === 'daily' && <DailyChallengeAdmin token={token} />}
       </div>
 

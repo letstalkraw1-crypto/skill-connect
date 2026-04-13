@@ -13,11 +13,7 @@ const ProfileByShortId = lazy(() => import('./pages/ProfileByShortId'));
 const Chat = lazy(() => import('./pages/Chat'));
 const Discovery = lazy(() => import('./pages/Discovery'));
 const Notifications = lazy(() => import('./pages/Notifications'));
-const Events = lazy(() => import('./pages/Events'));
-const Communities = lazy(() => import('./pages/Communities'));
 const Legal = lazy(() => import('./pages/Legal'));
-const CommunityDetail = lazy(() => import('./pages/CommunityDetail'));
-const EventDetail = lazy(() => import('./pages/EventDetail'));
 const OAuthCallback = lazy(() => import('./pages/OAuthCallback'));
 const Admin = lazy(() => import('./pages/Admin'));
 const Challenges = lazy(() => import('./pages/Challenges'));
@@ -60,10 +56,6 @@ const App = () => {
                 <Route path="/chat/:id?" element={<PrivateRoute><Chat /></PrivateRoute>} />
                 <Route path="/discovery" element={<PrivateRoute><Discovery /></PrivateRoute>} />
                 <Route path="/notifications" element={<PrivateRoute><Notifications /></PrivateRoute>} />
-                <Route path="/events" element={<PrivateRoute><Events /></PrivateRoute>} />
-                <Route path="/events/:id" element={<PrivateRoute><EventDetail /></PrivateRoute>} />
-                <Route path="/communities" element={<PrivateRoute><Communities /></PrivateRoute>} />
-                <Route path="/communities/:id" element={<PrivateRoute><CommunityDetail /></PrivateRoute>} />
                 <Route path="/challenges" element={<PrivateRoute><Challenges /></PrivateRoute>} />
                 <Route path="/resources" element={<PrivateRoute><Resources /></PrivateRoute>} />
                 <Route path="/qa" element={<PrivateRoute><QARooms /></PrivateRoute>} />
