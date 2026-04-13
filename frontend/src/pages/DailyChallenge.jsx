@@ -20,9 +20,11 @@ const FeedbackModal = ({ video, onClose, onSubmitted }) => {
     return () => { document.body.style.overflow = ''; };
   }, []);
 
-  // Scroll to top when modal opens
+  // Force scroll to top when modal opens
   React.useEffect(() => {
-    if (scrollRef.current) scrollRef.current.scrollTop = 0;
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = 0;
+    }
   }, []);
 
   const handleSubmit = async (e) => {
@@ -63,6 +65,7 @@ const FeedbackModal = ({ video, onClose, onSubmitted }) => {
 
   return (
     <div className="fixed inset-0 z-[100] flex items-end justify-center bg-black/70"
+      style={{ overscrollBehavior: 'contain' }}
       onClick={e => e.target === e.currentTarget && onClose()}>
       <div className="w-full max-w-lg bg-background rounded-t-3xl border-t border-border shadow-2xl flex flex-col"
         style={{ maxHeight: '90vh' }}>
