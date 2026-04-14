@@ -557,8 +557,10 @@ const SubmitSection = ({ challenge, onSubmitted }) => {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
   const [recording, setRecording] = useState(false);
+  const [recordingPaused, setRecordingPaused] = useState(false);
   const [mediaRecorder, setMediaRecorder] = useState(null);
   const [recordedChunks, setRecordedChunks] = useState([]);
+  const chunksRef = useRef([]);
   const [showTeleprompter, setShowTeleprompter] = useState(false);
   const [teleprompterText, setTeleprompterText] = useState(challenge?.topic || '');
   const videoRef = useRef(null);
@@ -570,11 +572,11 @@ const SubmitSection = ({ challenge, onSubmitted }) => {
       streamRef.current = stream;
       if (videoRef.current) videoRef.current.srcObject = stream;
 
+      chunksRef.current = [];
       const recorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
-      const chunks = [];
-      recorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
+      recorder.ondataavailable = e => { if (e.data.size > 0) chunksRef.current.push(e.data); };
       recorder.onstop = () => {
-        const blob = new Blob(chunks, { type: 'video/webm' });
+        const blob = new Blob(chunksRef.current, { type: 'video/webm' });
         const file = new File([blob], `challenge-${Date.now()}.webm`, { type: 'video/webm' });
         setVideoFile(file);
         setVideoPreview(URL.createObjectURL(blob));
@@ -584,21 +586,48 @@ const SubmitSection = ({ challenge, onSubmitted }) => {
 
       recorder.start();
       setMediaRecorder(recorder);
-      setRecordedChunks(chunks);
       setRecording(true);
+      setRecordingPaused(false);
 
-      // Auto-stop at 90 seconds
       setTimeout(() => { if (recorder.state === 'recording') recorder.stop(); }, 90000);
     } catch (err) {
       setError('Camera access denied. Please allow camera permissions.');
     }
   };
 
-  const stopRecording = () => {
+  // Stop → show Resume/Submit/Restart options
+  const pauseRecording = () => {
     if (mediaRecorder && mediaRecorder.state === 'recording') {
+      mediaRecorder.pause();
+      setRecordingPaused(true);
+    }
+  };
+
+  const resumeRecording = () => {
+    if (mediaRecorder && mediaRecorder.state === 'paused') {
+      mediaRecorder.resume();
+      setRecordingPaused(false);
+    }
+  };
+
+  const finishRecording = () => {
+    if (mediaRecorder && (mediaRecorder.state === 'recording' || mediaRecorder.state === 'paused')) {
       mediaRecorder.stop();
       setRecording(false);
+      setRecordingPaused(false);
     }
+  };
+
+  const restartRecording = () => {
+    if (mediaRecorder) {
+      try { mediaRecorder.stop(); } catch {}
+    }
+    if (streamRef.current) streamRef.current.getTracks().forEach(t => t.stop());
+    setRecording(false);
+    setRecordingPaused(false);
+    setMediaRecorder(null);
+    chunksRef.current = [];
+    setTimeout(startRecording, 200);
   };
 
   const handleFileSelect = (e) => {
@@ -704,10 +733,30 @@ const SubmitSection = ({ challenge, onSubmitted }) => {
               <div className="h-3 w-3 rounded-full bg-white animate-pulse" />
               Start Recording
             </button>
+          ) : recordingPaused ? (
+            // Paused — show Resume / Submit / Restart
+            <div className="space-y-2">
+              <p className="text-xs text-center text-amber-400 font-bold">⏸ Recording paused</p>
+              <div className="grid grid-cols-3 gap-2">
+                <button onClick={resumeRecording}
+                  className="py-3 bg-emerald-500 text-white rounded-2xl font-bold text-sm flex flex-col items-center gap-1 hover:bg-emerald-600 transition-all">
+                  <span>▶</span><span className="text-[10px]">Resume</span>
+                </button>
+                <button onClick={finishRecording}
+                  className="py-3 bg-primary text-primary-foreground rounded-2xl font-bold text-sm flex flex-col items-center gap-1 hover:bg-primary/90 transition-all">
+                  <span>✓</span><span className="text-[10px]">Submit</span>
+                </button>
+                <button onClick={restartRecording}
+                  className="py-3 bg-accent border border-border text-foreground rounded-2xl font-bold text-sm flex flex-col items-center gap-1 hover:bg-accent/80 transition-all">
+                  <span>↺</span><span className="text-[10px]">Restart</span>
+                </button>
+              </div>
+            </div>
           ) : (
-            <button onClick={stopRecording}
-              className="w-full py-3 bg-accent border-2 border-red-500 text-red-500 rounded-2xl font-bold hover:bg-red-500/10 transition-all flex items-center justify-center gap-2">
-              <div className="h-3 w-3 rounded-full bg-red-500 animate-pulse" />
+            // Recording — red stop button
+            <button onClick={pauseRecording}
+              className="w-full py-3 bg-red-500 text-white rounded-2xl font-bold transition-all flex items-center justify-center gap-2 active:scale-95">
+              <div className="h-4 w-4 rounded-sm bg-white" />
               Stop Recording
             </button>
           )}
