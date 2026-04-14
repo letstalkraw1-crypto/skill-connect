@@ -417,21 +417,44 @@ const VideoCard = ({ video, currentUserId, onFeedbackGiven, onOpenFeedback, alre
 };
 
 // ─── Teleprompter ─────────────────────────────────────────────────────────────
-const Teleprompter = ({ text, onClose }) => {
+const Teleprompter = ({ text: initialText, onClose, onTextChange }) => {
   const [running, setRunning] = useState(false);
-  const [speed, setSpeed] = useState(2); // px per frame
+  const [speed, setSpeed] = useState(2);
   const [fontSize, setFontSize] = useState(24);
   const [color, setColor] = useState('#ffffff');
   const [font, setFont] = useState('sans-serif');
   const [fullscreen, setFullscreen] = useState(false);
+  const [editMode, setEditMode] = useState(false);
+  const [localText, setLocalText] = useState(initialText);
   const scrollRef = useRef(null);
   const rafRef = useRef(null);
+  const containerRef = useRef(null);
+
+  // Use browser Fullscreen API when toggling
+  const toggleFullscreen = () => {
+    if (!fullscreen) {
+      containerRef.current?.requestFullscreen?.().catch(() => {});
+      setFullscreen(true);
+    } else {
+      document.exitFullscreen?.().catch(() => {});
+      setFullscreen(false);
+    }
+  };
+
+  // Sync fullscreen state with browser ESC key
+  useEffect(() => {
+    const handler = () => {
+      if (!document.fullscreenElement) setFullscreen(false);
+    };
+    document.addEventListener('fullscreenchange', handler);
+    return () => document.removeEventListener('fullscreenchange', handler);
+  }, []);
 
   useEffect(() => {
-    if (running) {
+    if (running && !editMode) {
       const scroll = () => {
         if (scrollRef.current) {
-          scrollRef.current.scrollTop += speed * 0.5;
+          scrollRef.current.scrollTop += speed * 0.4;
           if (scrollRef.current.scrollTop >= scrollRef.current.scrollHeight - scrollRef.current.clientHeight) {
             setRunning(false); return;
           }
@@ -443,57 +466,84 @@ const Teleprompter = ({ text, onClose }) => {
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
     }
     return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); };
-  }, [running, speed]);
+  }, [running, speed, editMode]);
 
   const fonts = ['sans-serif', 'serif', 'monospace', 'Georgia', 'Arial'];
 
-  return (
-    <div className={`${fullscreen ? 'fixed inset-0 z-[200]' : 'relative'} bg-black flex flex-col rounded-2xl overflow-hidden`}
-      style={{ minHeight: fullscreen ? '100vh' : '300px' }}>
-      {/* Controls */}
-      <div className="flex items-center gap-2 px-3 py-2 bg-black/80 border-b border-white/10 flex-wrap">
-        <button onClick={() => setRunning(r => !r)}
-          className={`px-3 py-1.5 rounded-lg text-xs font-bold ${running ? 'bg-red-500 text-white' : 'bg-emerald-500 text-white'}`}>
-          {running ? '⏸ Pause' : '▶ Start'}
-        </button>
-        <button onClick={() => { if (scrollRef.current) scrollRef.current.scrollTop = 0; setRunning(false); }}
-          className="px-3 py-1.5 rounded-lg text-xs font-bold bg-white/10 text-white">↺ Reset</button>
+  const handleSaveText = () => {
+    onTextChange?.(localText);
+    setEditMode(false);
+  };
 
-        <div className="flex items-center gap-1">
-          <span className="text-[10px] text-white/50">Speed</span>
-          <input type="range" min="1" max="8" value={speed} onChange={e => setSpeed(+e.target.value)}
-            className="w-16 h-1 accent-primary" />
-        </div>
-        <div className="flex items-center gap-1">
-          <span className="text-[10px] text-white/50">Size</span>
-          <input type="range" min="14" max="48" value={fontSize} onChange={e => setFontSize(+e.target.value)}
-            className="w-16 h-1 accent-primary" />
-        </div>
-        <input type="color" value={color} onChange={e => setColor(e.target.value)}
-          className="w-6 h-6 rounded cursor-pointer border-0 bg-transparent" title="Text color" />
-        <select value={font} onChange={e => setFont(e.target.value)}
-          className="text-[10px] bg-white/10 text-white rounded px-1 py-1 border-0 outline-none">
-          {fonts.map(f => <option key={f} value={f}>{f}</option>)}
-        </select>
-        <button onClick={() => setFullscreen(f => !f)}
-          className="ml-auto px-2 py-1.5 rounded-lg text-xs bg-white/10 text-white">
+  return (
+    <div ref={containerRef}
+      className="bg-black flex flex-col overflow-hidden"
+      style={{ position: fullscreen ? 'fixed' : 'absolute', inset: 0, zIndex: 210, borderRadius: fullscreen ? 0 : '0.75rem' }}>
+
+      {/* Controls bar */}
+      <div className="flex items-center gap-2 px-3 py-2 bg-black/90 border-b border-white/10 flex-wrap flex-shrink-0">
+        {!editMode ? (
+          <>
+            <button onClick={() => setRunning(r => !r)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold ${running ? 'bg-red-500 text-white' : 'bg-emerald-500 text-white'}`}>
+              {running ? '⏸ Pause' : '▶ Start'}
+            </button>
+            <button onClick={() => { if (scrollRef.current) scrollRef.current.scrollTop = 0; setRunning(false); }}
+              className="px-2 py-1.5 rounded-lg text-xs bg-white/10 text-white">↺</button>
+            <button onClick={() => { setRunning(false); setEditMode(true); }}
+              className="px-2 py-1.5 rounded-lg text-xs bg-blue-500/30 text-blue-300">✏️ Edit</button>
+            <div className="flex items-center gap-1">
+              <span className="text-[10px] text-white/40">Spd</span>
+              <input type="range" min="1" max="10" value={speed} onChange={e => setSpeed(+e.target.value)} className="w-14 h-1 accent-emerald-400" />
+            </div>
+            <div className="flex items-center gap-1">
+              <span className="text-[10px] text-white/40">Sz</span>
+              <input type="range" min="14" max="56" value={fontSize} onChange={e => setFontSize(+e.target.value)} className="w-14 h-1 accent-blue-400" />
+            </div>
+            <input type="color" value={color} onChange={e => setColor(e.target.value)}
+              className="w-6 h-6 rounded cursor-pointer border-0 bg-transparent" title="Text color" />
+            <select value={font} onChange={e => setFont(e.target.value)}
+              className="text-[10px] bg-white/10 text-white rounded px-1 py-1 border-0 outline-none">
+              {fonts.map(f => <option key={f} value={f} style={{ background: '#000' }}>{f}</option>)}
+            </select>
+          </>
+        ) : (
+          <>
+            <span className="text-xs text-white/60 font-bold">Editing script...</span>
+            <button onClick={handleSaveText} className="px-3 py-1.5 rounded-lg text-xs bg-emerald-500 text-white font-bold">✓ Done</button>
+            <button onClick={() => { setLocalText(initialText); setEditMode(false); }} className="px-2 py-1.5 rounded-lg text-xs bg-white/10 text-white">Cancel</button>
+          </>
+        )}
+        <button onClick={toggleFullscreen} className="ml-auto px-2 py-1.5 rounded-lg text-xs bg-white/10 text-white">
           {fullscreen ? '⊡ Exit' : '⛶ Full'}
         </button>
         <button onClick={onClose} className="px-2 py-1.5 rounded-lg text-xs bg-white/10 text-white">✕</button>
       </div>
 
-      {/* Scrolling text */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto px-8 py-6 select-none"
-        style={{ scrollbarWidth: 'none' }}>
-        <p style={{ fontSize: `${fontSize}px`, color, fontFamily: font, lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
-          {text}
-        </p>
-        <div style={{ height: '50vh' }} />
-      </div>
+      {/* Content area */}
+      {editMode ? (
+        <textarea
+          autoFocus
+          value={localText}
+          onChange={e => setLocalText(e.target.value)}
+          className="flex-1 bg-black text-white px-8 py-6 outline-none resize-none"
+          style={{ fontSize: `${Math.min(fontSize, 20)}px`, fontFamily: font, color, lineHeight: 1.6 }}
+          placeholder="Type your script here..."
+        />
+      ) : (
+        <div ref={scrollRef} className="flex-1 overflow-y-auto px-8 py-6 select-none" style={{ scrollbarWidth: 'none' }}>
+          <p style={{ fontSize: `${fontSize}px`, color, fontFamily: font, lineHeight: 1.8, whiteSpace: 'pre-wrap' }}>
+            {localText || 'Tap ✏️ Edit to write your script...'}
+          </p>
+          <div style={{ height: '60vh' }} />
+        </div>
+      )}
 
-      {/* Gradient fade at bottom */}
-      <div className="absolute bottom-0 left-0 right-0 h-24 pointer-events-none"
-        style={{ background: 'linear-gradient(transparent, black)' }} />
+      {/* Bottom fade */}
+      {!editMode && (
+        <div className="absolute bottom-0 left-0 right-0 h-24 pointer-events-none"
+          style={{ background: 'linear-gradient(transparent, black)' }} />
+      )}
     </div>
   );
 };
@@ -626,7 +676,8 @@ const SubmitSection = ({ challenge, onSubmitted }) => {
             {/* Teleprompter overlay on top of camera */}
             {showTeleprompter && (
               <div className="absolute inset-0 z-10">
-                <Teleprompter text={teleprompterText} onClose={() => setShowTeleprompter(false)} />
+                <Teleprompter text={teleprompterText} onClose={() => setShowTeleprompter(false)}
+                  onTextChange={t => setTeleprompterText(t)} />
               </div>
             )}
           </div>
