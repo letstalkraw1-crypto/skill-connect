@@ -55,7 +55,10 @@ async function transcribeVideo(videoUrl) {
 }
 
 async function scoreWithGemini(transcript, challengeTopic) {
-  if (!GEMINI_KEY) return null;
+  if (!GEMINI_KEY) {
+    console.error('[AI] GEMINI_API_KEY is not set');
+    return null;
+  }
 
   const prompt = `You are an expert communication coach evaluating a short speaking video for the challenge: "${challengeTopic}".
 
@@ -83,6 +86,8 @@ Respond ONLY with valid JSON in this exact format:
 }`;
 
   const path = `/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_KEY}`;
+  console.log('[AI] Calling Gemini API...');
+  
   const data = await httpsPost('generativelanguage.googleapis.com', path,
     { 'content-type': 'application/json' },
     {
@@ -91,8 +96,12 @@ Respond ONLY with valid JSON in this exact format:
     }
   );
 
+  console.log('[AI] Gemini raw response:', JSON.stringify(data).slice(0, 500));
+
+  if (data.error) throw new Error(`Gemini API error: ${data.error.message || JSON.stringify(data.error)}`);
+
   const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-  if (!text) throw new Error('Gemini response empty');
+  if (!text) throw new Error(`Gemini response empty. Full response: ${JSON.stringify(data).slice(0, 300)}`);
 
   // Strip markdown code fences if present
   const clean = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
@@ -137,7 +146,7 @@ async function analyzeVideo(videoId, videoUrl, challengeTopic) {
 
     console.log(`[AI] Gemini analysis complete for video ${videoId}`);
   } catch (err) {
-    console.error('[AI] Analysis failed:', err.message);
+    console.error('[AI] Analysis failed:', err.message, err.stack?.slice(0, 300));
     await ChallengeVideo.findByIdAndUpdate(videoId, { 'aiAnalysis.status': 'failed' }).catch(() => {});
   }
 }
