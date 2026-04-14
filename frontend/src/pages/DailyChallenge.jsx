@@ -205,20 +205,37 @@ const VideoCard = ({ video, currentUserId, onFeedbackGiven, onOpenFeedback, alre
 
   const isOwn = video.userId === currentUserId;
 
-  const loadAI = async () => {
-    if (aiData?.status === 'done') { setShowAI(s => !s); return; }
-    if (aiData?.status === 'processing') return; // already running, just wait
-    setLoadingAI(true);
-    try {
-      // For failed or pending, trigger a retry then poll
-      if (aiData?.status === 'failed' || !aiData?.status || aiData?.status === 'pending') {
-        await api.post(`/daily-challenge/ai/${video._id}/retry`);
-        setAiData(d => ({ ...d, status: 'processing' }));
-      } else {
+  // Auto-poll when status is processing
+  useEffect(() => {
+    if (!isOwn) return;
+    let interval;
+    const poll = async () => {
+      try {
         const { data } = await api.get(`/daily-challenge/ai/${video._id}`);
         setAiData(data);
-        if (data.status === 'done') setShowAI(true);
-      }
+        if (data.status === 'done') { setShowAI(true); clearInterval(interval); }
+        if (data.status === 'failed') clearInterval(interval);
+      } catch {}
+    };
+    if (aiData?.status === 'processing') {
+      poll();
+      interval = setInterval(poll, 8000);
+    }
+    return () => clearInterval(interval);
+  }, [aiData?.status, isOwn]);
+
+  const loadAI = async () => {
+    if (aiData?.status === 'done') { setShowAI(s => !s); return; }
+    if (aiData?.status === 'processing') return;
+    setLoadingAI(true);
+    try {
+      // Always fetch fresh status first
+      const { data: fresh } = await api.get(`/daily-challenge/ai/${video._id}`);
+      setAiData(fresh);
+      if (fresh.status === 'done') { setShowAI(true); setLoadingAI(false); return; }
+      // Trigger/retry analysis
+      await api.post(`/daily-challenge/ai/${video._id}/retry`);
+      setAiData(d => ({ ...d, status: 'processing' }));
     } catch {}
     finally { setLoadingAI(false); }
   };
