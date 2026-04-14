@@ -7,6 +7,7 @@ const challengeVideoSchema = new mongoose.Schema({
   videoUrl: { type: String, required: true },
   caption: { type: String, default: '' },
   duration: { type: Number },
+  bytes: { type: Number, default: null },
   feedbackCount: { type: Number, default: 0 },
   // AI Analysis
   aiAnalysis: {

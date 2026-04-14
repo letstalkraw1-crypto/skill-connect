@@ -475,6 +475,7 @@ const UserDetailModal = ({ user, editMode, onClose, onEdit, onSave, onDelete }) 
     bio: user.bio || '',
     password: '',
   });
+  const [activeTab, setActiveTab] = useState('profile');
 
   const handleSave = () => {
     const updates = {};
@@ -485,66 +486,108 @@ const UserDetailModal = ({ user, editMode, onClose, onEdit, onSave, onDelete }) 
     onSave(updates);
   };
 
+  const videos = user.challengeVideos || [];
+  const totalStorageMB = videos.reduce((sum, v) => sum + (v.bytes ? v.bytes / 1024 / 1024 : 0), 0);
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
       <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
-        className="bg-background border border-border rounded-3xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-        <div className="p-6 border-b border-border flex items-center justify-between sticky top-0 bg-background">
+        className="bg-background border border-border rounded-3xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+        <div className="p-6 border-b border-border flex items-center justify-between flex-shrink-0">
           <h2 className="text-xl font-black">User Details</h2>
           <button onClick={onClose} className="p-2 hover:bg-accent rounded-xl text-xl">×</button>
         </div>
 
-        <div className="p-6 space-y-6">
-          <div className="flex items-center gap-4">
-            <img src={user.avatarUrl || '/default-avatar.png'} alt={user.name} className="w-20 h-20 rounded-full object-cover" />
-            <div>
-              <p className="text-lg font-bold">{user.name}</p>
-              <p className="text-sm text-muted-foreground">ID: {user.shortId}</p>
-              <p className="text-xs text-muted-foreground">Joined: {new Date(user.createdAt).toLocaleDateString()}</p>
-            </div>
-          </div>
+        {/* Tabs */}
+        <div className="flex gap-1 px-6 pt-3 border-b border-border flex-shrink-0">
+          {['profile', 'videos'].map(tab => (
+            <button key={tab} onClick={() => setActiveTab(tab)}
+              className={`px-4 py-2 rounded-t-lg text-xs font-bold capitalize transition-all ${activeTab === tab ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'}`}>
+              {tab === 'videos' ? `Videos (${videos.length})` : 'Profile'}
+            </button>
+          ))}
+        </div>
 
-          {editMode ? (
+        <div className="flex-1 overflow-y-auto p-6">
+          {activeTab === 'profile' && (
+            <div className="space-y-6">
+              <div className="flex items-center gap-4">
+                <img src={user.avatarUrl || '/default-avatar.png'} alt={user.name} className="w-20 h-20 rounded-full object-cover" />
+                <div>
+                  <p className="text-lg font-bold">{user.name}</p>
+                  <p className="text-sm text-muted-foreground">ID: {user.shortId}</p>
+                  <p className="text-xs text-muted-foreground">Joined: {new Date(user.createdAt).toLocaleDateString()}</p>
+                </div>
+              </div>
+
+              {editMode ? (
+                <div className="space-y-3">
+                  {[{ key: 'name', label: 'Name', type: 'text' }, { key: 'email', label: 'Email', type: 'email' }, { key: 'phone', label: 'Phone', type: 'tel' }, { key: 'location', label: 'Location', type: 'text' }].map(({ key, label, type }) => (
+                    <div key={key}>
+                      <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1 block">{label}</label>
+                      <input type={type} value={formData[key]} onChange={e => setFormData({ ...formData, [key]: e.target.value })}
+                        className="w-full px-4 py-2 rounded-xl bg-accent/20 border border-border outline-none text-sm" />
+                    </div>
+                  ))}
+                  <div>
+                    <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1 block">Bio</label>
+                    <textarea value={formData.bio} onChange={e => setFormData({ ...formData, bio: e.target.value })}
+                      className="w-full px-4 py-2 rounded-xl bg-accent/20 border border-border outline-none text-sm" rows={3} />
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1 block">New Password</label>
+                    <input type="password" value={formData.password} onChange={e => setFormData({ ...formData, password: e.target.value })}
+                      className="w-full px-4 py-2 rounded-xl bg-accent/20 border border-border outline-none text-sm" />
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-2 text-sm">
+                  <p><span className="font-bold">Email:</span> {user.email}</p>
+                  <p><span className="font-bold">Phone:</span> {user.phone || '—'}</p>
+                  <p><span className="font-bold">Location:</span> {user.location || '—'}</p>
+                  <p><span className="font-bold">Bio:</span> {user.bio || '—'}</p>
+                  <p><span className="font-bold">Skills:</span> {user.skills?.length || 0}</p>
+                  <p><span className="font-bold">Connections:</span> {user.connections?.length || 0}</p>
+                  <p><span className="font-bold">Streak:</span> {user.streakCount || 0} days</p>
+                  <p><span className="font-bold">Total Videos:</span> {videos.length}</p>
+                  <p><span className="font-bold">Total Storage:</span> {totalStorageMB.toFixed(1)} MB</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'videos' && (
             <div className="space-y-3">
-              {[
-                { key: 'name', label: 'Name', type: 'text' },
-                { key: 'email', label: 'Email', type: 'email' },
-                { key: 'phone', label: 'Phone', type: 'tel' },
-                { key: 'location', label: 'Location', type: 'text' },
-              ].map(({ key, label, type }) => (
-                <div key={key}>
-                  <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1 block">{label}</label>
-                  <input type={type} value={formData[key]}
-                    onChange={e => setFormData({ ...formData, [key]: e.target.value })}
-                    className="w-full px-4 py-2 rounded-xl bg-accent/20 border border-border outline-none text-sm" />
+              {videos.length === 0 && <p className="text-sm text-muted-foreground text-center py-8">No videos submitted yet</p>}
+              {videos.map(v => (
+                <div key={v._id} className="p-4 bg-accent/10 border border-border rounded-2xl space-y-2">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      <p className="font-bold text-sm truncate">{v.challenge?.topic || 'Unknown challenge'}</p>
+                      <p className="text-xs text-muted-foreground">{v.challenge?.date || '—'}</p>
+                    </div>
+                    <a href={v.videoUrl} target="_blank" rel="noopener noreferrer"
+                      className="px-3 py-1 bg-primary/10 text-primary rounded-lg text-xs font-bold hover:bg-primary/20 flex-shrink-0">
+                      ▶ View
+                    </a>
+                  </div>
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                    <span><span className="font-bold text-foreground">Uploaded:</span> {new Date(v.createdAt).toLocaleString()}</span>
+                    <span><span className="font-bold text-foreground">Duration:</span> {v.duration ? `${Math.round(v.duration)}s` : '—'}</span>
+                    <span><span className="font-bold text-foreground">Size:</span> {v.bytes ? `${(v.bytes / 1024 / 1024).toFixed(1)} MB` : '—'}</span>
+                    <span><span className="font-bold text-foreground">Feedbacks:</span> {v.feedbackCount || 0}</span>
+                    {v.caption && <span className="col-span-2"><span className="font-bold text-foreground">Caption:</span> {v.caption}</span>}
+                    {v.aiAnalysis?.status === 'done' && (
+                      <span className="col-span-2 text-violet-400 font-bold">🤖 AI Score: {v.aiAnalysis.scores?.overall}/10</span>
+                    )}
+                  </div>
                 </div>
               ))}
-              <div>
-                <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1 block">Bio</label>
-                <textarea value={formData.bio} onChange={e => setFormData({ ...formData, bio: e.target.value })}
-                  className="w-full px-4 py-2 rounded-xl bg-accent/20 border border-border outline-none text-sm" rows={3} />
-              </div>
-              <div>
-                <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1 block">New Password (leave blank to keep)</label>
-                <input type="password" value={formData.password}
-                  onChange={e => setFormData({ ...formData, password: e.target.value })}
-                  className="w-full px-4 py-2 rounded-xl bg-accent/20 border border-border outline-none text-sm" />
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-2 text-sm">
-              <p><span className="font-bold">Email:</span> {user.email}</p>
-              <p><span className="font-bold">Phone:</span> {user.phone || '—'}</p>
-              <p><span className="font-bold">Location:</span> {user.location || '—'}</p>
-              <p><span className="font-bold">Bio:</span> {user.bio || '—'}</p>
-              <p><span className="font-bold">Skills:</span> {user.skills?.length || 0}</p>
-              <p><span className="font-bold">Connections:</span> {user.connections?.length || 0}</p>
-              <p><span className="font-bold">Streak:</span> {user.streakCount || 0} days</p>
             </div>
           )}
         </div>
 
-        <div className="p-6 border-t border-border flex gap-3">
+        <div className="p-6 border-t border-border flex gap-3 flex-shrink-0">
           {editMode ? (
             <>
               <button onClick={() => setFormData({ name: user.name||'', email: user.email||'', phone: user.phone||'', location: user.location||'', bio: user.bio||'', password: '' })}

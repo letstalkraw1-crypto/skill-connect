@@ -84,6 +84,7 @@ const submitVideo = async (req, res) => {
       videoUrl: result.secure_url,
       caption: caption || '',
       duration: result.duration || null,
+      bytes: result.bytes || null,
     });
     await video.save();
 

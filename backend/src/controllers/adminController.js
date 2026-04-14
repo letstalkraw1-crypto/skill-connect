@@ -1,4 +1,4 @@
-const { User, UserSkill, Connection, Message, Conversation, Skill, Event, SkillVerification } = require('../config/db');
+const { User, UserSkill, Connection, Message, Conversation, Skill, Event, SkillVerification, ChallengeVideo, DailyChallenge } = require('../config/db');
 const bcrypt = require('bcrypt');
 const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
@@ -41,7 +41,20 @@ const getUser = async (req, res) => {
     if (!user) return res.status(404).json({ error: 'User not found' });
     const skills = await UserSkill.find({ userId: req.params.id }).populate('skillId', 'name').lean();
     const connections = await Connection.find({ $or: [{ requesterId: req.params.id }, { addresseeId: req.params.id }] }).populate('requesterId addresseeId', 'name').lean();
-    res.json({ ...user, skills, connections });
+
+    // Challenge videos with challenge info
+    const videos = await ChallengeVideo.find({ userId: req.params.id }).sort({ createdAt: -1 }).lean();
+    const challengeIds = [...new Set(videos.map(v => v.challengeId))];
+    const challenges = await DailyChallenge.find({ _id: { $in: challengeIds } }).lean();
+    const challengeMap = Object.fromEntries(challenges.map(c => [c._id, c]));
+    const enrichedVideos = videos.map(v => ({
+      ...v,
+      challenge: challengeMap[v.challengeId] || null,
+      // Estimate storage: Cloudinary bytes field or estimate from duration
+      storageMB: v.bytes ? (v.bytes / 1024 / 1024).toFixed(2) : null,
+    }));
+
+    res.json({ ...user, skills, connections, challengeVideos: enrichedVideos });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
