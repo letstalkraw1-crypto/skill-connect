@@ -419,7 +419,7 @@ const VideoCard = ({ video, currentUserId, onFeedbackGiven, onOpenFeedback, alre
 // ─── Teleprompter ─────────────────────────────────────────────────────────────
 const Teleprompter = ({ text: initialText, onClose, onTextChange }) => {
   const [running, setRunning] = useState(false);
-  const [speed, setSpeed] = useState(2);
+  const [speed, setSpeed] = useState(1);
   const [fontSize, setFontSize] = useState(24);
   const [color, setColor] = useState('#ffffff');
   const [font, setFont] = useState('sans-serif');
@@ -454,7 +454,7 @@ const Teleprompter = ({ text: initialText, onClose, onTextChange }) => {
     if (running && !editMode) {
       const scroll = () => {
         if (scrollRef.current) {
-          scrollRef.current.scrollTop += speed * 0.4;
+          scrollRef.current.scrollTop += speed * 0.1;
           if (scrollRef.current.scrollTop >= scrollRef.current.scrollHeight - scrollRef.current.clientHeight) {
             setRunning(false); return;
           }
