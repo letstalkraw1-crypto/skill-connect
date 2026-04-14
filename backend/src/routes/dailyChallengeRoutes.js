@@ -29,7 +29,7 @@ router.get('/ai-test', verifyToken, async (req, res) => {
   if (!key) return res.json({ error: 'GROQ_API_KEY not set' });
   const https = require('https');
   const body = JSON.stringify({
-    model: 'llama3-8b-8192',
+    model: 'llama-3.3-70b-versatile',
     messages: [{ role: 'user', content: 'Say {"message":"AI working"} and nothing else.' }],
     max_tokens: 50,
   });

@@ -71,7 +71,7 @@ Respond ONLY with this exact JSON (no markdown, no extra text):
   const data = await httpsPost('api.groq.com', '/openai/v1/chat/completions',
     { authorization: `Bearer ${GROQ_KEY}`, 'content-type': 'application/json' },
     {
-      model: 'llama3-8b-8192',
+      model: 'llama-3.3-70b-versatile',
       messages: [{ role: 'user', content: prompt }],
       temperature: 0.3,
       max_tokens: 400,
