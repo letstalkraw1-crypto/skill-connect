@@ -22,7 +22,25 @@ const videoUpload = multer({
 
 router.get('/today', verifyToken, getTodayChallenge);
 router.get('/my-submissions', verifyToken, getMySubmissions);
-router.post('/', verifyToken, createChallenge); // admin creates challenge
+
+// Debug endpoint — must be before /:id routes
+router.get('/ai-test', verifyToken, async (req, res) => {
+  const key = process.env.GEMINI_API_KEY;
+  if (!key) return res.json({ error: 'GEMINI_API_KEY not set' });
+  const https = require('https');
+  const prompt = 'Respond with only this JSON: {"message":"AI working"}';
+  const reqPath = `/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`;
+  const body = JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] });
+  const result = await new Promise((resolve, reject) => {
+    const r = https.request({ hostname: 'generativelanguage.googleapis.com', path: reqPath, method: 'POST', headers: { 'content-type': 'application/json', 'Content-Length': Buffer.byteLength(body) } }, res2 => {
+      let raw = ''; res2.on('data', c => raw += c); res2.on('end', () => resolve(raw));
+    });
+    r.on('error', reject); r.write(body); r.end();
+  });
+  res.json({ keyPrefix: key.slice(0, 10) + '...', response: result.slice(0, 500) });
+});
+
+router.post('/', verifyToken, createChallenge);
 router.post('/:id/submit', verifyToken, videoUpload.single('video'), submitVideo);
 router.get('/:id/feed', verifyToken, getChallengeFeed);
 router.post('/feedback/:videoId', verifyToken, giveFeedback);
@@ -31,25 +49,5 @@ router.post('/feedback/:feedbackId/reply', verifyToken, replyToFeedback);
 router.delete('/feedback/:feedbackId', verifyToken, deleteFeedback);
 router.get('/ai/:videoId', verifyToken, getAIAnalysis);
 router.post('/ai/:videoId/retry', verifyToken, retryAIAnalysis);
-
-// Temp debug endpoint — remove after testing
-router.get('/ai-test', verifyToken, async (req, res) => {
-  const key = process.env.GEMINI_API_KEY;
-  if (!key) return res.json({ error: 'GEMINI_API_KEY not set', env: Object.keys(process.env).filter(k => k.includes('GEMINI')) });
-  
-  const https = require('https');
-  const prompt = 'Say "AI is working" in JSON: {"message": "AI is working"}';
-  const path = `/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`;
-  const body = JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] });
-  
-  const result = await new Promise((resolve, reject) => {
-    const req2 = https.request({ hostname: 'generativelanguage.googleapis.com', path, method: 'POST', headers: { 'content-type': 'application/json', 'Content-Length': Buffer.byteLength(body) } }, res2 => {
-      let raw = ''; res2.on('data', c => raw += c); res2.on('end', () => resolve(raw));
-    });
-    req2.on('error', reject); req2.write(body); req2.end();
-  });
-  
-  res.json({ keyPrefix: key.slice(0, 10) + '...', response: result.slice(0, 500) });
-});
 
 module.exports = router;
