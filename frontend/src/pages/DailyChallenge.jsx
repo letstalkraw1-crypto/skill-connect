@@ -417,7 +417,7 @@ const VideoCard = ({ video, currentUserId, onFeedbackGiven, onOpenFeedback, alre
 };
 
 // ─── Teleprompter ─────────────────────────────────────────────────────────────
-const Teleprompter = ({ text: initialText, onClose, onTextChange }) => {
+const Teleprompter = ({ text: initialText, onClose, onTextChange, recording, recordingPaused, onStart, onStop, onResume, onFinish, onRestart }) => {
   const [running, setRunning] = useState(false);
   const [speed, setSpeed] = useState(1);
   const [fontSize, setFontSize] = useState(24);
@@ -543,6 +543,29 @@ const Teleprompter = ({ text: initialText, onClose, onTextChange }) => {
       {!editMode && (
         <div className="absolute bottom-0 left-0 right-0 h-24 pointer-events-none"
           style={{ background: 'linear-gradient(transparent, black)' }} />
+      )}
+
+      {/* Recording controls — shown at bottom when fullscreen */}
+      {fullscreen && !editMode && (
+        <div className="flex-shrink-0 px-4 py-3 bg-black/90 border-t border-white/10 flex items-center justify-center gap-3">
+          {!recording ? (
+            <button onClick={onStart}
+              className="flex items-center gap-2 px-6 py-3 bg-red-500 text-white rounded-2xl font-bold text-sm active:scale-95 transition-all">
+              <div className="h-3 w-3 rounded-full bg-white animate-pulse" /> Start Recording
+            </button>
+          ) : recordingPaused ? (
+            <>
+              <button onClick={onResume} className="flex flex-col items-center gap-1 px-5 py-2.5 bg-emerald-500 text-white rounded-2xl font-bold text-xs">▶<span>Resume</span></button>
+              <button onClick={onFinish} className="flex flex-col items-center gap-1 px-5 py-2.5 bg-primary text-primary-foreground rounded-2xl font-bold text-xs">✓<span>Submit</span></button>
+              <button onClick={onRestart} className="flex flex-col items-center gap-1 px-5 py-2.5 bg-white/10 text-white rounded-2xl font-bold text-xs">↺<span>Restart</span></button>
+            </>
+          ) : (
+            <button onClick={onStop}
+              className="flex items-center gap-2 px-6 py-3 bg-red-500 text-white rounded-2xl font-bold text-sm active:scale-95 transition-all">
+              <div className="h-4 w-4 rounded-sm bg-white" /> Stop Recording
+            </button>
+          )}
+        </div>
       )}
     </div>
   );
@@ -706,7 +729,10 @@ const SubmitSection = ({ challenge, onSubmitted }) => {
             {showTeleprompter && (
               <div className="absolute inset-0 z-10">
                 <Teleprompter text={teleprompterText} onClose={() => setShowTeleprompter(false)}
-                  onTextChange={t => setTeleprompterText(t)} />
+                  onTextChange={t => setTeleprompterText(t)}
+                  recording={recording} recordingPaused={recordingPaused}
+                  onStart={startRecording} onStop={pauseRecording}
+                  onResume={resumeRecording} onFinish={finishRecording} onRestart={restartRecording} />
               </div>
             )}
           </div>

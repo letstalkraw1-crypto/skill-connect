@@ -11,10 +11,21 @@ cloudinary.config({
 
 const uploadToCloudinary = (fileBuffer, options = {}) => {
   return new Promise((resolve, reject) => {
+    // Apply video compression for challenge videos
+    const isVideo = options.resource_type === 'video';
     const uploadStream = cloudinary.uploader.upload_stream(
       {
         folder: 'skill-connect',
         resource_type: 'auto',
+        ...(isVideo ? {
+          // Compress to 720p, quality auto, reduce bitrate
+          transformation: [
+            { width: 1280, height: 720, crop: 'limit' },
+            { quality: 'auto:good', fetch_format: 'mp4', video_codec: 'h264' },
+          ],
+          eager: [{ quality: 'auto:good', fetch_format: 'mp4', video_codec: 'h264', width: 1280, height: 720, crop: 'limit' }],
+          eager_async: false,
+        } : {}),
         ...options
       },
       (error, result) => {
