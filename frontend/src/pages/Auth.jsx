@@ -286,11 +286,10 @@ const Auth = () => {
                     <Phone className="absolute left-3 top-3 h-5 w-5 text-muted-foreground" />
                     <input
                       type="tel"
-                      placeholder="Mobile Number *"
+                      placeholder="Mobile Number (optional)"
                       className="w-full pl-10 pr-4 py-2 rounded-lg bg-background border border-border focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all"
                       value={formData.phone}
                       onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                      required
                     />
                   </div>
                   <div className="relative">
