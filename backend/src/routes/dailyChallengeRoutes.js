@@ -3,7 +3,7 @@ const multer = require('multer');
 const {
   getTodayChallenge, createChallenge, submitVideo, getChallengeFeed,
   giveFeedback, getVideoFeedback, getMySubmissions,
-  replyToFeedback, deleteFeedback, getAIAnalysis, retryAIAnalysis,
+  replyToFeedback, deleteFeedback, getAIAnalysis, retryAIAnalysis, deleteSubmission,
 } = require('../controllers/dailyChallengeController');
 const { verifyToken } = require('../middleware/authMiddleware');
 
@@ -44,6 +44,7 @@ router.get('/ai-test', verifyToken, async (req, res) => {
 
 router.post('/', verifyToken, createChallenge);
 router.post('/:id/submit', verifyToken, videoUpload.single('video'), submitVideo);
+router.delete('/:id/submit', verifyToken, deleteSubmission);
 router.get('/:id/feed', verifyToken, getChallengeFeed);
 router.post('/feedback/:videoId', verifyToken, giveFeedback);
 router.get('/feedback/:videoId', verifyToken, getVideoFeedback);

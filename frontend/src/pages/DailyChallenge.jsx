@@ -1131,6 +1131,8 @@ export default function DailyChallenge() {
   const [challenge, setChallenge] = useState(null);
   const [loading, setLoading] = useState(true);
   const [submitted, setSubmitted] = useState(false);
+  const [submittedAt, setSubmittedAt] = useState(null);
+  const [deletingSubmission, setDeletingSubmission] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [feed, setFeed] = useState([]);
   const [feedLoading, setFeedLoading] = useState(false);
@@ -1146,6 +1148,7 @@ export default function DailyChallenge() {
       .then(({ data }) => {
         setChallenge(data);
         setSubmitted(data.hasSubmitted);
+        if (data.mySubmission?.createdAt) setSubmittedAt(new Date(data.mySubmission.createdAt));
         // Always load feed — not gated behind submission
         loadFeed(data._id, 1);
       })
@@ -1173,9 +1176,25 @@ export default function DailyChallenge() {
 
   const handleSubmitted = () => {
     setSubmitted(true);
+    setSubmittedAt(new Date());
     setShowSuccess(true);
     setTimeout(() => setShowSuccess(false), 4000);
     if (challenge) loadFeed(challenge._id, 1);
+  };
+
+  const handleDeleteSubmission = async () => {
+    if (!confirm('Delete your submission? You can resubmit within 2 hours of your original upload.')) return;
+    setDeletingSubmission(true);
+    try {
+      await api.delete(`/daily-challenge/${challenge._id}/submit`);
+      setSubmitted(false);
+      setSubmittedAt(null);
+      if (challenge) loadFeed(challenge._id, 1);
+    } catch (err) {
+      alert(err?.response?.data?.error || 'Failed to delete submission');
+    } finally {
+      setDeletingSubmission(false);
+    }
   };
 
   if (loading) {
@@ -1251,8 +1270,21 @@ export default function DailyChallenge() {
         )}
 
         {submitted ? (
-          <div className="flex items-center gap-2 px-4 py-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl">
-            <span className="text-emerald-400 font-bold text-sm">✅ You've submitted today's challenge!</span>
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 px-4 py-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl">
+              <span className="text-emerald-400 font-bold text-sm flex-1">✅ You've submitted today's challenge!</span>
+              {submittedAt && Date.now() - submittedAt.getTime() < 2 * 60 * 60 * 1000 && (
+                <button onClick={handleDeleteSubmission} disabled={deletingSubmission}
+                  className="px-3 py-1.5 bg-destructive/10 text-destructive border border-destructive/20 rounded-xl text-xs font-bold hover:bg-destructive/20 transition-all disabled:opacity-50 flex-shrink-0">
+                  {deletingSubmission ? '...' : '🗑 Delete & Resubmit'}
+                </button>
+              )}
+            </div>
+            {submittedAt && Date.now() - submittedAt.getTime() < 2 * 60 * 60 * 1000 && (
+              <p className="text-[10px] text-muted-foreground text-center">
+                You can delete and resubmit within 2 hours of submission
+              </p>
+            )}
           </div>
         ) : (
           <SubmitSection challenge={challenge} onSubmitted={handleSubmitted} />

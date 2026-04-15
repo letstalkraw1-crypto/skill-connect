@@ -221,7 +221,31 @@ const getVideoFeedback = async (req, res) => {
   }
 };
 
-// GET /api/daily-challenge/my-submissions — user's past submissions
+// DELETE /api/daily-challenge/:id/submit — delete own submission (within 2 hours)
+const deleteSubmission = async (req, res) => {
+  try {
+    const { id: challengeId } = req.params;
+    const video = await ChallengeVideo.findOne({ challengeId, userId: req.user.userId });
+    if (!video) return res.status(404).json({ error: 'No submission found' });
+
+    // 2-hour window check
+    const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
+    if (video.createdAt < twoHoursAgo) {
+      return res.status(403).json({ error: 'Deletion window has passed (2 hours after submission)' });
+    }
+
+    // Delete all feedback on this video too
+    await VideoFeedback.deleteMany({ videoId: video._id });
+    await ChallengeVideo.deleteOne({ _id: video._id });
+
+    // Decrement user stats
+    await User.findByIdAndUpdate(req.user.userId, { $inc: { totalVideos: -1 } });
+
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
 const getMySubmissions = async (req, res) => {
   try {
     const videos = await ChallengeVideo.find({ userId: req.user.userId })
@@ -362,5 +386,5 @@ const deleteFeedback = async (req, res) => {
 module.exports = {
   getTodayChallenge, createChallenge, submitVideo, getChallengeFeed,
   giveFeedback, getVideoFeedback, getMySubmissions,
-  replyToFeedback, deleteFeedback, getAIAnalysis, retryAIAnalysis,
+  replyToFeedback, deleteFeedback, getAIAnalysis, retryAIAnalysis, deleteSubmission,
 };
