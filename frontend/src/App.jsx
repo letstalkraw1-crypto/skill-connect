@@ -4,6 +4,8 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import { SocketProvider, useSocketContext } from './context/SocketContext';
 import Navbar from './components/Navbar';
 import BottomNav from './components/BottomNav';
+import { useNetworkStatus } from './hooks/useNetworkStatus';
+import InstallPrompt from './components/InstallPrompt';
 
 // Lazy load pages for performance optimization
 const Home = lazy(() => import('./pages/Home'));
@@ -28,7 +30,7 @@ const LoadingFallback = () => (
   <div className="flex h-[calc(100vh-10rem)] items-center justify-center bg-background">
     <div className="flex flex-col items-center gap-4">
       <div className="h-12 w-12 border-4 border-primary/30 border-t-primary rounded-full animate-spin"></div>
-      <p className="text-primary font-bold animate-pulse uppercase tracking-widest text-xs">Initializing App...</p>
+      <p className="text-primary font-bold animate-pulse uppercase tracking-widest text-xs">Loading...</p>
     </div>
   </div>
 );
@@ -38,17 +40,28 @@ const PrivateRoute = ({ children }) => {
   const location = useLocation();
   if (loading) return <div className="flex h-screen items-center justify-center bg-background text-primary">Loading...</div>;
   if (!user) return <Navigate to="/auth" />;
-  // Only redirect to onboarding if explicitly false (not undefined — handles existing users)
   if (user.onboardingDone === false && location.pathname !== '/onboarding') {
     return <Navigate to="/onboarding" />;
   }
   return children;
 };
 
+// Offline banner component
+const OfflineBanner = () => {
+  const isOnline = useNetworkStatus();
+  if (isOnline) return null;
+  return (
+    <div className="offline-banner">
+      📡 You're offline — some features may not work
+    </div>
+  );
+};
+
 const App = () => {
   return (
     <AuthProvider>
       <SocketProvider>
+        <OfflineBanner />
         <div className="min-h-screen bg-background text-foreground transition-colors duration-300 pb-20 md:pb-0">
           <Navbar />
           <main className="container mx-auto px-4 py-4 md:py-8">
@@ -75,6 +88,7 @@ const App = () => {
             </Suspense>
           </main>
           <BottomNav />
+          <InstallPrompt />
         </div>
       </SocketProvider>
     </AuthProvider>
