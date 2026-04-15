@@ -253,7 +253,8 @@ const Chat = () => {
   const isOtherOnline = otherUserId && onlineUsers.has(otherUserId);
 
   return (
-    <div className="fixed inset-x-0 top-16 bottom-16 md:static md:h-[calc(100vh-10rem)] flex bg-background md:bg-background/50 md:backdrop-blur-xl md:rounded-3xl overflow-hidden border-0 md:border border-border md:shadow-2xl shadow-black/50">
+    <div className="fixed inset-x-0 top-16 md:static md:h-[calc(100dvh-10rem)] flex bg-background md:bg-background/50 md:backdrop-blur-xl md:rounded-3xl overflow-hidden border-0 md:border border-border md:shadow-2xl shadow-black/50"
+      style={{ bottom: 'calc(4rem + env(safe-area-inset-bottom, 0px))' }}>
       <div className={`w-full md:w-80 lg:w-96 border-r border-border flex flex-col bg-accent/10 ${activeChat ? 'hidden md:flex' : 'flex'}`}>
         <div className="p-4 border-b border-border space-y-3">
           <div className="flex items-center justify-between px-2">

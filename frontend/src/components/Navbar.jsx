@@ -55,7 +55,8 @@ const Navbar = () => {
 
   return (
     <>
-      <nav className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <nav className="sticky top-0 z-[60] w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60"
+        style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
         <div className="container flex h-16 items-center justify-between px-4">
           <Link to="/" className="flex items-center gap-2 transition-transform hover:scale-105">
             <img

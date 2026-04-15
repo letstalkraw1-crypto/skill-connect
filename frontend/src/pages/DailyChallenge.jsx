@@ -1197,7 +1197,8 @@ export default function DailyChallenge() {
   }
 
   return (
-    <div className="max-w-2xl mx-auto pb-24 pt-4 space-y-6">
+    <div className="max-w-2xl mx-auto pt-4 space-y-6 px-0 sm:px-0"
+      style={{ paddingBottom: 'calc(6rem + env(safe-area-inset-bottom, 0px))' }}>
       {/* Success banner */}
       <AnimatePresence>
         {showSuccess && (

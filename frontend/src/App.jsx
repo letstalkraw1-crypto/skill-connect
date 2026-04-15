@@ -27,7 +27,7 @@ const Progress = lazy(() => import('./pages/Progress'));
 
 // Lightweight loading fallback
 const LoadingFallback = () => (
-  <div className="flex h-[calc(100vh-10rem)] items-center justify-center bg-background">
+  <div className="flex min-h-[50dvh] items-center justify-center bg-background">
     <div className="flex flex-col items-center gap-4">
       <div className="h-12 w-12 border-4 border-primary/30 border-t-primary rounded-full animate-spin"></div>
       <p className="text-primary font-bold animate-pulse uppercase tracking-widest text-xs">Loading...</p>
@@ -38,7 +38,7 @@ const LoadingFallback = () => (
 const PrivateRoute = ({ children }) => {
   const { user, loading } = useAuth();
   const location = useLocation();
-  if (loading) return <div className="flex h-screen items-center justify-center bg-background text-primary">Loading...</div>;
+  if (loading) return <div className="flex min-h-[100dvh] items-center justify-center bg-background text-primary">Loading...</div>;
   if (!user) return <Navigate to="/auth" />;
   if (user.onboardingDone === false && location.pathname !== '/onboarding') {
     return <Navigate to="/onboarding" />;
@@ -62,7 +62,7 @@ const App = () => {
     <AuthProvider>
       <SocketProvider>
         <OfflineBanner />
-        <div className="min-h-screen bg-background text-foreground transition-colors duration-300 pb-20 md:pb-0">
+        <div className="min-h-[100dvh] bg-background text-foreground transition-colors duration-300 pb-20 md:pb-0 overflow-x-hidden">
           <Navbar />
           <main className="container mx-auto px-4 py-4 md:py-8">
             <Suspense fallback={<LoadingFallback />}>

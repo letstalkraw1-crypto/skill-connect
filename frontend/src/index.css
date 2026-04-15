@@ -63,6 +63,8 @@
     scroll-behavior: smooth;
     /* Prevent horizontal overflow */
     overflow-x: hidden;
+    /* Use dynamic viewport height for mobile browsers */
+    height: 100%;
   }
 
   body {
@@ -73,8 +75,8 @@
     /* Better font rendering on mobile */
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    /* Safe area support for notched phones */
-    padding-env: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+    /* Full height */
+    min-height: 100dvh;
   }
 
   /* Minimum touch target size — 44px per Apple/Google guidelines */
