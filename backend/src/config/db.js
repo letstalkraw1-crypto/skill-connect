@@ -13,7 +13,7 @@ async function connectDB() {
     await mongoose.connect(mongoUri, {
       serverSelectionTimeoutMS: 10000,
       socketTimeoutMS: 45000,
-      family: 4 // Force IPv4 to fix querySrv ECONNREFUSED on Windows
+      family: 4
     });
 
     console.log('✅ Connected to MongoDB Atlas');
@@ -23,7 +23,6 @@ async function connectDB() {
       setTimeout(() => connectDB(), 5000);
     });
 
-    // Seed initial data if needed
     await seedInitialData();
 
   } catch (err) {
@@ -32,46 +31,28 @@ async function connectDB() {
   }
 }
 
-// Seed initial data (skills and proficiency levels)
 async function seedInitialData() {
   const Skill = require('../models/Skill');
-  const ProficiencyLevel = require('../models/ProficiencyLevel');
-
   try {
-    // Seed skills if empty
     const skillCount = await Skill.countDocuments();
     if (skillCount === 0) {
       const skills = [
-        'Running', 'Cycling', 'Swimming', 'Gym / Fitness',
-        'Content Creation', 'Coding', 'Professional Communication',
-        'Photography / Videography', 'Research', 'Design',
-        'Business / Entrepreneurship', 'Personal Development',
-        'Yoga', 'Hiking'
+        'Professional Communication', 'Public Speaking', 'Presentation Skills',
+        'Interview Preparation', 'Storytelling', 'Debate', 'Leadership Communication'
       ];
       await Skill.insertMany(skills.map(name => ({ name })));
       console.log('✅ Skills seeded');
-    }
-
-    // Seed proficiency levels if empty
-    const profCount = await ProficiencyLevel.countDocuments();
-    if (profCount === 0) {
-      const levels = ['Beginner', 'Intermediate', 'Expert'];
-      await ProficiencyLevel.insertMany(levels.map(name => ({ name })));
-      console.log('✅ Proficiency levels seeded');
     }
   } catch (err) {
     console.error('⚠ Error seeding data:', err.message);
   }
 }
 
-// Initialize DB connection on app start
 console.log('📡 Attempting to connect to MongoDB...');
 connectDB().catch(err => {
   console.error('❌ Failed to initialize database:', err.message);
-  // App continues running without DB — routes will return 503 until DB reconnects
 });
 
-// Export models and database utilities
 module.exports = {
   User: require('../models/User'),
   Post: require('../models/Post'),
@@ -81,29 +62,15 @@ module.exports = {
   Conversation: require('../models/Conversation'),
   Message: require('../models/Message'),
   OTP: require('../models/OTP'),
-  ProficiencyLevel: require('../models/ProficiencyLevel'),
   SkillVerification: require('../models/SkillVerification'),
-  SkillEndorsement: require('../models/SkillEndorsement'),
-  Resource: require('../models/Resource'),
-  ResourceFavorite: require('../models/ResourceFavorite'),
-  Document: require('../models/Document'),
-  Challenge: require('../models/Challenge'),
-  ChallengeSubmission: require('../models/ChallengeSubmission'),
-  QARoom: require('../models/QARoom'),
-  QAQuestion: require('../models/QAQuestion'),
-  Feedback: require('../models/Feedback'),
-  PostLike: require('../models/PostLike'),
-  PostComment: require('../models/PostComment'),
-  PostInteraction: require('../models/PostInteraction'),
   Community: require('../models/Community'),
   CommunityMember: require('../models/CommunityMember'),
   Event: require('../models/Event'),
-  EventRsvp: require('../models/EventRsvp'),
   Notification: require('../models/Notification'),
   DailyChallenge: require('../models/DailyChallenge'),
   ChallengeVideo: require('../models/ChallengeVideo'),
   VideoFeedback: require('../models/VideoFeedback'),
-  UserChallenge: require('../models/UserChallenge'),
+  Follow: require('../models/Follow'),
   mongoose,
   connectDB
 };
