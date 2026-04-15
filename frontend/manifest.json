@@ -1,26 +1,28 @@
 {
   "name": "Collabro",
   "short_name": "Collabro",
-  "description": "Find your tribe. Level up together.",
+  "description": "Practice professional communication through daily speaking challenges.",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#0a0a0f",
   "theme_color": "#8b5cf6",
   "orientation": "portrait-primary",
+  "lang": "en",
   "icons": [
     {
-      "src": "/icons/icon-192.png",
+      "src": "/logo.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "/icons/icon-512.png",
+      "src": "/logo.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
     }
   ],
-  "categories": ["social", "sports", "fitness"],
+  "categories": ["education", "social"],
   "screenshots": []
 }
