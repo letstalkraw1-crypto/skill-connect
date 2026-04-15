@@ -419,10 +419,10 @@ const VideoCard = ({ video, currentUserId, onFeedbackGiven, onOpenFeedback, alre
 // ─── Teleprompter ─────────────────────────────────────────────────────────────
 const Teleprompter = ({ text: initialText, onClose, onTextChange, recording, recordingPaused, onStart, onStop, onResume, onFinish, onRestart }) => {
   const [running, setRunning] = useState(false);
-  const [speed, setSpeed] = useState(1);
-  const [fontSize, setFontSize] = useState(24);
-  const [color, setColor] = useState('#ffffff');
-  const [font, setFont] = useState('sans-serif');
+  const [speed, setSpeed] = useState(24); // % display like the reference
+  const [fontSize, setFontSize] = useState(28);
+  const [align, setAlign] = useState('center'); // left | center | right
+  const [mirror, setMirror] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [localText, setLocalText] = useState(initialText);
@@ -430,7 +430,6 @@ const Teleprompter = ({ text: initialText, onClose, onTextChange, recording, rec
   const rafRef = useRef(null);
   const containerRef = useRef(null);
 
-  // Use browser Fullscreen API when toggling
   const toggleFullscreen = () => {
     if (!fullscreen) {
       containerRef.current?.requestFullscreen?.().catch(() => {});
@@ -441,11 +440,8 @@ const Teleprompter = ({ text: initialText, onClose, onTextChange, recording, rec
     }
   };
 
-  // Sync fullscreen state with browser ESC key
   useEffect(() => {
-    const handler = () => {
-      if (!document.fullscreenElement) setFullscreen(false);
-    };
+    const handler = () => { if (!document.fullscreenElement) setFullscreen(false); };
     document.addEventListener('fullscreenchange', handler);
     return () => document.removeEventListener('fullscreenchange', handler);
   }, []);
@@ -454,7 +450,7 @@ const Teleprompter = ({ text: initialText, onClose, onTextChange, recording, rec
     if (running && !editMode) {
       const scroll = () => {
         if (scrollRef.current) {
-          scrollRef.current.scrollTop += speed * 0.1;
+          scrollRef.current.scrollTop += (speed / 100) * 0.8;
           if (scrollRef.current.scrollTop >= scrollRef.current.scrollHeight - scrollRef.current.clientHeight) {
             setRunning(false); return;
           }
@@ -468,105 +464,241 @@ const Teleprompter = ({ text: initialText, onClose, onTextChange, recording, rec
     return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); };
   }, [running, speed, editMode]);
 
-  const fonts = ['sans-serif', 'serif', 'monospace', 'Georgia', 'Arial'];
+  // Controls bar — same for both minimized and fullscreen
+  const ControlsBar = () => (
+    <div className="flex items-center gap-1.5 px-2 py-1.5 bg-black/85 backdrop-blur-sm flex-wrap flex-shrink-0"
+      style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+      {editMode ? (
+        <>
+          <span className="text-[11px] text-white/50 font-bold">Editing...</span>
+          <button onClick={() => { onTextChange?.(localText); setEditMode(false); }}
+            className="px-2.5 py-1 rounded-md text-[11px] bg-emerald-500 text-white font-bold">✓ Done</button>
+          <button onClick={() => { setLocalText(initialText); setEditMode(false); }}
+            className="px-2 py-1 rounded-md text-[11px] bg-white/10 text-white">✕</button>
+        </>
+      ) : (
+        <>
+          {/* Play/Pause */}
+          <button onClick={() => setRunning(r => !r)}
+            className={`w-7 h-7 rounded-md flex items-center justify-center text-sm ${running ? 'bg-amber-500 text-black' : 'bg-white/15 text-white'}`}
+            title={running ? 'Pause' : 'Play'}>
+            {running ? '⏸' : '▶'}
+          </button>
+          {/* Rewind */}
+          <button onClick={() => { if (scrollRef.current) scrollRef.current.scrollTop = 0; setRunning(false); }}
+            className="w-7 h-7 rounded-md flex items-center justify-center text-sm bg-white/10 text-white" title="Rewind">⏮</button>
+          {/* Align */}
+          <button onClick={() => setAlign(a => a === 'left' ? 'center' : a === 'center' ? 'right' : 'left')}
+            className="w-7 h-7 rounded-md flex items-center justify-center text-sm bg-white/10 text-white" title="Alignment">
+            {align === 'left' ? '≡' : align === 'center' ? '☰' : '≡'}
+          </button>
+          {/* Mirror */}
+          <button onClick={() => setMirror(m => !m)}
+            className={`w-7 h-7 rounded-md flex items-center justify-center text-sm ${mirror ? 'bg-blue-500 text-white' : 'bg-white/10 text-white'}`} title="Mirror">⇔</button>
+          {/* Edit */}
+          <button onClick={() => { setRunning(false); setEditMode(true); }}
+            className="w-7 h-7 rounded-md flex items-center justify-center text-sm bg-white/10 text-white" title="Edit script">✏</button>
 
-  const handleSaveText = () => {
-    onTextChange?.(localText);
-    setEditMode(false);
+          {/* Speed */}
+          <div className="flex items-center gap-1 ml-1">
+            <span className="text-[10px] text-amber-400 font-bold">🐢 {speed}%</span>
+            <input type="range" min="5" max="100" step="5" value={speed} onChange={e => setSpeed(+e.target.value)}
+              className="w-16 h-1 accent-amber-400" />
+          </div>
+          {/* Font size */}
+          <div className="flex items-center gap-1">
+            <span className="text-[10px] text-blue-300 font-bold">Tт {fontSize}</span>
+            <input type="range" min="14" max="60" step="2" value={fontSize} onChange={e => setFontSize(+e.target.value)}
+              className="w-16 h-1 accent-blue-400" />
+          </div>
+        </>
+      )}
+      {/* Fullscreen toggle */}
+      <button onClick={toggleFullscreen}
+        className="w-7 h-7 rounded-md flex items-center justify-center text-sm bg-white/10 text-white ml-auto" title={fullscreen ? 'Exit fullscreen' : 'Fullscreen'}>
+        {fullscreen ? '⊡' : '⛶'}
+      </button>
+      <button onClick={onClose} className="w-7 h-7 rounded-md flex items-center justify-center text-sm bg-red-500/70 text-white" title="Close">✕</button>
+    </div>
+  );
+
+  const textStyle = {
+    fontSize: `${fontSize}px`,
+    color: '#fff',
+    fontFamily: 'sans-serif',
+    lineHeight: 1.9,
+    whiteSpace: 'pre-wrap',
+    textAlign: align,
+    transform: mirror ? 'scaleX(-1)' : 'none',
   };
 
   return (
     <div ref={containerRef}
       className="bg-black flex flex-col overflow-hidden"
-      style={{ position: fullscreen ? 'fixed' : 'absolute', inset: 0, zIndex: 210, borderRadius: fullscreen ? 0 : '0.75rem' }}>
+      style={{
+        position: fullscreen ? 'fixed' : 'absolute',
+        inset: 0,
+        zIndex: 210,
+        borderRadius: fullscreen ? 0 : '0.75rem',
+      }}>
 
-      {/* Controls bar */}
-      <div className="flex items-center gap-2 px-3 py-2 bg-black/90 border-b border-white/10 flex-wrap flex-shrink-0">
-        {!editMode ? (
-          <>
-            <button onClick={() => setRunning(r => !r)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold ${running ? 'bg-red-500 text-white' : 'bg-emerald-500 text-white'}`}>
-              {running ? '⏸ Pause' : '▶ Start'}
-            </button>
-            <button onClick={() => { if (scrollRef.current) scrollRef.current.scrollTop = 0; setRunning(false); }}
-              className="px-2 py-1.5 rounded-lg text-xs bg-white/10 text-white">↺</button>
-            <button onClick={() => { setRunning(false); setEditMode(true); }}
-              className="px-2 py-1.5 rounded-lg text-xs bg-blue-500/30 text-blue-300">✏️ Edit</button>
-            <div className="flex items-center gap-1">
-              <span className="text-[10px] text-white/40">Spd</span>
-              <input type="range" min="1" max="10" value={speed} onChange={e => setSpeed(+e.target.value)} className="w-14 h-1 accent-emerald-400" />
-            </div>
-            <div className="flex items-center gap-1">
-              <span className="text-[10px] text-white/40">Sz</span>
-              <input type="range" min="14" max="56" value={fontSize} onChange={e => setFontSize(+e.target.value)} className="w-14 h-1 accent-blue-400" />
-            </div>
-            <input type="color" value={color} onChange={e => setColor(e.target.value)}
-              className="w-6 h-6 rounded cursor-pointer border-0 bg-transparent" title="Text color" />
-            <select value={font} onChange={e => setFont(e.target.value)}
-              className="text-[10px] bg-white/10 text-white rounded px-1 py-1 border-0 outline-none">
-              {fonts.map(f => <option key={f} value={f} style={{ background: '#000' }}>{f}</option>)}
-            </select>
-          </>
-        ) : (
-          <>
-            <span className="text-xs text-white/60 font-bold">Editing script...</span>
-            <button onClick={handleSaveText} className="px-3 py-1.5 rounded-lg text-xs bg-emerald-500 text-white font-bold">✓ Done</button>
-            <button onClick={() => { setLocalText(initialText); setEditMode(false); }} className="px-2 py-1.5 rounded-lg text-xs bg-white/10 text-white">Cancel</button>
-          </>
-        )}
-        <button onClick={toggleFullscreen} className="ml-auto px-2 py-1.5 rounded-lg text-xs bg-white/10 text-white">
-          {fullscreen ? '⊡ Exit' : '⛶ Full'}
-        </button>
-        <button onClick={onClose} className="px-2 py-1.5 rounded-lg text-xs bg-white/10 text-white">✕</button>
-      </div>
+      {/* Title bar — only in minimized mode */}
+      {!fullscreen && !editMode && (
+        <div className="px-3 py-1.5 bg-black/90 flex-shrink-0">
+          <p className="text-white text-xs font-bold truncate opacity-70">{localText.split('\n')[0] || 'Teleprompter'}</p>
+        </div>
+      )}
 
-      {/* Content area */}
+      <ControlsBar />
+
+      {/* Content */}
       {editMode ? (
-        <textarea
-          autoFocus
-          value={localText}
-          onChange={e => setLocalText(e.target.value)}
+        <textarea autoFocus value={localText} onChange={e => setLocalText(e.target.value)}
           className="flex-1 bg-black text-white px-8 py-6 outline-none resize-none"
-          style={{ fontSize: `${Math.min(fontSize, 20)}px`, fontFamily: font, color, lineHeight: 1.6 }}
-          placeholder="Type your script here..."
-        />
+          style={{ fontSize: '16px', lineHeight: 1.6 }}
+          placeholder="Type your script here..." />
       ) : (
-        <div ref={scrollRef} className="flex-1 overflow-y-auto px-8 py-6 select-none" style={{ scrollbarWidth: 'none' }}>
-          <p style={{ fontSize: `${fontSize}px`, color, fontFamily: font, lineHeight: 1.8, whiteSpace: 'pre-wrap' }}>
-            {localText || 'Tap ✏️ Edit to write your script...'}
-          </p>
+        <div ref={scrollRef} className="flex-1 overflow-y-auto py-8 select-none" style={{ scrollbarWidth: 'none', paddingLeft: '8%', paddingRight: '8%' }}>
+          {/* Large padding top so text starts from center */}
+          <div style={{ height: fullscreen ? '35vh' : '20px' }} />
+          <p style={textStyle}>{localText || 'Tap ✏ to write your script...'}</p>
           <div style={{ height: '60vh' }} />
         </div>
       )}
 
       {/* Bottom fade */}
       {!editMode && (
-        <div className="absolute bottom-0 left-0 right-0 h-24 pointer-events-none"
-          style={{ background: 'linear-gradient(transparent, black)' }} />
+        <div className="absolute left-0 right-0 h-20 pointer-events-none"
+          style={{ bottom: fullscreen ? '60px' : '0', background: 'linear-gradient(transparent, black)' }} />
       )}
 
-      {/* Recording controls — shown at bottom when fullscreen */}
+      {/* Recording controls at bottom — fullscreen only */}
       {fullscreen && !editMode && (
         <div className="flex-shrink-0 px-4 py-3 bg-black/90 border-t border-white/10 flex items-center justify-center gap-3">
           {!recording ? (
             <button onClick={onStart}
-              className="flex items-center gap-2 px-6 py-3 bg-red-500 text-white rounded-2xl font-bold text-sm active:scale-95 transition-all">
-              <div className="h-3 w-3 rounded-full bg-white animate-pulse" /> Start Recording
+              className="flex items-center gap-2 px-8 py-3 bg-red-500 text-white rounded-full font-bold text-sm active:scale-95 transition-all shadow-lg shadow-red-500/30">
+              <div className="h-3 w-3 rounded-full bg-white animate-pulse" /> RECORD
             </button>
           ) : recordingPaused ? (
-            <>
+            <div className="flex gap-3">
               <button onClick={onResume} className="flex flex-col items-center gap-1 px-5 py-2.5 bg-emerald-500 text-white rounded-2xl font-bold text-xs">▶<span>Resume</span></button>
               <button onClick={onFinish} className="flex flex-col items-center gap-1 px-5 py-2.5 bg-primary text-primary-foreground rounded-2xl font-bold text-xs">✓<span>Submit</span></button>
               <button onClick={onRestart} className="flex flex-col items-center gap-1 px-5 py-2.5 bg-white/10 text-white rounded-2xl font-bold text-xs">↺<span>Restart</span></button>
-            </>
+            </div>
           ) : (
             <button onClick={onStop}
-              className="flex items-center gap-2 px-6 py-3 bg-red-500 text-white rounded-2xl font-bold text-sm active:scale-95 transition-all">
-              <div className="h-4 w-4 rounded-sm bg-white" /> Stop Recording
+              className="flex items-center gap-2 px-8 py-3 bg-red-500 text-white rounded-full font-bold text-sm active:scale-95 transition-all">
+              <div className="h-4 w-4 rounded-sm bg-white" /> STOP
             </button>
           )}
         </div>
       )}
+    </div>
+  );
+};
+
+// ─── Video Trimmer ────────────────────────────────────────────────────────────
+const VideoTrimmer = ({ videoUrl, onTrimmed, onSkip }) => {
+  const videoRef = useRef(null);
+  const [duration, setDuration] = useState(0);
+  const [trimStart, setTrimStart] = useState(0);
+  const [trimEnd, setTrimEnd] = useState(0);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [trimming, setTrimming] = useState(false);
+
+  useEffect(() => {
+    const v = videoRef.current;
+    if (!v) return;
+    const onLoaded = () => { setDuration(v.duration); setTrimEnd(v.duration); };
+    v.addEventListener('loadedmetadata', onLoaded);
+    v.addEventListener('timeupdate', () => setCurrentTime(v.currentTime));
+    return () => v.removeEventListener('loadedmetadata', onLoaded);
+  }, []);
+
+  const fmt = s => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+
+  const applyTrim = async () => {
+    // Browser-side trim using MediaRecorder re-encode trick
+    // We seek to trimStart, record until trimEnd
+    setTrimming(true);
+    try {
+      const video = videoRef.current;
+      video.currentTime = trimStart;
+      await new Promise(r => { video.onseeked = r; });
+
+      const stream = video.captureStream ? video.captureStream() : video.mozCaptureStream();
+      const recorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
+      const chunks = [];
+      recorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
+
+      recorder.start();
+      video.play();
+
+      await new Promise(resolve => {
+        const check = setInterval(() => {
+          if (video.currentTime >= trimEnd) {
+            clearInterval(check);
+            recorder.stop();
+            video.pause();
+            resolve();
+          }
+        }, 100);
+      });
+
+      await new Promise(r => { recorder.onstop = r; });
+      const blob = new Blob(chunks, { type: 'video/webm' });
+      const file = new File([blob], `trimmed-${Date.now()}.webm`, { type: 'video/webm' });
+      onTrimmed(file, URL.createObjectURL(blob));
+    } catch (err) {
+      console.error('Trim failed:', err);
+      onSkip(); // fallback — skip trim
+    } finally {
+      setTrimming(false);
+    }
+  };
+
+  return (
+    <div className="space-y-3">
+      <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">✂️ Trim Video</p>
+      <div className="rounded-xl overflow-hidden bg-black aspect-video relative">
+        <video ref={videoRef} src={videoUrl} className="w-full h-full object-cover" playsInline
+          onClick={() => { const v = videoRef.current; v.paused ? v.play() : v.pause(); }} />
+        <div className="absolute bottom-2 left-2 bg-black/70 text-white text-[10px] px-2 py-0.5 rounded-full font-mono">
+          {fmt(currentTime)} / {fmt(duration)}
+        </div>
+      </div>
+
+      {/* Trim range */}
+      <div className="space-y-2 p-3 bg-accent/20 rounded-xl">
+        <div className="flex justify-between text-xs text-muted-foreground">
+          <span>Start: <span className="font-bold text-foreground">{fmt(trimStart)}</span></span>
+          <span>End: <span className="font-bold text-foreground">{fmt(trimEnd)}</span></span>
+          <span>Duration: <span className="font-bold text-primary">{fmt(trimEnd - trimStart)}</span></span>
+        </div>
+        <div className="space-y-1">
+          <label className="text-[10px] text-muted-foreground">Start</label>
+          <input type="range" min="0" max={duration} step="0.1" value={trimStart}
+            onChange={e => { const v = +e.target.value; if (v < trimEnd) { setTrimStart(v); if (videoRef.current) videoRef.current.currentTime = v; } }}
+            className="w-full h-2 accent-emerald-500" />
+        </div>
+        <div className="space-y-1">
+          <label className="text-[10px] text-muted-foreground">End</label>
+          <input type="range" min="0" max={duration} step="0.1" value={trimEnd}
+            onChange={e => { const v = +e.target.value; if (v > trimStart) setTrimEnd(v); }}
+            className="w-full h-2 accent-red-500" />
+        </div>
+      </div>
+
+      <div className="flex gap-2">
+        <button onClick={onSkip} className="flex-1 py-2.5 bg-accent rounded-xl text-sm font-bold hover:bg-accent/80 transition-all">
+          Skip Trim
+        </button>
+        <button onClick={applyTrim} disabled={trimming || trimEnd - trimStart < 1}
+          className="flex-1 py-2.5 bg-primary text-primary-foreground rounded-xl text-sm font-bold disabled:opacity-50 flex items-center justify-center gap-2">
+          {trimming ? <><Loader2 size={16} className="animate-spin" /> Trimming...</> : '✂️ Apply Trim'}
+        </button>
+      </div>
     </div>
   );
 };
@@ -586,6 +718,7 @@ const SubmitSection = ({ challenge, onSubmitted }) => {
   const chunksRef = useRef([]);
   const [showTeleprompter, setShowTeleprompter] = useState(false);
   const [teleprompterText, setTeleprompterText] = useState(challenge?.topic || '');
+  const [showTrimmer, setShowTrimmer] = useState(false);
   const videoRef = useRef(null);
   const streamRef = useRef(null);
 
@@ -801,11 +934,10 @@ const SubmitSection = ({ challenge, onSubmitted }) => {
         </label>
       )}
 
-      {videoPreview && (
+      {videoPreview && !showTrimmer && (
         <div className="space-y-3">
           <div className="rounded-xl overflow-hidden bg-black aspect-video relative">
             <video src={videoPreview} controls className="w-full h-full object-cover" playsInline />
-            {/* Remove button overlay */}
             <button onClick={reset}
               className="absolute top-2 right-2 h-8 w-8 bg-black/70 text-white rounded-full flex items-center justify-center hover:bg-red-500 transition-colors z-10">
               <X size={16} />
@@ -815,6 +947,10 @@ const SubmitSection = ({ challenge, onSubmitted }) => {
             value={caption} onChange={e => setCaption(e.target.value)}
             className="w-full px-4 py-3 rounded-xl bg-accent/30 border border-border focus:ring-2 focus:ring-primary/50 outline-none text-sm" />
           <div className="flex gap-2">
+            <button onClick={() => setShowTrimmer(true)}
+              className="flex items-center gap-1.5 px-4 py-3 bg-accent border border-border rounded-xl text-sm font-bold hover:bg-accent/80 transition-all">
+              ✂️ Trim
+            </button>
             <button onClick={reset}
               className="flex items-center gap-1.5 px-4 py-3 bg-destructive/10 text-destructive border border-destructive/20 rounded-xl text-sm font-bold hover:bg-destructive/20 transition-all">
               <X size={16} /> Remove
@@ -826,6 +962,14 @@ const SubmitSection = ({ challenge, onSubmitted }) => {
             </button>
           </div>
         </div>
+      )}
+
+      {videoPreview && showTrimmer && (
+        <VideoTrimmer
+          videoUrl={videoPreview}
+          onTrimmed={(file, url) => { setVideoFile(file); setVideoPreview(url); setShowTrimmer(false); }}
+          onSkip={() => setShowTrimmer(false)}
+        />
       )}
     </div>
   );
