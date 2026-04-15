@@ -32,5 +32,6 @@ router.put('/events/:id', adminAuth, adminController.updateEvent);
 router.delete('/events/:id', adminAuth, adminController.deleteEvent);
 router.get('/verifications', adminAuth, adminController.getPendingVerifications);
 router.put('/verifications/:id', adminAuth, adminController.reviewVerification);
+router.get('/cohort-retention', adminAuth, adminController.getCohortRetention);
 
 module.exports = router;

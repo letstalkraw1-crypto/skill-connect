@@ -108,9 +108,14 @@ const getChallengeFeed = async (req, res) => {
     const { id: challengeId } = req.params;
     const page = parseInt(req.query.page) || 1;
     const limit = 10;
+    const sort = req.query.sort || 'recent'; // recent | top_feedback | top_ai
+
+    let sortQuery = { createdAt: -1 };
+    if (sort === 'top_feedback') sortQuery = { feedbackCount: -1, createdAt: -1 };
+    if (sort === 'top_ai') sortQuery = { 'aiAnalysis.scores.overall': -1, createdAt: -1 };
 
     const videos = await ChallengeVideo.find({ challengeId })
-      .sort({ createdAt: -1 })
+      .sort(sortQuery)
       .skip((page - 1) * limit)
       .limit(limit)
       .lean();

@@ -203,7 +203,8 @@ const Admin = () => {
             { id: 'stats', label: 'Dashboard', icon: BarChart3 },
             { id: 'users', label: 'Users', icon: Users },
             { id: 'verifications', label: 'Verifications', icon: CheckCircle },
-            { id: 'daily', label: 'Daily Challenge', icon: Shield }
+            { id: 'daily', label: 'Daily Challenge', icon: Shield },
+            { id: 'retention', label: 'Retention', icon: BarChart3 },
           ].map(tab => (
             <button
               key={tab.id}
@@ -225,6 +226,7 @@ const Admin = () => {
         {activeTab === 'users' && <UsersView users={users} onViewUser={viewUser} token={token} />}
         {activeTab === 'verifications' && <VerificationsView verifications={verifications} onReview={reviewVerification} />}
         {activeTab === 'daily' && <DailyChallengeAdmin token={token} />}
+        {activeTab === 'retention' && <CohortRetentionView token={token} />}
       </div>
 
       {selectedUser && (
@@ -612,7 +614,137 @@ const UserDetailModal = ({ user, editMode, onClose, onEdit, onSave, onDelete }) 
 
 export default Admin;
 
+// ─── Cohort Retention View ────────────────────────────────────────────────────
+const CohortRetentionView = ({ token }) => {
+  const [data, setData] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    axios.get('/api/admin/cohort-retention', { headers: { 'x-admin-token': token } })
+      .then(({ data }) => setData(data))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [token]);
+
+  if (loading) return <div className="text-center py-10 text-muted-foreground">Loading retention data...</div>;
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <h2 className="text-xl font-black mb-1">Cohort Retention</h2>
+        <p className="text-sm text-muted-foreground">Signup week → % who submitted a video → % who returned on day 2+</p>
+      </div>
+      <div className="bg-accent/10 border border-border rounded-2xl overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="bg-accent/20">
+              <tr>
+                <th className="px-4 py-3 text-left text-xs font-bold uppercase">Week</th>
+                <th className="px-4 py-3 text-left text-xs font-bold uppercase">Signups</th>
+                <th className="px-4 py-3 text-left text-xs font-bold uppercase">Submitted Video</th>
+                <th className="px-4 py-3 text-left text-xs font-bold uppercase">Returned Day 2+</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.map(row => (
+                <tr key={row.week} className="border-t border-border hover:bg-accent/5">
+                  <td className="px-4 py-3 text-sm font-bold">{row.week}</td>
+                  <td className="px-4 py-3 text-sm">{row.total}</td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1 h-2 bg-border rounded-full overflow-hidden max-w-[80px]">
+                        <div className="h-full bg-primary rounded-full" style={{ width: `${row.submittedPct}%` }} />
+                      </div>
+                      <span className={`text-xs font-bold ${row.submittedPct >= 50 ? 'text-emerald-400' : row.submittedPct >= 25 ? 'text-amber-400' : 'text-red-400'}`}>
+                        {row.submittedPct}%
+                      </span>
+                    </div>
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1 h-2 bg-border rounded-full overflow-hidden max-w-[80px]">
+                        <div className="h-full bg-violet-500 rounded-full" style={{ width: `${row.returnedPct}%` }} />
+                      </div>
+                      <span className={`text-xs font-bold ${row.returnedPct >= 40 ? 'text-emerald-400' : row.returnedPct >= 20 ? 'text-amber-400' : 'text-red-400'}`}>
+                        {row.returnedPct}%
+                      </span>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // ─── Daily Challenge Admin ────────────────────────────────────────────────────
+const CohortRetentionView = ({ token }) => {
+  const [data, setData] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    axios.get('/api/admin/cohort-retention', { headers: { 'x-admin-token': token } })
+      .then(({ data }) => setData(data))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [token]);
+
+  if (loading) return <div className="text-center py-10 text-muted-foreground">Loading retention data...</div>;
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <h2 className="text-xl font-black mb-1">Cohort Retention</h2>
+        <p className="text-sm text-muted-foreground">Signup week → % who submitted a video → % who returned on day 2+</p>
+      </div>
+      <div className="bg-accent/10 border border-border rounded-2xl overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="bg-accent/20">
+              <tr>
+                <th className="px-4 py-3 text-left text-xs font-bold uppercase">Week</th>
+                <th className="px-4 py-3 text-left text-xs font-bold uppercase">Signups</th>
+                <th className="px-4 py-3 text-left text-xs font-bold uppercase">Submitted Video</th>
+                <th className="px-4 py-3 text-left text-xs font-bold uppercase">Returned Day 2+</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.map(row => (
+                <tr key={row.week} className="border-t border-border hover:bg-accent/5">
+                  <td className="px-4 py-3 text-sm font-bold">{row.week}</td>
+                  <td className="px-4 py-3 text-sm">{row.total}</td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1 h-2 bg-border rounded-full overflow-hidden max-w-[80px]">
+                        <div className="h-full bg-primary rounded-full" style={{ width: `${row.submittedPct}%` }} />
+                      </div>
+                      <span className={`text-xs font-bold ${row.submittedPct >= 50 ? 'text-emerald-400' : row.submittedPct >= 25 ? 'text-amber-400' : 'text-red-400'}`}>
+                        {row.submittedPct}%
+                      </span>
+                    </div>
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1 h-2 bg-border rounded-full overflow-hidden max-w-[80px]">
+                        <div className="h-full bg-violet-500 rounded-full" style={{ width: `${row.returnedPct}%` }} />
+                      </div>
+                      <span className={`text-xs font-bold ${row.returnedPct >= 40 ? 'text-emerald-400' : row.returnedPct >= 20 ? 'text-amber-400' : 'text-red-400'}`}>
+                        {row.returnedPct}%
+                      </span>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+};
 const DailyChallengeAdmin = ({ token }) => {
   const [form, setForm] = useState({ date: new Date().toISOString().slice(0, 10), topic: '', description: '', tips: '', dueTime: '23:59' });
   const [loading, setLoading] = useState(false);

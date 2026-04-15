@@ -106,6 +106,7 @@ app.use('/api/notifications', require('./routes/notificationRoutes'));
 app.use('/api/upload', require('./routes/upload'));
 app.use('/api/daily-challenge', require('./routes/dailyChallengeRoutes'));
 app.use('/api/user-challenges', require('./routes/userChallengeRoutes'));
+app.use('/api/follow', require('./routes/followRoutes'));
 
 // Socket.io
 const { initSocket } = require('./socket/index');

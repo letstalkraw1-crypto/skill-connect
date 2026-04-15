@@ -193,6 +193,109 @@ const FeedbackItem = ({ feedback: f, currentUserId, isVideoOwner, onDeleted, onR
   );
 };
 
+// ─── Radar Chart (pure SVG, no library needed) ───────────────────────────────
+const RadarChart = ({ scores }) => {
+  if (!scores) return null;
+  const dims = ['confidence', 'clarity', 'structure', 'relevance', 'overall'];
+  const labels = ['Confidence', 'Clarity', 'Structure', 'Relevance', 'Overall'];
+  const size = 160;
+  const cx = size / 2;
+  const cy = size / 2;
+  const r = 60;
+  const levels = 5;
+
+  const angleStep = (2 * Math.PI) / dims.length;
+  const getPoint = (i, val, maxVal = 10) => {
+    const angle = i * angleStep - Math.PI / 2;
+    const dist = (val / maxVal) * r;
+    return { x: cx + dist * Math.cos(angle), y: cy + dist * Math.sin(angle) };
+  };
+
+  const gridPoints = (level) =>
+    dims.map((_, i) => getPoint(i, (level / levels) * 10)).map(p => `${p.x},${p.y}`).join(' ');
+
+  const dataPoints = dims.map((d, i) => getPoint(i, scores[d] || 0)).map(p => `${p.x},${p.y}`).join(' ');
+
+  return (
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="mx-auto">
+      {/* Grid */}
+      {Array.from({ length: levels }, (_, i) => (
+        <polygon key={i} points={gridPoints(i + 1)} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="1" />
+      ))}
+      {/* Axes */}
+      {dims.map((_, i) => {
+        const p = getPoint(i, 10);
+        return <line key={i} x1={cx} y1={cy} x2={p.x} y2={p.y} stroke="rgba(255,255,255,0.1)" strokeWidth="1" />;
+      })}
+      {/* Data */}
+      <polygon points={dataPoints} fill="rgba(139,92,246,0.25)" stroke="#8b5cf6" strokeWidth="2" />
+      {/* Dots */}
+      {dims.map((d, i) => {
+        const p = getPoint(i, scores[d] || 0);
+        return <circle key={i} cx={p.x} cy={p.y} r="3" fill="#8b5cf6" />;
+      })}
+      {/* Labels */}
+      {dims.map((d, i) => {
+        const p = getPoint(i, 12.5);
+        return (
+          <text key={i} x={p.x} y={p.y} textAnchor="middle" dominantBaseline="middle"
+            fontSize="8" fill="rgba(255,255,255,0.6)" fontWeight="bold">
+            {labels[i].slice(0, 3)}
+          </text>
+        );
+      })}
+    </svg>
+  );
+};
+
+// ─── Transcript Viewer ────────────────────────────────────────────────────────
+const TranscriptViewer = ({ videoUrl, transcript, onClose }) => {
+  const videoRef = useRef(null);
+  const [currentTime, setCurrentTime] = useState(0);
+
+  // Split transcript into words with rough timing
+  const words = transcript ? transcript.split(' ') : [];
+  const totalWords = words.length;
+
+  return (
+    <div className="fixed inset-0 z-[150] bg-black/95 flex flex-col">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 flex-shrink-0">
+        <h3 className="font-black text-white text-sm">Video + Transcript</h3>
+        <button onClick={onClose} className="h-8 w-8 flex items-center justify-center rounded-xl bg-white/10 text-white"><X size={16} /></button>
+      </div>
+      <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
+        {/* Video */}
+        <div className="md:w-1/2 bg-black flex items-center">
+          <video ref={videoRef} src={videoUrl} controls className="w-full"
+            onTimeUpdate={() => setCurrentTime(videoRef.current?.currentTime || 0)} playsInline />
+        </div>
+        {/* Transcript */}
+        <div className="md:w-1/2 overflow-y-auto p-4 bg-black/50">
+          <p className="text-xs text-white/40 uppercase tracking-widest font-bold mb-3">Transcript</p>
+          {transcript ? (
+            <p className="text-white/80 text-sm leading-relaxed">
+              {words.map((word, i) => {
+                // Highlight words based on rough time position
+                const wordTime = (i / totalWords) * (videoRef.current?.duration || 60);
+                const isActive = Math.abs(wordTime - currentTime) < 2;
+                return (
+                  <span key={i}
+                    className={`transition-colors ${isActive ? 'text-violet-400 font-bold' : ''}`}
+                    onClick={() => { if (videoRef.current) videoRef.current.currentTime = wordTime; }}>
+                    {word}{' '}
+                  </span>
+                );
+              })}
+            </p>
+          ) : (
+            <p className="text-white/40 text-sm">No transcript available for this video.</p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // ─── Video Card ───────────────────────────────────────────────────────────────
 const VideoCard = ({ video, currentUserId, onFeedbackGiven, onOpenFeedback, alreadyGaveFeedback }) => {
   const [feedbacks, setFeedbacks] = useState([]);
@@ -202,8 +305,31 @@ const VideoCard = ({ video, currentUserId, onFeedbackGiven, onOpenFeedback, alre
   const [aiData, setAiData] = useState(video.aiAnalysis || null);
   const [showAI, setShowAI] = useState(false);
   const [loadingAI, setLoadingAI] = useState(false);
+  const [showTranscript, setShowTranscript] = useState(false);
+  const [following, setFollowing] = useState(false);
+  const [followLoading, setFollowLoading] = useState(false);
 
   const isOwn = video.userId === currentUserId;
+
+  // Check follow status on mount
+  useEffect(() => {
+    if (isOwn || !video.userId) return;
+    api.get(`/follow/${video.userId}/status`).then(({ data }) => setFollowing(data.following)).catch(() => {});
+  }, [video.userId, isOwn]);
+
+  const toggleFollow = async () => {
+    setFollowLoading(true);
+    try {
+      if (following) {
+        await api.delete(`/follow/${video.userId}`);
+        setFollowing(false);
+      } else {
+        await api.post(`/follow/${video.userId}`);
+        setFollowing(true);
+      }
+    } catch {}
+    finally { setFollowLoading(false); }
+  };
 
   // Auto-poll when status is processing
   useEffect(() => {
@@ -269,6 +395,7 @@ const VideoCard = ({ video, currentUserId, onFeedbackGiven, onOpenFeedback, alre
   };
 
   return (
+    <>
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
       className="glass-card rounded-2xl border border-border overflow-hidden">
       {/* User info */}
@@ -278,7 +405,14 @@ const VideoCard = ({ video, currentUserId, onFeedbackGiven, onOpenFeedback, alre
           <p className="font-bold text-sm truncate">{video.user?.name || 'Anonymous'}</p>
           <p className="text-xs text-muted-foreground">@{video.user?.shortId}</p>
         </div>
-        {isOwn && <span className="px-2 py-0.5 bg-primary/20 text-primary text-[10px] font-bold rounded-full">You</span>}
+        {isOwn ? (
+          <span className="px-2 py-0.5 bg-primary/20 text-primary text-[10px] font-bold rounded-full">You</span>
+        ) : (
+          <button onClick={toggleFollow} disabled={followLoading}
+            className={`px-3 py-1 rounded-full text-[11px] font-bold transition-all ${following ? 'bg-accent text-muted-foreground hover:bg-destructive/10 hover:text-destructive' : 'bg-primary/20 text-primary hover:bg-primary/30'}`}>
+            {followLoading ? '...' : following ? 'Following' : '+ Follow'}
+          </button>
+        )}
       </div>
 
       {/* Video */}
@@ -322,17 +456,15 @@ const VideoCard = ({ video, currentUserId, onFeedbackGiven, onOpenFeedback, alre
               <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}
                 className="overflow-hidden">
                 <div className="mt-2 p-4 bg-violet-500/5 border border-violet-500/20 rounded-xl space-y-3">
-                  {/* Score grid */}
-                  <div className="grid grid-cols-2 gap-2">
+                  {/* Radar chart */}
+                  <RadarChart scores={aiData.scores} />
+
+                  {/* Score numbers */}
+                  <div className="grid grid-cols-5 gap-1 text-center">
                     {Object.entries(aiData.scores || {}).map(([key, val]) => (
-                      <div key={key} className="flex items-center justify-between px-3 py-2 bg-background/50 rounded-lg">
-                        <span className="text-xs text-muted-foreground capitalize">{key}</span>
-                        <div className="flex items-center gap-1">
-                          <div className="w-16 h-1.5 bg-border rounded-full overflow-hidden">
-                            <div className="h-full bg-violet-500 rounded-full" style={{ width: `${val * 10}%` }} />
-                          </div>
-                          <span className="text-xs font-black text-violet-400">{val}</span>
-                        </div>
+                      <div key={key} className="space-y-0.5">
+                        <p className="text-[9px] text-muted-foreground capitalize">{key.slice(0,3)}</p>
+                        <p className="text-xs font-black text-violet-400">{val}/10</p>
                       </div>
                     ))}
                   </div>
@@ -356,6 +488,14 @@ const VideoCard = ({ video, currentUserId, onFeedbackGiven, onOpenFeedback, alre
                       <p className="text-[10px] font-black text-amber-400 uppercase tracking-widest mb-1">To Improve</p>
                       {aiData.improvements.map((s, i) => <p key={i} className="text-xs text-amber-400">💡 {s}</p>)}
                     </div>
+                  )}
+
+                  {/* Transcript viewer button */}
+                  {aiData.transcript && (
+                    <button onClick={() => setShowTranscript(true)}
+                      className="w-full py-2 bg-white/5 border border-white/10 rounded-xl text-xs font-bold text-white/60 hover:text-white hover:bg-white/10 transition-all">
+                      📄 Rewatch with Transcript
+                    </button>
                   )}
                 </div>
               </motion.div>
@@ -413,6 +553,16 @@ const VideoCard = ({ video, currentUserId, onFeedbackGiven, onOpenFeedback, alre
       </AnimatePresence>
 
     </motion.div>
+
+      {/* Transcript viewer */}
+      {showTranscript && aiData?.transcript && (
+        <TranscriptViewer
+          videoUrl={video.videoUrl}
+          transcript={aiData.transcript}
+          onClose={() => setShowTranscript(false)}
+        />
+      )}
+    </>
   );
 };
 
@@ -986,9 +1136,9 @@ export default function DailyChallenge() {
   const [feedLoading, setFeedLoading] = useState(false);
   const [feedPage, setFeedPage] = useState(1);
   const [feedTotal, setFeedTotal] = useState(0);
+  const [feedSort, setFeedSort] = useState('recent'); // recent | top_feedback | top_ai
   // Single global feedback modal — only one can be open at a time
-  const [activeFeedback, setActiveFeedback] = useState(null); // { video, onSubmitted }
-  // Track which video IDs current user already gave feedback on — persists across re-renders
+  const [activeFeedback, setActiveFeedback] = useState(null);
   const [feedbackGivenSet, setFeedbackGivenSet] = useState(new Set());
 
   useEffect(() => {
@@ -1003,10 +1153,10 @@ export default function DailyChallenge() {
       .finally(() => setLoading(false));
   }, []);
 
-  const loadFeed = async (challengeId, page = 1) => {
+  const loadFeed = async (challengeId, page = 1, sort = feedSort) => {
     setFeedLoading(true);
     try {
-      const { data } = await api.get(`/daily-challenge/${challengeId}/feed?page=${page}`);
+      const { data } = await api.get(`/daily-challenge/${challengeId}/feed?page=${page}&sort=${sort}`);
       if (page === 1) setFeed(data.videos);
       else setFeed(prev => [...prev, ...data.videos]);
       setFeedTotal(data.total);
@@ -1014,6 +1164,11 @@ export default function DailyChallenge() {
     } catch (err) {
       console.error(err);
     } finally { setFeedLoading(false); }
+  };
+
+  const handleSortChange = (sort) => {
+    setFeedSort(sort);
+    if (challenge) loadFeed(challenge._id, 1, sort);
   };
 
   const handleSubmitted = () => {
@@ -1105,9 +1260,21 @@ export default function DailyChallenge() {
 
       {/* Feed — always visible */}
       <div className="space-y-4">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between flex-wrap gap-2">
           <h3 className="font-black text-lg">Today's Responses</h3>
-          <span className="text-xs text-muted-foreground">{feedTotal} submissions</span>
+          <div className="flex items-center gap-1">
+            <span className="text-xs text-muted-foreground mr-1">{feedTotal}</span>
+            {[
+              { key: 'recent', label: '🕐 Recent' },
+              { key: 'top_feedback', label: '💬 Top' },
+              { key: 'top_ai', label: '🤖 AI Score' },
+            ].map(s => (
+              <button key={s.key} onClick={() => handleSortChange(s.key)}
+                className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all ${feedSort === s.key ? 'bg-primary text-primary-foreground' : 'bg-accent/40 text-muted-foreground hover:text-foreground'}`}>
+                {s.label}
+              </button>
+            ))}
+          </div>
         </div>
 
         {feedLoading && feed.length === 0 && (

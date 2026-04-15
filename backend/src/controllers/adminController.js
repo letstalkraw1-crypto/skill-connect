@@ -248,4 +248,60 @@ const reviewVerification = async (req, res) => {
   }
 };
 
-module.exports = { login, getUsers, getUser, updateUser, deleteUser, getStats, getSkillUsers, addSkill, deleteSkill, getEvents, updateEvent, deleteEvent, getPendingVerifications, reviewVerification };
+// GET /admin/cohort-retention — signup week cohort analysis
+const getCohortRetention = async (req, res) => {
+  try {
+    // Get all users grouped by signup week
+    const users = await User.find().select('_id createdAt lastActiveDate').lean();
+
+    // Group users by ISO week of signup
+    const cohorts = {};
+    for (const user of users) {
+      const d = new Date(user.createdAt);
+      // Get Monday of the week
+      const day = d.getDay();
+      const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+      const monday = new Date(d.setDate(diff));
+      const weekKey = monday.toISOString().slice(0, 10);
+
+      if (!cohorts[weekKey]) cohorts[weekKey] = { week: weekKey, users: [], submittedVideo: 0, returnedDay2: 0 };
+      cohorts[weekKey].users.push(user._id);
+    }
+
+    // For each cohort, count who submitted a video and who returned on day 2+
+    const result = await Promise.all(
+      Object.values(cohorts).map(async cohort => {
+        const total = cohort.users.length;
+
+        // Count users who submitted at least one video
+        const videoSubmitters = await ChallengeVideo.distinct('userId', { userId: { $in: cohort.users } });
+        const submittedPct = total > 0 ? Math.round((videoSubmitters.length / total) * 100) : 0;
+
+        // Count users who were active on day 2+ (lastActiveDate set and > createdAt + 1 day)
+        const weekStart = new Date(cohort.week);
+        const day2Users = await User.countDocuments({
+          _id: { $in: cohort.users },
+          lastActiveDate: { $gt: new Date(weekStart.getTime() + 86400000).toISOString().slice(0, 10) }
+        });
+        const returnedPct = total > 0 ? Math.round((day2Users / total) * 100) : 0;
+
+        return {
+          week: cohort.week,
+          total,
+          submittedVideo: videoSubmitters.length,
+          submittedPct,
+          returnedDay2: day2Users,
+          returnedPct,
+        };
+      })
+    );
+
+    // Sort by week descending
+    result.sort((a, b) => b.week.localeCompare(a.week));
+    res.json(result.slice(0, 12)); // Last 12 weeks
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+module.exports = { login, getUsers, getUser, updateUser, deleteUser, getStats, getSkillUsers, addSkill, deleteSkill, getEvents, updateEvent, deleteEvent, getPendingVerifications, reviewVerification, getCohortRetention };
