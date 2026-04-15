@@ -61,8 +61,13 @@ async function scoreWithGroq(transcript, challengeTopic) {
 
 The speaker said: "${transcript}"
 
+IMPORTANT RULES:
+- If the transcript is very short (under 10 words), score everything 1-2 and explain the video had insufficient speech.
+- Score honestly based ONLY on what was actually said. Do not assume or invent content.
+- If the speaker did not address the topic at all, relevance must be 1.
+
 Score on 5 dimensions (1-10 each): confidence, clarity, structure, relevance, overall.
-Give 2-3 strengths, 2-3 improvements, and a 2-sentence feedback summary.
+Give 2-3 strengths (or note if there are none), 2-3 improvements, and a 2-sentence honest feedback summary.
 
 Respond ONLY with this exact JSON (no markdown, no extra text):
 {"scores":{"confidence":7,"clarity":8,"structure":6,"relevance":9,"overall":7},"strengths":["strength1","strength2"],"improvements":["improvement1","improvement2"],"feedback":"Sentence one. Sentence two."}`;
@@ -106,8 +111,30 @@ async function analyzeVideo(videoId, videoUrl, challengeTopic) {
       catch (err) { console.error('[AI] Transcription failed:', err.message); }
     }
 
-    const textForAI = transcript || `[No transcript — video submitted for topic: "${challengeTopic}"]`;
-    const result = await scoreWithGroq(textForAI, challengeTopic);
+    // ── Blank/silent video detection ──────────────────────────────────────────
+    const wordCount = transcript ? transcript.trim().split(/\s+/).filter(w => w.length > 1).length : 0;
+    const isBlank = !transcript || wordCount < 5;
+
+    if (isBlank) {
+      console.log(`[AI] Blank/silent video detected for ${videoId} (${wordCount} words) — scoring 1`);
+      await ChallengeVideo.findByIdAndUpdate(videoId, {
+        'aiAnalysis.status': 'done',
+        'aiAnalysis.transcript': transcript || '',
+        'aiAnalysis.scores': { confidence: 1, clarity: 1, structure: 1, relevance: 1, overall: 1 },
+        'aiAnalysis.feedback': 'No speech was detected in this video. Please record a video where you speak clearly about the challenge topic.',
+        'aiAnalysis.strengths': [],
+        'aiAnalysis.improvements': [
+          'Record a video with clear speech',
+          'Address the challenge topic directly',
+          'Ensure your microphone is working before recording',
+        ],
+        'aiAnalysis.analyzedAt': new Date(),
+      });
+      return;
+    }
+    // ─────────────────────────────────────────────────────────────────────────
+
+    const result = await scoreWithGroq(transcript, challengeTopic);
 
     if (!result) {
       await ChallengeVideo.findByIdAndUpdate(videoId, { 'aiAnalysis.status': 'failed' });
