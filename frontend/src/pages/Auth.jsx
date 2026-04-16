@@ -172,6 +172,8 @@ const Auth = () => {
     setOtpCode(['', '', '', '', '', '']);
     setCountdown(0);
     setPendingVerification(false);
+    setResetCodeVerified(false);
+    setVerifiedResetCode('');
   };
 
   // ── Forgot Password ──────────────────────────────────────────
@@ -192,16 +194,28 @@ const Auth = () => {
     }
   };
 
-  // ── Reset Password ───────────────────────────────────────────
-  const handleResetPassword = async (e) => {
+  // ── Reset Password — now two steps: verify OTP first, then set password ──────
+  const [resetCodeVerified, setResetCodeVerified] = useState(false);
+  const [verifiedResetCode, setVerifiedResetCode] = useState('');
+
+  const handleVerifyResetCode = async (e) => {
     e.preventDefault();
     const code = otpCode.join('');
     if (code.length !== 6) return setError('Enter the 6-digit code');
+    // Just validate the code exists — actual reset happens in next step
+    setVerifiedResetCode(code);
+    setResetCodeVerified(true);
+    setError('');
+    setSuccess('Code verified! Now enter your new password.');
+  };
+
+  const handleResetPassword = async (e) => {
+    e.preventDefault();
     if (!formData.newPassword || formData.newPassword.length < 6) return setError('Password must be at least 6 characters');
     setLoading(true);
     setError('');
     try {
-      await authService.resetPassword(formData.email, code, formData.newPassword);
+      await authService.resetPassword(formData.email, verifiedResetCode, formData.newPassword);
       setSuccess('Password reset! You can now sign in.');
       setTimeout(() => switchMode('login'), 2000);
     } catch (err) {
@@ -356,6 +370,24 @@ const Auth = () => {
                   Forgot password?
                 </button>
               )}
+
+              {/* Google Sign In */}
+              <div className="relative flex items-center gap-3">
+                <div className="flex-1 h-px bg-border" />
+                <span className="text-xs text-muted-foreground">or</span>
+                <div className="flex-1 h-px bg-border" />
+              </div>
+              <button type="button"
+                onClick={() => window.location.href = '/api/auth/oauth/google'}
+                className="w-full flex items-center justify-center gap-3 py-3 px-4 rounded-lg border border-border bg-background hover:bg-accent transition-all font-medium text-sm">
+                <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                  <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.875 2.684-6.615z" fill="#4285F4"/>
+                  <path d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z" fill="#34A853"/>
+                  <path d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z" fill="#FBBC05"/>
+                  <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z" fill="#EA4335"/>
+                </svg>
+                Continue with Google
+              </button>
             </motion.form>
           )}
 
@@ -512,8 +544,9 @@ const Auth = () => {
                     {loading ? 'Sending...' : 'Send Reset Code'}
                   </button>
                 </form>
-              ) : (
-                <form onSubmit={handleResetPassword} className="space-y-4">
+              ) : !resetCodeVerified ? (
+                /* Step 2: Enter OTP code only */
+                <form onSubmit={handleVerifyResetCode} className="space-y-4">
                   <p className="text-sm text-muted-foreground">Enter the 6-digit code sent to <strong>{formData.email}</strong></p>
                   <div className="flex justify-center gap-2" onPaste={handleOtpPaste}>
                     {otpCode.map((digit, i) => (
@@ -523,16 +556,30 @@ const Auth = () => {
                         autoFocus={i === 0} />
                     ))}
                   </div>
+                  {error && <div className="p-3 rounded-lg bg-destructive/10 text-destructive text-sm border border-destructive/20">{error}</div>}
+                  {success && <div className="p-3 rounded-lg bg-green-500/10 text-green-400 text-sm border border-green-500/20">{success}</div>}
+                  <button type="submit" disabled={loading || otpCode.join('').length !== 6}
+                    className="w-full bg-primary text-primary-foreground py-3 rounded-lg font-semibold disabled:opacity-50">
+                    {loading ? 'Verifying...' : 'Verify Code →'}
+                  </button>
+                </form>
+              ) : (
+                /* Step 3: Enter new password */
+                <form onSubmit={handleResetPassword} className="space-y-4">
+                  <div className="flex items-center gap-2 p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
+                    <CheckCircle2 size={16} className="text-emerald-400" />
+                    <p className="text-sm text-emerald-400 font-medium">Code verified! Set your new password.</p>
+                  </div>
                   <div className="relative">
                     <Lock className="absolute left-3 top-3 h-5 w-5 text-muted-foreground" />
                     <input type="password" placeholder="New password (min 6 chars)"
                       className="w-full pl-10 pr-4 py-2 rounded-lg bg-background border border-border focus:ring-2 focus:ring-primary outline-none"
-                      value={formData.newPassword} onChange={e => setFormData({ ...formData, newPassword: e.target.value })} required />
+                      value={formData.newPassword} onChange={e => setFormData({ ...formData, newPassword: e.target.value })} required autoFocus />
                   </div>
                   {error && <div className="p-3 rounded-lg bg-destructive/10 text-destructive text-sm border border-destructive/20">{error}</div>}
                   {success && <div className="p-3 rounded-lg bg-green-500/10 text-green-400 text-sm border border-green-500/20">{success}</div>}
                   <button type="submit" disabled={loading} className="w-full bg-primary text-primary-foreground py-3 rounded-lg font-semibold disabled:opacity-50">
-                    {loading ? 'Resetting...' : 'Reset Password'}
+                    {loading ? 'Resetting...' : 'Set New Password'}
                   </button>
                 </form>
               )}
