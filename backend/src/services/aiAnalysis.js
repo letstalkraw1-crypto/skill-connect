@@ -57,20 +57,42 @@ async function transcribeVideo(videoUrl) {
 async function scoreWithGroq(transcript, challengeTopic) {
   if (!GROQ_KEY) { console.error('[AI] GROQ_API_KEY not set'); return null; }
 
+  // Basic NLP pre-analysis
+  const words = transcript.trim().split(/\s+/);
+  const wordCount = words.length;
+  const fillerWords = ['um', 'uh', 'like', 'you know', 'basically', 'literally', 'actually', 'so', 'right'];
+  const fillerCount = words.filter(w => fillerWords.includes(w.toLowerCase())).length;
+  const uniqueWords = new Set(words.map(w => w.toLowerCase().replace(/[^a-z]/g, ''))).size;
+  const vocabularyRichness = wordCount > 0 ? Math.round((uniqueWords / wordCount) * 100) : 0;
+  const sentences = transcript.split(/[.!?]+/).filter(s => s.trim().length > 0).length;
+  const avgWordsPerSentence = sentences > 0 ? Math.round(wordCount / sentences) : 0;
+
+  const nlpContext = `
+NLP Pre-analysis:
+- Word count: ${wordCount}
+- Filler words detected: ${fillerCount} (${fillerWords.filter(f => transcript.toLowerCase().includes(f)).join(', ') || 'none'})
+- Vocabulary richness: ${vocabularyRichness}% unique words
+- Sentences: ${sentences}, avg ${avgWordsPerSentence} words/sentence
+`;
+
   const prompt = `You are an expert communication coach evaluating a short speaking video for the challenge: "${challengeTopic}".
 
 The speaker said: "${transcript}"
+
+${nlpContext}
 
 IMPORTANT RULES:
 - If the transcript is very short (under 10 words), score everything 1-2 and explain the video had insufficient speech.
 - Score honestly based ONLY on what was actually said. Do not assume or invent content.
 - If the speaker did not address the topic at all, relevance must be 1.
+- Factor in the NLP pre-analysis when scoring (filler words reduce confidence score, low vocabulary richness reduces clarity).
 
 Score on 5 dimensions (1-10 each): confidence, clarity, structure, relevance, overall.
 Give 2-3 strengths (or note if there are none), 2-3 improvements, and a 2-sentence honest feedback summary.
+If filler words were detected, mention them specifically in improvements.
 
 Respond ONLY with this exact JSON (no markdown, no extra text):
-{"scores":{"confidence":7,"clarity":8,"structure":6,"relevance":9,"overall":7},"strengths":["strength1","strength2"],"improvements":["improvement1","improvement2"],"feedback":"Sentence one. Sentence two."}`;
+{"scores":{"confidence":7,"clarity":8,"structure":6,"relevance":9,"overall":7},"strengths":["strength1","strength2"],"improvements":["improvement1","improvement2"],"feedback":"Sentence one. Sentence two.","nlp":{"wordCount":${wordCount},"fillerCount":${fillerCount},"vocabularyRichness":${vocabularyRichness},"avgWordsPerSentence":${avgWordsPerSentence}}}`;
 
   console.log('[AI] Calling Groq API...');
   const data = await httpsPost('api.groq.com', '/openai/v1/chat/completions',
@@ -148,6 +170,7 @@ async function analyzeVideo(videoId, videoUrl, challengeTopic) {
       'aiAnalysis.feedback': result.feedback,
       'aiAnalysis.strengths': result.strengths || [],
       'aiAnalysis.improvements': result.improvements || [],
+      'aiAnalysis.nlp': result.nlp || null,
       'aiAnalysis.analyzedAt': new Date(),
     });
 

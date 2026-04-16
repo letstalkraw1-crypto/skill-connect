@@ -19,8 +19,8 @@ const COMFORT_LEVELS = [
 ];
 
 const CHALLENGE_PACKS = [
-  { id: 'starter', emoji: '🟢', label: 'Starter Pack', videos: 3, days: 14, desc: '3 videos in 14 days', recommended: ['beginner'] },
-  { id: 'builder', emoji: '🟡', label: 'Builder Pack', videos: 5, days: 14, desc: '5 videos in 14 days', recommended: ['intermediate'] },
+  { id: 'starter', emoji: '🟢', label: 'Starter Pack', videos: 3, days: 7, desc: '3 videos in 7 days', recommended: ['beginner'] },
+  { id: 'builder', emoji: '🟡', label: 'Builder Pack', videos: 5, days: 7, desc: '5 videos in 7 days', recommended: ['intermediate'] },
   { id: 'pro', emoji: '🔴', label: 'Pro Pack', videos: 7, days: 7, desc: '7 videos in 7 days — daily!', recommended: ['confident'] },
 ];
 

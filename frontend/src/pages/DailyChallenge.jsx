@@ -490,6 +490,28 @@ const VideoCard = ({ video, currentUserId, onFeedbackGiven, onOpenFeedback, alre
                     </div>
                   )}
 
+                  {/* NLP Stats */}
+                  {aiData.nlp && (
+                    <div className="grid grid-cols-2 gap-2 p-3 bg-white/5 rounded-xl">
+                      <div className="text-center">
+                        <p className="text-[10px] text-muted-foreground">Words</p>
+                        <p className="text-sm font-black text-white">{aiData.nlp.wordCount}</p>
+                      </div>
+                      <div className="text-center">
+                        <p className="text-[10px] text-muted-foreground">Filler Words</p>
+                        <p className={`text-sm font-black ${aiData.nlp.fillerCount > 5 ? 'text-red-400' : aiData.nlp.fillerCount > 2 ? 'text-amber-400' : 'text-emerald-400'}`}>{aiData.nlp.fillerCount}</p>
+                      </div>
+                      <div className="text-center">
+                        <p className="text-[10px] text-muted-foreground">Vocab Richness</p>
+                        <p className="text-sm font-black text-violet-400">{aiData.nlp.vocabularyRichness}%</p>
+                      </div>
+                      <div className="text-center">
+                        <p className="text-[10px] text-muted-foreground">Words/Sentence</p>
+                        <p className="text-sm font-black text-blue-400">{aiData.nlp.avgWordsPerSentence}</p>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Transcript viewer button */}
                   {aiData.transcript && (
                     <button onClick={() => setShowTranscript(true)}

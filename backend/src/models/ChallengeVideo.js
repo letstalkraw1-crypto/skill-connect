@@ -23,6 +23,12 @@ const challengeVideoSchema = new mongoose.Schema({
     feedback: { type: String, default: null },   // AI written feedback
     strengths: [String],
     improvements: [String],
+    nlp: {
+      wordCount: { type: Number, default: null },
+      fillerCount: { type: Number, default: null },
+      vocabularyRichness: { type: Number, default: null },
+      avgWordsPerSentence: { type: Number, default: null },
+    },
     analyzedAt: { type: Date, default: null },
   },
   createdAt: { type: Date, default: Date.now },
