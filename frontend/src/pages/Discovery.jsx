@@ -203,17 +203,6 @@ const Discovery = () => {
                 </div>
 
                 <div className="space-y-4">
-                  <div className="flex flex-wrap gap-2">
-                    {person.skills?.slice(0, 3).map((skill, sIdx) => (
-                      <span key={sIdx} className="px-2 py-1 rounded-lg bg-accent/50 text-[10px] font-bold uppercase tracking-wider">
-                        {skill.name || skill.skillName}
-                      </span>
-                    ))}
-                    {person.skills?.length > 3 && (
-                      <span className="px-2 py-1 rounded-lg bg-accent/50 text-[10px] font-bold">+{person.skills.length - 3} more</span>
-                    )}
-                  </div>
-
                   <div className="flex gap-2">
                     <button
                       disabled={person.connectionStatus === 'pending' || connecting === (person.id || person._id)}

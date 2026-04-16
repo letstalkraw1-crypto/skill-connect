@@ -251,14 +251,20 @@ const StatsView = ({ stats }) => (
     <StatCard title="Conversations" value={stats.totalConversations} />
     
     <div className="md:col-span-2 lg:col-span-4 bg-accent/10 border border-border rounded-2xl p-6">
-      <h3 className="text-lg font-bold mb-4">Top Skills</h3>
+      <h3 className="text-lg font-bold mb-4">User Activity</h3>
       <div className="space-y-2">
-        {stats.skillBreakdown.slice(0, 10).map(skill => (
-          <div key={skill.id} className="flex items-center justify-between p-3 bg-background rounded-xl">
-            <span className="font-bold">{skill.name}</span>
-            <span className="text-primary">{skill.count} users</span>
-          </div>
-        ))}
+        <div className="flex items-center justify-between p-3 bg-background rounded-xl">
+          <span className="font-bold">Active Users</span>
+          <span className="text-primary">{stats.totalUsers} total</span>
+        </div>
+        <div className="flex items-center justify-between p-3 bg-background rounded-xl">
+          <span className="font-bold">Daily Challenges</span>
+          <span className="text-primary">{stats.totalChallenges || 0} posted</span>
+        </div>
+        <div className="flex items-center justify-between p-3 bg-background rounded-xl">
+          <span className="font-bold">Video Submissions</span>
+          <span className="text-primary">{stats.totalVideos || 0} videos</span>
+        </div>
       </div>
     </div>
 
@@ -289,13 +295,12 @@ const StatCard = ({ title, value }) => (
 
 const UsersView = ({ users, onViewUser, token }) => {
   const exportToExcel = () => {
-    const headers = ['Name', 'Email', 'Phone', 'Location', 'Skills', 'Connections', 'Joined'];
+    const headers = ['Name', 'Email', 'Phone', 'Location', 'Connections', 'Joined'];
     const rows = users.map(u => [
       u.name || '',
       u.email || '',
       u.phone || '',
       u.location || '',
-      u.skillCount || 0,
       u.connectionCount || 0,
       new Date(u.createdAt).toLocaleDateString(),
     ]);
@@ -329,7 +334,6 @@ const UsersView = ({ users, onViewUser, token }) => {
                 <th className="px-4 py-3 text-left text-xs font-bold uppercase">User</th>
                 <th className="px-4 py-3 text-left text-xs font-bold uppercase">Email</th>
                 <th className="px-4 py-3 text-left text-xs font-bold uppercase">Phone</th>
-                <th className="px-4 py-3 text-left text-xs font-bold uppercase">Skills</th>
                 <th className="px-4 py-3 text-left text-xs font-bold uppercase">Connections</th>
                 <th className="px-4 py-3 text-left text-xs font-bold uppercase">Joined</th>
                 <th className="px-4 py-3 text-left text-xs font-bold uppercase">Actions</th>
@@ -346,7 +350,6 @@ const UsersView = ({ users, onViewUser, token }) => {
                   </td>
                   <td className="px-4 py-3 text-sm">{user.email}</td>
                   <td className="px-4 py-3 text-sm">{user.phone || '—'}</td>
-                  <td className="px-4 py-3 text-sm">{user.skillCount}</td>
                   <td className="px-4 py-3 text-sm">{user.connectionCount}</td>
                   <td className="px-4 py-3 text-sm">{new Date(user.createdAt).toLocaleDateString()}</td>
                   <td className="px-4 py-3">
@@ -383,7 +386,6 @@ const VerificationsView = ({ verifications, onReview }) => (
           <span className="px-3 py-1 bg-yellow-500/20 text-yellow-500 rounded-full text-xs font-bold">Pending</span>
         </div>
         <div className="mb-4 space-y-1">
-          <p className="text-sm"><span className="font-bold">Skill:</span> {v.skillName}</p>
           <p className="text-sm"><span className="font-bold">Type:</span> {v.verificationType}</p>
           <p className="text-sm"><span className="font-bold">Submitted:</span> {new Date(v.createdAt).toLocaleString()}</p>
 
@@ -548,7 +550,6 @@ const UserDetailModal = ({ user, editMode, onClose, onEdit, onSave, onDelete }) 
                   <p><span className="font-bold">Phone:</span> {user.phone || '—'}</p>
                   <p><span className="font-bold">Location:</span> {user.location || '—'}</p>
                   <p><span className="font-bold">Bio:</span> {user.bio || '—'}</p>
-                  <p><span className="font-bold">Skills:</span> {user.skills?.length || 0}</p>
                   <p><span className="font-bold">Connections:</span> {user.connections?.length || 0}</p>
                   <p><span className="font-bold">Streak:</span> {user.streakCount || 0} days</p>
                   <p><span className="font-bold">Total Videos:</span> {videos.length}</p>

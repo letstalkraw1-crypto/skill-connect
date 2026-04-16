@@ -5,8 +5,6 @@ import { useAuth } from '../context/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getAssetUrl, safeFormat } from '../utils/utils';
 import EditProfileModal from '../components/EditProfileModal';
-import AddSkillModal from '../components/AddSkillModal';
-import EditSkillModal from '../components/EditSkillModal';
 import ConnectionSearchModal from '../components/ConnectionSearchModal';
 import Avatar from '../components/Avatar';
 import { userService, connectionService, authService, notificationService } from '../services/api';
@@ -151,10 +149,7 @@ const Profile = () => {
   const [notificationsLoading, setNotificationsLoading] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [showEditModal, setShowEditModal] = useState(false);
-  const [showAddSkillModal, setShowAddSkillModal] = useState(false);
-  const [showEditSkillModal, setShowEditSkillModal] = useState(false);
   const [showConnectionSearchModal, setShowConnectionSearchModal] = useState(false);
-  const [selectedSkill, setSelectedSkill] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [copiedUrl, setCopiedUrl] = useState(false);
   const fileInputRef = React.useRef(null);
@@ -172,7 +167,6 @@ const Profile = () => {
       if (data.bio) pts += 5;
       if (data.avatarUrl) pts += 5;
       if (data.location) pts += 2;
-      pts += (data.skills?.length || 0) * 2;
       setPoints(pts);
 
       const connRes = await connectionService.getConnections(id, connPage);
@@ -270,12 +264,11 @@ const Profile = () => {
 
     // Handle verification status messages
     const verification = searchParams.get('verification');
-    const skill = searchParams.get('skill');
     const message = searchParams.get('message');
 
     if (verification) {
       if (verification === 'success') {
-        alert(`✅ Skill "${skill}" verified successfully!`);
+        alert(`✅ Verification successful!`);
       } else if (verification === 'failed') {
         alert(`❌ ${message || 'Verification criteria not met'}`);
       } else if (verification === 'cancelled') {
@@ -286,7 +279,6 @@ const Profile = () => {
       
       // Clean up URL
       searchParams.delete('verification');
-      searchParams.delete('skill');
       searchParams.delete('message');
       setSearchParams(searchParams, { replace: true });
     }
@@ -346,44 +338,6 @@ const Profile = () => {
     } catch (err) {
       console.error(err);
       throw err;
-    }
-  };
-
-  const handleSaveSkill = async (skills) => {
-    try {
-      await userService.addSkills(skills);
-      await fetchProfile();
-    } catch (err) {
-      console.error(err);
-      throw err;
-    }
-  };
-
-  const handleUpdateSkill = async (updatedSkill) => {
-    try {
-      // Update skill via API
-      await userService.updateSkill(updatedSkill);
-      await fetchProfile();
-    } catch (err) {
-      console.error(err);
-      throw err;
-    }
-  };
-
-  const handleDeleteSkill = async (skillName) => {
-    try {
-      await userService.deleteSkill(skillName);
-      await fetchProfile();
-    } catch (err) {
-      console.error(err);
-      throw err;
-    }
-  };
-
-  const handleSkillClick = (skill) => {
-    if (isOwnProfile) {
-      setSelectedSkill(skill);
-      setShowEditSkillModal(true);
     }
   };
 
@@ -581,13 +535,6 @@ const Profile = () => {
             )}
           </motion.div>
 
-          {isOwnProfile && (
-            <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} className="glass-card p-6 rounded-2xl space-y-4">
-              <h3 className="text-sm font-bold uppercase tracking-widest text-primary">Verify Skills</h3>
-              <p className="text-xs text-muted-foreground">Connect your accounts to automatically verify your skills</p>
-              <OAuthButtons />
-            </motion.div>
-          )}
         </div>
 
         {/* Right: Videos & Content */}
@@ -732,29 +679,6 @@ const Profile = () => {
             user={user} 
             onClose={() => setShowEditModal(false)} 
             onSave={handleUpdateProfile} 
-          />
-        )}
-      </AnimatePresence>
-
-      <AnimatePresence>
-        {showAddSkillModal && (
-          <AddSkillModal 
-            onClose={() => setShowAddSkillModal(false)} 
-            onSave={handleSaveSkill} 
-          />
-        )}
-      </AnimatePresence>
-
-      <AnimatePresence>
-        {showEditSkillModal && selectedSkill && (
-          <EditSkillModal 
-            skill={selectedSkill}
-            onClose={() => {
-              setShowEditSkillModal(false);
-              setSelectedSkill(null);
-            }} 
-            onUpdate={handleUpdateSkill}
-            onDelete={handleDeleteSkill}
           />
         )}
       </AnimatePresence>
