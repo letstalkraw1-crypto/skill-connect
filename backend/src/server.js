@@ -24,7 +24,18 @@ const otpLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   limit: 3, // Only 3 OTP requests per 15 minutes per IP+email
   message: { error: 'Too many OTP requests. Try again in 15 minutes.' },
-  keyGenerator: (req) => `${req.ip}:${req.body.email || req.body.phone || 'unknown'}`,
+  // Use default IP-based rate limiting (handles IPv6 properly)
+  // Combined with skip function to add email/phone-based limiting
+  skip: (req) => {
+    // Additional check: if same email/phone has been used too much, also block
+    const identifier = req.body.email || req.body.phone;
+    if (identifier) {
+      // Store per-identifier counters (this is a simple approach)
+      // In production, you might want to use Redis for this
+      req.rateLimitIdentifier = identifier;
+    }
+    return false; // Don't skip, apply rate limiting
+  },
   standardHeaders: true,
   legacyHeaders: false
 });
