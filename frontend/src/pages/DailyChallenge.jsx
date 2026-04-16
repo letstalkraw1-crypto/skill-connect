@@ -1134,6 +1134,28 @@ export default function DailyChallenge() {
   const [submittedAt, setSubmittedAt] = useState(null);
   const [deletingSubmission, setDeletingSubmission] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [timeLeft, setTimeLeft] = useState('');
+
+  // Live countdown to dueTime
+  useEffect(() => {
+    if (!challenge?.dueTime) return;
+    const tick = () => {
+      const now = new Date();
+      const [h, m] = challenge.dueTime.split(':').map(Number);
+      const due = new Date(now);
+      due.setHours(h, m, 0, 0);
+      if (due < now) due.setDate(due.getDate() + 1); // next day if already passed
+      const diff = due - now;
+      if (diff <= 0) { setTimeLeft('Expired'); return; }
+      const hrs = Math.floor(diff / 3600000);
+      const mins = Math.floor((diff % 3600000) / 60000);
+      const secs = Math.floor((diff % 60000) / 1000);
+      setTimeLeft(`${hrs}h ${String(mins).padStart(2,'0')}m ${String(secs).padStart(2,'0')}s`);
+    };
+    tick();
+    const interval = setInterval(tick, 1000);
+    return () => clearInterval(interval);
+  }, [challenge?.dueTime]);
   const [feed, setFeed] = useState([]);
   const [feedLoading, setFeedLoading] = useState(false);
   const [feedPage, setFeedPage] = useState(1);
@@ -1239,7 +1261,9 @@ export default function DailyChallenge() {
           </div>
           <div className="flex items-center gap-2">
             {challenge.dueTime && (
-              <span className="text-xs text-muted-foreground font-bold">Due {challenge.dueTime}</span>
+              <span className={`text-xs font-bold px-2 py-1 rounded-lg ${timeLeft === 'Expired' ? 'bg-destructive/20 text-destructive' : timeLeft.startsWith('0h') ? 'bg-amber-500/20 text-amber-400' : 'bg-accent/40 text-muted-foreground'}`}>
+                ⏱ {timeLeft || `Due ${challenge.dueTime}`}
+              </span>
             )}
             {user?.streakCount > 0 && (
               <div className="flex items-center gap-1 px-3 py-1 bg-amber-500/20 text-amber-400 rounded-full">
