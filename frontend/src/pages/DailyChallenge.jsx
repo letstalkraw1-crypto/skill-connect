@@ -995,22 +995,31 @@ const SubmitSection = ({ challenge, onSubmitted }) => {
 
   if (!mode) {
     return (
-      <div className="space-y-3">
-        <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Submit your response</p>
-        <div className="grid grid-cols-2 gap-3">
-          <button onClick={() => setMode('record')}
-            className="flex flex-col items-center gap-2 p-5 bg-primary/10 border-2 border-primary/30 hover:border-primary rounded-2xl transition-all group">
-            <Video size={24} className="text-primary group-hover:scale-110 transition-transform" />
-            <span className="text-sm font-bold">Record Video</span>
-            <span className="text-[10px] text-muted-foreground">Use your camera</span>
-          </button>
-          <button onClick={() => setMode('upload')}
-            className="flex flex-col items-center gap-2 p-5 bg-accent/30 border-2 border-border hover:border-primary rounded-2xl transition-all group">
-            <Upload size={24} className="text-muted-foreground group-hover:text-primary group-hover:scale-110 transition-all" />
-            <span className="text-sm font-bold">Upload Video</span>
-            <span className="text-[10px] text-muted-foreground">From your device</span>
-          </button>
-        </div>
+      <div className="space-y-4">
+        {/* Primary Action - Record Video */}
+        <button onClick={() => setMode('record')}
+          className="w-full flex items-center gap-4 p-4 bg-primary/10 border-2 border-primary/30 hover:border-primary rounded-2xl transition-all group">
+          <div className="w-12 h-12 bg-primary/20 rounded-xl flex items-center justify-center">
+            <Video size={24} className="text-primary" />
+          </div>
+          <div className="flex-1 text-left">
+            <div className="font-bold text-base">Record Video</div>
+            <div className="text-muted-foreground text-sm">Use your camera • max 90s</div>
+          </div>
+          <ArrowRight size={20} className="text-primary/60" />
+        </button>
+
+        {/* Secondary Action - Upload from Device */}
+        <button onClick={() => setMode('upload')}
+          className="w-full flex items-center gap-4 p-3 bg-accent/30 border-2 border-border hover:border-primary rounded-2xl transition-all group">
+          <div className="w-10 h-10 bg-accent/50 rounded-xl flex items-center justify-center">
+            <Upload size={20} className="text-muted-foreground group-hover:text-primary" />
+          </div>
+          <div className="flex-1 text-left">
+            <div className="font-bold text-sm">Upload from device</div>
+            <div className="text-muted-foreground text-xs">MP4, MOV supported</div>
+          </div>
+        </button>
       </div>
     );
   }
@@ -1027,7 +1036,8 @@ const SubmitSection = ({ challenge, onSubmitted }) => {
       {error && <div className="px-3 py-2 bg-destructive/10 border border-destructive/30 rounded-xl text-sm text-destructive">{error}</div>}
 
       {mode === 'record' && !videoPreview && (
-        <div className="space-y-3">
+        <div className="space-y-4">
+          {/* Camera Preview */}
           <div className="rounded-xl overflow-hidden bg-black aspect-video relative">
             <video ref={videoRef} autoPlay muted playsInline className="w-full h-full object-cover" />
             {/* Teleprompter overlay on top of camera */}
@@ -1042,25 +1052,36 @@ const SubmitSection = ({ challenge, onSubmitted }) => {
             )}
           </div>
 
-          {/* Teleprompter toggle + text input */}
+          {/* Teleprompter Section */}
           {!showTeleprompter && (
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-muted-foreground font-bold">Teleprompter</span>
+            <div className="p-4 bg-accent/20 border border-border rounded-xl">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 bg-violet-500/20 rounded-lg flex items-center justify-center">
+                    <span className="text-violet-400 text-sm">📜</span>
+                  </div>
+                  <span className="font-bold text-sm">Teleprompter</span>
+                </div>
                 <button onClick={() => setShowTeleprompter(true)}
                   className="px-3 py-1.5 bg-violet-500/20 text-violet-400 border border-violet-500/30 rounded-xl text-xs font-bold hover:bg-violet-500/30 transition-all">
-                  📜 Open Teleprompter
+                  Open
                 </button>
               </div>
-              <textarea rows={2} placeholder="Type your script here..."
-                value={teleprompterText} onChange={e => setTeleprompterText(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl bg-accent/30 border border-border outline-none text-xs resize-none" />
+              
+              <textarea 
+                rows={2} 
+                placeholder="Type your script here..."
+                value={teleprompterText} 
+                onChange={e => setTeleprompterText(e.target.value)}
+                className="w-full px-3 py-2 rounded-xl bg-accent/30 border border-border outline-none text-xs resize-none focus:border-primary transition-colors"
+              />
             </div>
           )}
 
+          {/* Recording Controls */}
           {!recording ? (
             <button onClick={startRecording}
-              className="w-full py-3 bg-red-500 text-white rounded-2xl font-bold hover:bg-red-600 transition-all flex items-center justify-center gap-2">
+              className="w-full py-3 bg-red-500 text-white rounded-2xl font-bold hover:bg-red-600 transition-all flex items-center justify-center gap-2 shadow-lg shadow-red-500/20">
               <div className="h-3 w-3 rounded-full bg-white animate-pulse" />
               Start Recording
             </button>
@@ -1086,7 +1107,7 @@ const SubmitSection = ({ challenge, onSubmitted }) => {
           ) : (
             // Recording — red stop button
             <button onClick={pauseRecording}
-              className="w-full py-3 bg-red-500 text-white rounded-2xl font-bold transition-all flex items-center justify-center gap-2 active:scale-95">
+              className="w-full py-3 bg-red-500 text-white rounded-2xl font-bold transition-all flex items-center justify-center gap-2 active:scale-95 shadow-lg shadow-red-500/20">
               <div className="h-4 w-4 rounded-sm bg-white" />
               Stop Recording
             </button>
@@ -1272,77 +1293,83 @@ export default function DailyChallenge() {
         )}
       </AnimatePresence>
 
-      {/* Challenge card */}
-      <div className="glass-card p-6 rounded-2xl border border-primary/20 bg-primary/5">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <span className="px-3 py-1 bg-primary/20 text-primary text-xs font-black rounded-full uppercase tracking-wider">
-              Today's Challenge
-            </span>
-            <span className="text-xs text-muted-foreground">{challenge.date}</span>
-          </div>
-          <div className="flex items-center gap-2">
-            {challenge.dueTime && (
-              <span className={`text-xs font-bold px-2 py-1 rounded-lg ${timeLeft === 'Expired' ? 'bg-destructive/20 text-destructive' : timeLeft.startsWith('0h') ? 'bg-amber-500/20 text-amber-400' : 'bg-accent/40 text-muted-foreground'}`}>
-                ⏱ {timeLeft || `Due ${challenge.dueTime}`}
+      {/* Challenge card with improved header */}
+      <div className="glass-card rounded-2xl border border-primary/20 bg-primary/5 overflow-hidden">
+        {/* Enhanced header section */}
+        <div className="px-6 py-4 border-b border-border/50">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <span className="px-3 py-1 bg-primary/20 text-primary text-xs font-black rounded-full uppercase tracking-wider">
+                Today's Challenge
               </span>
-            )}
-            {user?.streakCount > 0 && (
-              <div className="flex items-center gap-1 px-3 py-1 bg-amber-500/20 text-amber-400 rounded-full">
-                <Flame size={14} />
-                <span className="text-xs font-black">{user.streakCount} day streak</span>
-              </div>
-            )}
-          </div>
-        </div>
-
-        <h2 className="text-2xl font-black mb-2">{challenge.topic}</h2>
-        {challenge.description && (
-          <p className="text-sm text-muted-foreground mb-4">{challenge.description}</p>
-        )}
-      </div>
-
-      {/* Main Content */}
-      <div className="space-y-6">
-        {/* Tips Section */}
-        {challenge.tips?.length > 0 && (
-          <div className="p-3 bg-accent/30 rounded-xl">
-            <p className="text-xs font-bold text-primary uppercase tracking-widest mb-2">Tips</p>
-            <ul className="space-y-1">
-              {challenge.tips.map((tip, i) => (
-                <li key={i} className="text-xs text-muted-foreground flex items-start gap-2">
-                  <ArrowRight size={12} className="text-primary mt-0.5 flex-shrink-0" />
-                  {tip}
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-
-        {/* Submission Section */}
-        {submitted ? (
-          <div className="space-y-2">
-            <div className="flex items-center gap-2 px-4 py-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl">
-              <span className="text-emerald-400 font-bold text-sm flex-1">✅ You've submitted today's challenge!</span>
-              {submittedAt && new Date() - submittedAt < 2 * 60 * 60 * 1000 && (
-                <button onClick={handleDeleteSubmission} disabled={deletingSubmission}
-                  className="px-3 py-1.5 bg-destructive/10 text-destructive border border-destructive/20 rounded-xl text-xs font-bold hover:bg-destructive/20 transition-all disabled:opacity-50 flex-shrink-0">
-                  {deletingSubmission ? '...' : '🗑 Delete & Resubmit'}
-                </button>
+              <span className="text-xs text-muted-foreground">{challenge.date}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              {challenge.dueTime && (
+                <span className={`text-xs font-bold px-2 py-1 rounded-lg ${timeLeft === 'Expired' ? 'bg-destructive/20 text-destructive' : timeLeft.startsWith('0h') ? 'bg-amber-500/20 text-amber-400' : 'bg-accent/40 text-muted-foreground'}`}>
+                  ⏱ {timeLeft || `Due ${challenge.dueTime}`}
+                </span>
+              )}
+              {user?.streakCount > 0 && (
+                <div className="flex items-center gap-1 px-3 py-1 bg-amber-500/20 text-amber-400 rounded-full">
+                  <Flame size={14} />
+                  <span className="text-xs font-black">{user.streakCount} day streak</span>
+                </div>
               )}
             </div>
-            {submittedAt && new Date() - submittedAt < 2 * 60 * 60 * 1000 && (
-              <p className="text-[10px] text-muted-foreground text-center">
-                You can delete and resubmit within 2 hours of submission
-              </p>
-            )}
           </div>
-        ) : (
-          <SubmitSection challenge={challenge} onSubmitted={handleSubmitted} />
-        )}
+
+          <h2 className="text-2xl font-black mb-2">{challenge.topic}</h2>
+          {challenge.description && (
+            <p className="text-sm text-muted-foreground">{challenge.description}</p>
+          )}
+        </div>
+
+        {/* Submission section inside the card */}
+        <div className="p-6">
+          {submitted ? (
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 px-4 py-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl">
+                <span className="text-emerald-400 font-bold text-sm flex-1">✅ You've submitted today's challenge!</span>
+                {submittedAt && new Date() - submittedAt < 2 * 60 * 60 * 1000 && (
+                  <button onClick={handleDeleteSubmission} disabled={deletingSubmission}
+                    className="px-3 py-1.5 bg-destructive/10 text-destructive border border-destructive/20 rounded-xl text-xs font-bold hover:bg-destructive/20 transition-all disabled:opacity-50 flex-shrink-0">
+                    {deletingSubmission ? '...' : '🗑 Delete & Resubmit'}
+                  </button>
+                )}
+              </div>
+              {submittedAt && new Date() - submittedAt < 2 * 60 * 60 * 1000 && (
+                <p className="text-[10px] text-muted-foreground text-center">
+                  You can delete and resubmit within 2 hours of submission
+                </p>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="text-center">
+                <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-4">Submit Your Response</p>
+              </div>
+              <SubmitSection challenge={challenge} onSubmitted={handleSubmitted} />
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* Feed — always visible */}
+      {/* Tips Section - moved outside main card */}
+      {challenge.tips?.length > 0 && (
+        <div className="p-3 bg-accent/30 rounded-xl">
+          <p className="text-xs font-bold text-primary uppercase tracking-widest mb-2">Tips</p>
+          <ul className="space-y-1">
+            {challenge.tips.map((tip, i) => (
+              <li key={i} className="text-xs text-muted-foreground flex items-start gap-2">
+                <ArrowRight size={12} className="text-primary mt-0.5 flex-shrink-0" />
+                {tip}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {/* Community Responses Section */}
       <div className="space-y-4">
         <div className="flex items-center justify-between flex-wrap gap-2">
           <h3 className="font-black text-lg">Today's Responses</h3>
