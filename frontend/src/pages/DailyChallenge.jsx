@@ -128,16 +128,16 @@ const FeedbackItem = ({ feedback: f, currentUserId, isVideoOwner, onDeleted, onR
         <>
           <div className="fixed inset-0 z-[60]" onClick={() => setShowMenu(false)} />
           <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
-            className="absolute right-0 top-0 z-[70] bg-background border border-border rounded-2xl shadow-2xl py-1 min-w-[140px]">
+            className="absolute right-0 top-0 z-[70] bg-white border border-gray-200 rounded-2xl shadow-2xl py-2 min-w-[140px]">
             {canReply && (
               <button onClick={() => { setShowMenu(false); setShowReplyInput(true); }}
-                className="w-full text-left px-4 py-2.5 text-xs font-bold hover:bg-accent transition-colors">
+                className="w-full text-left px-4 py-2.5 text-sm font-bold hover:bg-gray-50 transition-colors">
                 💬 Reply
               </button>
             )}
             {canDelete && (
               <button onClick={handleDelete}
-                className="w-full text-left px-4 py-2.5 text-xs font-bold text-destructive hover:bg-destructive/10 transition-colors">
+                className="w-full text-left px-4 py-2.5 text-sm font-bold text-red-600 hover:bg-red-50 transition-colors">
                 🗑 Delete
               </button>
             )}
@@ -146,33 +146,33 @@ const FeedbackItem = ({ feedback: f, currentUserId, isVideoOwner, onDeleted, onR
       )}
 
       <div
-        className="p-3 bg-accent/30 rounded-xl space-y-2 select-none"
+        className="p-4 bg-gray-50 rounded-2xl space-y-3 select-none border border-gray-100"
         onMouseDown={startPress} onMouseUp={endPress} onMouseLeave={endPress}
         onTouchStart={startPress} onTouchEnd={endPress}
         onContextMenu={e => { e.preventDefault(); if (canDelete || canReply) setShowMenu(true); }}>
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
             <Avatar src={f.reviewer?.avatarUrl} name={f.reviewer?.name} size="8" />
-            <p className="text-xs font-bold">{f.reviewer?.name || 'Anonymous'}</p>
+            <p className="text-sm font-bold text-gray-800">{f.reviewer?.name || 'Anonymous'}</p>
           </div>
           {(canDelete || canReply) && (
-            <p className="text-[10px] text-muted-foreground">hold to act</p>
+            <p className="text-xs text-gray-400">hold to act</p>
           )}
         </div>
-        <p className="text-xs">{f.positive}</p>
+        <p className="text-sm text-gray-700 leading-relaxed">{f.positive}</p>
 
         {/* Owner reply */}
         {f.ownerReply && (
-          <div className="ml-4 pl-3 border-l-2 border-primary/30 mt-2">
-            <p className="text-[10px] text-primary font-bold mb-0.5">Owner replied:</p>
-            <p className="text-xs text-muted-foreground">{f.ownerReply}</p>
+          <div className="ml-4 pl-4 border-l-2 border-blue-200 mt-3">
+            <p className="text-xs text-blue-600 font-bold mb-1">Owner replied:</p>
+            <p className="text-sm text-gray-600">{f.ownerReply}</p>
           </div>
         )}
       </div>
 
       {/* Reply input */}
       {showReplyInput && (
-        <div className="mt-2 flex gap-2">
+        <div className="mt-3 flex gap-2">
           <input
             autoFocus
             type="text"
@@ -180,13 +180,13 @@ const FeedbackItem = ({ feedback: f, currentUserId, isVideoOwner, onDeleted, onR
             value={replyText}
             onChange={e => setReplyText(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter') handleReply(); if (e.key === 'Escape') setShowReplyInput(false); }}
-            className="flex-1 px-3 py-2 rounded-xl bg-accent/30 border border-border outline-none text-xs"
+            className="flex-1 px-4 py-2.5 rounded-xl bg-white border border-gray-200 outline-none text-sm focus:border-blue-400 transition-colors"
           />
           <button onClick={handleReply} disabled={!replyText.trim() || submitting}
-            className="px-3 py-2 bg-primary text-primary-foreground rounded-xl text-xs font-bold disabled:opacity-40">
+            className="px-4 py-2.5 bg-blue-500 text-white rounded-xl text-sm font-bold disabled:opacity-40 hover:bg-blue-600 transition-colors">
             {submitting ? '...' : 'Send'}
           </button>
-          <button onClick={() => setShowReplyInput(false)} className="px-3 py-2 bg-accent rounded-xl text-xs">✕</button>
+          <button onClick={() => setShowReplyInput(false)} className="px-3 py-2.5 bg-gray-100 rounded-xl text-sm hover:bg-gray-200 transition-colors">✕</button>
         </div>
       )}
     </div>
@@ -397,26 +397,26 @@ const VideoCard = ({ video, currentUserId, onFeedbackGiven, onOpenFeedback, alre
   return (
     <>
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-      className="glass-card rounded-2xl border border-border overflow-hidden">
+      className="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm">
       {/* User info */}
-      <div className="flex items-center gap-3 p-4 pb-0">
+      <div className="flex items-center gap-3 p-4 pb-3">
         <Avatar src={video.user?.avatarUrl} name={video.user?.name} size="10" />
         <div className="flex-1 min-w-0">
           <p className="font-bold text-sm truncate">{video.user?.name || 'Anonymous'}</p>
-          <p className="text-xs text-muted-foreground">@{video.user?.shortId}</p>
+          <p className="text-xs text-gray-500">@{video.user?.shortId}</p>
         </div>
         {isOwn ? (
-          <span className="px-2 py-0.5 bg-primary/20 text-primary text-[10px] font-bold rounded-full">You</span>
+          <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs font-bold rounded-full">You</span>
         ) : (
           <button onClick={toggleFollow} disabled={followLoading}
-            className={`px-3 py-1 rounded-full text-[11px] font-bold transition-all ${following ? 'bg-accent text-muted-foreground hover:bg-destructive/10 hover:text-destructive' : 'bg-primary/20 text-primary hover:bg-primary/30'}`}>
+            className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all ${following ? 'bg-gray-100 text-gray-600 hover:bg-red-50 hover:text-red-600' : 'bg-blue-500 text-white hover:bg-blue-600'}`}>
             {followLoading ? '...' : following ? 'Following' : '+ Follow'}
           </button>
         )}
       </div>
 
-      {/* Video */}
-      <div className="mt-3 mx-4 rounded-xl overflow-hidden bg-black aspect-video">
+      {/* Video with rounded corners */}
+      <div className="mx-4 mb-4 rounded-2xl overflow-hidden bg-black aspect-video shadow-lg">
         <video
           src={video.videoUrl}
           controls
@@ -428,15 +428,15 @@ const VideoCard = ({ video, currentUserId, onFeedbackGiven, onOpenFeedback, alre
 
       {/* Caption */}
       {video.caption && (
-        <p className="px-4 pt-3 text-sm text-muted-foreground">{video.caption}</p>
+        <p className="px-4 pb-3 text-sm text-gray-700">{video.caption}</p>
       )}
 
       {/* AI Feedback — only visible to video owner */}
       {isOwn && (
-        <div className="mx-4 mt-3">
+        <div className="mx-4 mb-4">
           <button onClick={loadAI} disabled={loadingAI}
-            className="flex items-center gap-2 px-3 py-2 bg-violet-500/10 border border-violet-500/20 text-violet-400 rounded-xl text-xs font-bold hover:bg-violet-500/20 transition-all w-full">
-            <span>🤖</span>
+            className="flex items-center gap-3 px-4 py-3 bg-gradient-to-r from-violet-50 to-purple-50 border border-violet-200 text-violet-700 rounded-2xl text-sm font-bold hover:from-violet-100 hover:to-purple-100 transition-all w-full">
+            <span className="text-lg">🤖</span>
             <span className="flex-1 text-left">
               {loadingAI ? 'Loading AI analysis...' :
                aiData?.status === 'done' ? (showAI ? 'Hide AI Feedback' : 'View AI Feedback') :
@@ -445,7 +445,7 @@ const VideoCard = ({ video, currentUserId, onFeedbackGiven, onOpenFeedback, alre
                'Get AI Feedback'}
             </span>
             {aiData?.status === 'done' && !loadingAI && (
-              <span className="px-2 py-0.5 bg-violet-500/20 rounded-full text-[10px] font-black">
+              <span className="px-3 py-1 bg-violet-200 text-violet-800 rounded-full text-xs font-bold">
                 {aiData.scores?.overall}/10
               </span>
             )}
@@ -455,59 +455,59 @@ const VideoCard = ({ video, currentUserId, onFeedbackGiven, onOpenFeedback, alre
             {showAI && aiData?.status === 'done' && (
               <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}
                 className="overflow-hidden">
-                <div className="mt-2 p-4 bg-violet-500/5 border border-violet-500/20 rounded-xl space-y-3">
+                <div className="mt-3 p-4 bg-gradient-to-r from-violet-50 to-purple-50 border border-violet-200 rounded-2xl space-y-4">
                   {/* Radar chart */}
                   <RadarChart scores={aiData.scores} />
 
                   {/* Score numbers */}
-                  <div className="grid grid-cols-5 gap-1 text-center">
+                  <div className="grid grid-cols-5 gap-2 text-center">
                     {Object.entries(aiData.scores || {}).map(([key, val]) => (
-                      <div key={key} className="space-y-0.5">
-                        <p className="text-[9px] text-muted-foreground capitalize">{key.slice(0,3)}</p>
-                        <p className="text-xs font-black text-violet-400">{val}/10</p>
+                      <div key={key} className="space-y-1">
+                        <p className="text-xs text-gray-500 capitalize">{key.slice(0,3)}</p>
+                        <p className="text-sm font-bold text-violet-600">{val}/10</p>
                       </div>
                     ))}
                   </div>
 
                   {/* AI written feedback */}
                   {aiData.feedback && (
-                    <p className="text-xs text-muted-foreground italic border-l-2 border-violet-500/40 pl-3">{aiData.feedback}</p>
+                    <p className="text-sm text-gray-600 italic border-l-4 border-violet-300 pl-4">{aiData.feedback}</p>
                   )}
 
                   {/* Strengths */}
                   {aiData.strengths?.length > 0 && (
                     <div>
-                      <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest mb-1">Strengths</p>
-                      {aiData.strengths.map((s, i) => <p key={i} className="text-xs text-emerald-400">✅ {s}</p>)}
+                      <p className="text-xs font-bold text-emerald-600 uppercase tracking-widest mb-2">Strengths</p>
+                      {aiData.strengths.map((s, i) => <p key={i} className="text-sm text-emerald-600">✅ {s}</p>)}
                     </div>
                   )}
 
                   {/* Improvements */}
                   {aiData.improvements?.length > 0 && (
                     <div>
-                      <p className="text-[10px] font-black text-amber-400 uppercase tracking-widest mb-1">To Improve</p>
-                      {aiData.improvements.map((s, i) => <p key={i} className="text-xs text-amber-400">💡 {s}</p>)}
+                      <p className="text-xs font-bold text-amber-600 uppercase tracking-widest mb-2">To Improve</p>
+                      {aiData.improvements.map((s, i) => <p key={i} className="text-sm text-amber-600">💡 {s}</p>)}
                     </div>
                   )}
 
                   {/* NLP Stats */}
                   {aiData.nlp && (
-                    <div className="grid grid-cols-2 gap-2 p-3 bg-white/5 rounded-xl">
+                    <div className="grid grid-cols-2 gap-3 p-3 bg-white/60 rounded-xl">
                       <div className="text-center">
-                        <p className="text-[10px] text-muted-foreground">Words</p>
-                        <p className="text-sm font-black text-white">{aiData.nlp.wordCount}</p>
+                        <p className="text-xs text-gray-500">Words</p>
+                        <p className="text-sm font-bold text-gray-800">{aiData.nlp.wordCount}</p>
                       </div>
                       <div className="text-center">
-                        <p className="text-[10px] text-muted-foreground">Filler Words</p>
-                        <p className={`text-sm font-black ${aiData.nlp.fillerCount > 5 ? 'text-red-400' : aiData.nlp.fillerCount > 2 ? 'text-amber-400' : 'text-emerald-400'}`}>{aiData.nlp.fillerCount}</p>
+                        <p className="text-xs text-gray-500">Filler Words</p>
+                        <p className={`text-sm font-bold ${aiData.nlp.fillerCount > 5 ? 'text-red-500' : aiData.nlp.fillerCount > 2 ? 'text-amber-500' : 'text-emerald-500'}`}>{aiData.nlp.fillerCount}</p>
                       </div>
                       <div className="text-center">
-                        <p className="text-[10px] text-muted-foreground">Vocab Richness</p>
-                        <p className="text-sm font-black text-violet-400">{aiData.nlp.vocabularyRichness}%</p>
+                        <p className="text-xs text-gray-500">Vocab Richness</p>
+                        <p className="text-sm font-bold text-violet-600">{aiData.nlp.vocabularyRichness}%</p>
                       </div>
                       <div className="text-center">
-                        <p className="text-[10px] text-muted-foreground">Words/Sentence</p>
-                        <p className="text-sm font-black text-blue-400">{aiData.nlp.avgWordsPerSentence}</p>
+                        <p className="text-xs text-gray-500">Words/Sentence</p>
+                        <p className="text-sm font-bold text-blue-500">{aiData.nlp.avgWordsPerSentence}</p>
                       </div>
                     </div>
                   )}
@@ -515,7 +515,7 @@ const VideoCard = ({ video, currentUserId, onFeedbackGiven, onOpenFeedback, alre
                   {/* Transcript viewer button */}
                   {aiData.transcript && (
                     <button onClick={() => setShowTranscript(true)}
-                      className="w-full py-2 bg-white/5 border border-white/10 rounded-xl text-xs font-bold text-white/60 hover:text-white hover:bg-white/10 transition-all">
+                      className="w-full py-3 bg-white/60 border border-gray-200 rounded-xl text-sm font-bold text-gray-700 hover:bg-white hover:text-gray-800 transition-all">
                       📄 Rewatch with Transcript
                     </button>
                   )}
@@ -527,22 +527,22 @@ const VideoCard = ({ video, currentUserId, onFeedbackGiven, onOpenFeedback, alre
       )}
 
       {/* Actions */}
-      <div className="flex items-center gap-2 p-4">
+      <div className="flex items-center gap-3 px-4 pb-4">
         {!isOwn && !hasFeedback && (
           <button onClick={() => onOpenFeedback(video, () => { setHasFeedback(true); onFeedbackGiven(); loadFeedbacks(); })}
-            className="flex items-center gap-1.5 px-4 py-2 bg-primary text-primary-foreground rounded-xl text-xs font-bold hover:scale-[1.02] active:scale-95 transition-all shadow-lg shadow-primary/20">
-            <ThumbsUp size={14} /> Give Feedback
+            className="flex items-center gap-2 px-4 py-2.5 bg-blue-500 text-white rounded-xl text-sm font-bold hover:bg-blue-600 transition-all shadow-sm">
+            <ThumbsUp size={16} /> Give Feedback
           </button>
         )}
         {hasFeedback && (
-          <span className="flex items-center gap-1.5 px-4 py-2 bg-emerald-500/20 text-emerald-400 rounded-xl text-xs font-bold">
+          <span className="flex items-center gap-2 px-4 py-2.5 bg-emerald-100 text-emerald-700 rounded-xl text-sm font-bold">
             ✓ Feedback Given
           </span>
         )}
         <button onClick={toggleFeedbacks}
-          className="flex items-center gap-1.5 px-3 py-2 bg-accent rounded-xl text-xs font-bold hover:bg-accent/80 transition-all ml-auto">
+          className="flex items-center gap-2 px-3 py-2.5 bg-gray-100 rounded-xl text-sm font-bold hover:bg-gray-200 transition-all ml-auto">
           {video.feedbackCount || 0} feedback{video.feedbackCount !== 1 ? 's' : ''}
-          {showFeedbacks ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+          {showFeedbacks ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
         </button>
       </div>
 
@@ -551,10 +551,10 @@ const VideoCard = ({ video, currentUserId, onFeedbackGiven, onOpenFeedback, alre
         {showFeedbacks && (
           <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}
             className="overflow-hidden">
-            <div className="px-4 pb-4 space-y-3 border-t border-border pt-3">
-              {loadingFeedback && <p className="text-xs text-muted-foreground animate-pulse">Loading...</p>}
+            <div className="px-4 pb-4 space-y-3 border-t border-gray-100 pt-4">
+              {loadingFeedback && <p className="text-sm text-gray-500 animate-pulse">Loading...</p>}
               {!loadingFeedback && feedbacks.length === 0 && (
-                <p className="text-xs text-muted-foreground">No feedback yet. Be the first!</p>
+                <p className="text-sm text-gray-500">No feedback yet. Be the first!</p>
               )}
               {feedbacks.map(f => (
                 <FeedbackItem
@@ -995,22 +995,31 @@ const SubmitSection = ({ challenge, onSubmitted }) => {
 
   if (!mode) {
     return (
-      <div className="space-y-3">
-        <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Submit your response</p>
-        <div className="grid grid-cols-2 gap-3">
-          <button onClick={() => setMode('record')}
-            className="flex flex-col items-center gap-2 p-5 bg-primary/10 border-2 border-primary/30 hover:border-primary rounded-2xl transition-all group">
-            <Video size={24} className="text-primary group-hover:scale-110 transition-transform" />
-            <span className="text-sm font-bold">Record Video</span>
-            <span className="text-[10px] text-muted-foreground">Use your camera</span>
-          </button>
-          <button onClick={() => setMode('upload')}
-            className="flex flex-col items-center gap-2 p-5 bg-accent/30 border-2 border-border hover:border-primary rounded-2xl transition-all group">
-            <Upload size={24} className="text-muted-foreground group-hover:text-primary group-hover:scale-110 transition-all" />
-            <span className="text-sm font-bold">Upload Video</span>
-            <span className="text-[10px] text-muted-foreground">From your device</span>
-          </button>
-        </div>
+      <div className="space-y-4">
+        {/* Primary Action - Record Video */}
+        <button onClick={() => setMode('record')}
+          className="w-full flex items-center gap-4 p-6 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-2xl transition-all hover:from-red-600 hover:to-red-700 shadow-lg shadow-red-500/25">
+          <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
+            <Video size={24} />
+          </div>
+          <div className="flex-1 text-left">
+            <div className="font-bold text-lg">Record Video</div>
+            <div className="text-red-100 text-sm">Use your camera • max 90s</div>
+          </div>
+          <ArrowRight size={20} className="text-white/80" />
+        </button>
+
+        {/* Secondary Action - Upload from Device */}
+        <button onClick={() => setMode('upload')}
+          className="w-full flex items-center gap-4 p-4 bg-gray-50 border-2 border-gray-200 rounded-2xl transition-all hover:bg-gray-100 hover:border-gray-300">
+          <div className="w-10 h-10 bg-gray-200 rounded-xl flex items-center justify-center">
+            <Upload size={20} className="text-gray-600" />
+          </div>
+          <div className="flex-1 text-left">
+            <div className="font-bold text-gray-800">Upload from device</div>
+            <div className="text-gray-500 text-sm">MP4, MOV supported</div>
+          </div>
+        </button>
       </div>
     );
   }
@@ -1027,8 +1036,59 @@ const SubmitSection = ({ challenge, onSubmitted }) => {
       {error && <div className="px-3 py-2 bg-destructive/10 border border-destructive/30 rounded-xl text-sm text-destructive">{error}</div>}
 
       {mode === 'record' && !videoPreview && (
-        <div className="space-y-3">
-          <div className="rounded-xl overflow-hidden bg-black aspect-video relative">
+        <div className="space-y-4">
+          {/* Teleprompter Section */}
+          <div className="p-4 bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-100 rounded-2xl">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
+                  <span className="text-purple-600 text-sm">📜</span>
+                </div>
+                <span className="font-bold text-purple-800">TELEPROMPTER</span>
+              </div>
+              <div className="flex items-center gap-2 text-sm text-purple-600">
+                <div className="flex items-center gap-1">
+                  <span className="text-xs font-bold">24%</span>
+                  <div className="w-8 h-1 bg-purple-200 rounded-full overflow-hidden">
+                    <div className="w-1/4 h-full bg-purple-500 rounded-full"></div>
+                  </div>
+                </div>
+                <span className="text-xs">TT 28</span>
+              </div>
+            </div>
+            
+            <div className="mb-4">
+              <textarea 
+                rows={3} 
+                placeholder="What do you want to become?"
+                value={teleprompterText} 
+                onChange={e => setTeleprompterText(e.target.value)}
+                className="w-full px-4 py-3 rounded-xl bg-white border border-purple-200 outline-none text-sm resize-none focus:border-purple-400 transition-colors"
+              />
+            </div>
+
+            <div className="flex items-center gap-3">
+              <button className="w-10 h-10 bg-white border border-purple-200 rounded-lg flex items-center justify-center hover:bg-purple-50 transition-colors">
+                <span className="text-purple-600">▶</span>
+              </button>
+              <button className="w-10 h-10 bg-white border border-purple-200 rounded-lg flex items-center justify-center hover:bg-purple-50 transition-colors">
+                <span className="text-purple-600">⏮</span>
+              </button>
+              <button className="w-10 h-10 bg-white border border-purple-200 rounded-lg flex items-center justify-center hover:bg-purple-50 transition-colors">
+                <span className="text-purple-600">↔</span>
+              </button>
+              <button className="w-10 h-10 bg-white border border-purple-200 rounded-lg flex items-center justify-center hover:bg-purple-50 transition-colors">
+                <span className="text-purple-600">📄</span>
+              </button>
+              <button onClick={() => setShowTeleprompter(true)}
+                className="flex-1 py-2.5 bg-purple-600 text-white rounded-xl text-sm font-bold hover:bg-purple-700 transition-colors">
+                Open Teleprompter
+              </button>
+            </div>
+          </div>
+
+          {/* Camera Preview */}
+          <div className="rounded-2xl overflow-hidden bg-black aspect-video relative">
             <video ref={videoRef} autoPlay muted playsInline className="w-full h-full object-cover" />
             {/* Teleprompter overlay on top of camera */}
             {showTeleprompter && (
@@ -1042,56 +1102,41 @@ const SubmitSection = ({ challenge, onSubmitted }) => {
             )}
           </div>
 
-          {/* Teleprompter toggle + text input */}
-          {!showTeleprompter && (
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-muted-foreground font-bold">Teleprompter</span>
-                <button onClick={() => setShowTeleprompter(true)}
-                  className="px-3 py-1.5 bg-violet-500/20 text-violet-400 border border-violet-500/30 rounded-xl text-xs font-bold hover:bg-violet-500/30 transition-all">
-                  📜 Open Teleprompter
-                </button>
-              </div>
-              <textarea rows={2} placeholder="Type your script here..."
-                value={teleprompterText} onChange={e => setTeleprompterText(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl bg-accent/30 border border-border outline-none text-xs resize-none" />
-            </div>
-          )}
-
+          {/* Recording Controls */}
           {!recording ? (
             <button onClick={startRecording}
-              className="w-full py-3 bg-red-500 text-white rounded-2xl font-bold hover:bg-red-600 transition-all flex items-center justify-center gap-2">
-              <div className="h-3 w-3 rounded-full bg-white animate-pulse" />
+              className="w-full py-4 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-2xl font-bold hover:from-red-600 hover:to-red-700 transition-all flex items-center justify-center gap-3 shadow-lg shadow-red-500/25">
+              <div className="w-4 h-4 rounded-full bg-white animate-pulse" />
               Start Recording
             </button>
           ) : recordingPaused ? (
             // Paused — show Resume / Submit / Restart
-            <div className="space-y-2">
-              <p className="text-xs text-center text-amber-400 font-bold">⏸ Recording paused</p>
-              <div className="grid grid-cols-3 gap-2">
+            <div className="space-y-3">
+              <p className="text-sm text-center text-amber-600 font-bold">⏸ Recording paused</p>
+              <div className="grid grid-cols-3 gap-3">
                 <button onClick={resumeRecording}
                   className="py-3 bg-emerald-500 text-white rounded-2xl font-bold text-sm flex flex-col items-center gap-1 hover:bg-emerald-600 transition-all">
-                  <span>▶</span><span className="text-[10px]">Resume</span>
+                  <span>▶</span><span className="text-xs">Resume</span>
                 </button>
                 <button onClick={finishRecording}
                   className="py-3 bg-primary text-primary-foreground rounded-2xl font-bold text-sm flex flex-col items-center gap-1 hover:bg-primary/90 transition-all">
-                  <span>✓</span><span className="text-[10px]">Submit</span>
+                  <span>✓</span><span className="text-xs">Submit</span>
                 </button>
                 <button onClick={restartRecording}
-                  className="py-3 bg-accent border border-border text-foreground rounded-2xl font-bold text-sm flex flex-col items-center gap-1 hover:bg-accent/80 transition-all">
-                  <span>↺</span><span className="text-[10px]">Restart</span>
+                  className="py-3 bg-gray-100 border border-gray-200 text-gray-700 rounded-2xl font-bold text-sm flex flex-col items-center gap-1 hover:bg-gray-200 transition-all">
+                  <span>↺</span><span className="text-xs">Restart</span>
                 </button>
               </div>
             </div>
           ) : (
             // Recording — red stop button
             <button onClick={pauseRecording}
-              className="w-full py-3 bg-red-500 text-white rounded-2xl font-bold transition-all flex items-center justify-center gap-2 active:scale-95">
-              <div className="h-4 w-4 rounded-sm bg-white" />
+              className="w-full py-4 bg-red-500 text-white rounded-2xl font-bold transition-all flex items-center justify-center gap-3 active:scale-95 shadow-lg shadow-red-500/25">
+              <div className="w-5 h-5 rounded-sm bg-white" />
               Stop Recording
             </button>
           )}
-          <p className="text-xs text-muted-foreground text-center">Max 90 seconds · Video only (no audio-only)</p>
+          <p className="text-xs text-gray-500 text-center">Max 90 seconds • Video only (no audio-only)</p>
         </div>
       )}
 
@@ -1260,7 +1305,7 @@ export default function DailyChallenge() {
   }
 
   return (
-    <div className="max-w-2xl mx-auto pt-4 space-y-6 px-0 sm:px-0"
+    <div className="max-w-2xl mx-auto pt-0 space-y-0 px-0 sm:px-0"
       style={{ paddingBottom: 'calc(6rem + env(safe-area-inset-bottom, 0px))' }}>
       {/* Success banner */}
       <AnimatePresence>
@@ -1272,42 +1317,51 @@ export default function DailyChallenge() {
         )}
       </AnimatePresence>
 
-      {/* Challenge card */}
-      <div className="glass-card p-6 rounded-2xl border border-primary/20 bg-primary/5">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <span className="px-3 py-1 bg-primary/20 text-primary text-xs font-black rounded-full uppercase tracking-wider">
-              Today's Challenge
-            </span>
-            <span className="text-xs text-muted-foreground">{challenge.date}</span>
-          </div>
-          <div className="flex items-center gap-2">
+      {/* Hero Header with Gradient */}
+      <div className="relative overflow-hidden bg-gradient-to-br from-indigo-600 via-purple-600 to-blue-700 text-white">
+        <div className="absolute inset-0 bg-black/20"></div>
+        <div className="relative px-6 py-8">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-white/20 backdrop-blur-sm rounded-full">
+                <div className="w-2 h-2 bg-white rounded-full"></div>
+                <span className="text-sm font-bold uppercase tracking-wider">Daily Challenge</span>
+              </div>
+              {user?.streakCount > 0 && (
+                <div className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-500/30 backdrop-blur-sm rounded-full">
+                  <Flame size={16} className="text-amber-300" />
+                  <span className="text-sm font-bold text-amber-100">{user.streakCount} day streak</span>
+                </div>
+              )}
+            </div>
             {challenge.dueTime && (
-              <span className={`text-xs font-bold px-2 py-1 rounded-lg ${timeLeft === 'Expired' ? 'bg-destructive/20 text-destructive' : timeLeft.startsWith('0h') ? 'bg-amber-500/20 text-amber-400' : 'bg-accent/40 text-muted-foreground'}`}>
-                ⏱ {timeLeft || `Due ${challenge.dueTime}`}
-              </span>
-            )}
-            {user?.streakCount > 0 && (
-              <div className="flex items-center gap-1 px-3 py-1 bg-amber-500/20 text-amber-400 rounded-full">
-                <Flame size={14} />
-                <span className="text-xs font-black">{user.streakCount} day streak</span>
+              <div className="text-right">
+                <div className="text-xs text-white/70 mb-1">Apr 16, 2026</div>
+                <div className="flex items-center gap-1 text-sm font-bold">
+                  <div className="w-1.5 h-1.5 bg-white/80 rounded-full"></div>
+                  <span>{timeLeft || `Due ${challenge.dueTime}`}</span>
+                </div>
               </div>
             )}
           </div>
+
+          <h1 className="text-2xl font-bold mb-2 leading-tight">{challenge.topic}</h1>
+          {challenge.description && (
+            <p className="text-white/80 text-sm leading-relaxed">{challenge.description}</p>
+          )}
         </div>
+      </div>
 
-        <h2 className="text-2xl font-black mb-2">{challenge.topic}</h2>
-        {challenge.description && (
-          <p className="text-sm text-muted-foreground mb-4">{challenge.description}</p>
-        )}
-
+      {/* Main Content */}
+      <div className="px-4 pt-6 space-y-6">
+        {/* Tips Section */}
         {challenge.tips?.length > 0 && (
-          <div className="p-3 bg-accent/30 rounded-xl mb-4">
-            <p className="text-xs font-bold text-primary uppercase tracking-widest mb-2">Tips</p>
-            <ul className="space-y-1">
+          <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 rounded-2xl">
+            <p className="text-xs font-bold text-blue-600 uppercase tracking-widest mb-3">💡 Tips for Success</p>
+            <ul className="space-y-2">
               {challenge.tips.map((tip, i) => (
-                <li key={i} className="text-xs text-muted-foreground flex items-start gap-2">
-                  <ArrowRight size={12} className="text-primary mt-0.5 flex-shrink-0" />
+                <li key={i} className="text-sm text-gray-700 flex items-start gap-3">
+                  <ArrowRight size={14} className="text-blue-500 mt-0.5 flex-shrink-0" />
                   {tip}
                 </li>
               ))}
@@ -1315,41 +1369,54 @@ export default function DailyChallenge() {
           </div>
         )}
 
+        {/* Submission Section */}
         {submitted ? (
-          <div className="space-y-2">
-            <div className="flex items-center gap-2 px-4 py-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl">
-              <span className="text-emerald-400 font-bold text-sm flex-1">✅ You've submitted today's challenge!</span>
-              {submittedAt && Date.now() - submittedAt.getTime() < 2 * 60 * 60 * 1000 && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between p-4 bg-emerald-50 border border-emerald-200 rounded-2xl">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-emerald-500 rounded-full flex items-center justify-center">
+                  <span className="text-white font-bold">✓</span>
+                </div>
+                <div>
+                  <p className="font-bold text-emerald-800">Response Submitted!</p>
+                  <p className="text-sm text-emerald-600">
+                    {submittedAt && `Submitted ${submittedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`}
+                  </p>
+                </div>
+              </div>
+              {submittedAt && new Date() - submittedAt < 2 * 60 * 60 * 1000 && (
                 <button onClick={handleDeleteSubmission} disabled={deletingSubmission}
-                  className="px-3 py-1.5 bg-destructive/10 text-destructive border border-destructive/20 rounded-xl text-xs font-bold hover:bg-destructive/20 transition-all disabled:opacity-50 flex-shrink-0">
-                  {deletingSubmission ? '...' : '🗑 Delete & Resubmit'}
+                  className="px-4 py-2 text-sm font-bold text-red-600 hover:bg-red-50 rounded-xl transition-all disabled:opacity-50">
+                  {deletingSubmission ? 'Deleting...' : 'Delete'}
                 </button>
               )}
             </div>
-            {submittedAt && Date.now() - submittedAt.getTime() < 2 * 60 * 60 * 1000 && (
-              <p className="text-[10px] text-muted-foreground text-center">
-                You can delete and resubmit within 2 hours of submission
-              </p>
-            )}
           </div>
         ) : (
-          <SubmitSection challenge={challenge} onSubmitted={handleSubmitted} />
+          <div className="space-y-4">
+            <div className="text-center">
+              <p className="text-sm font-bold text-gray-600 uppercase tracking-widest mb-4">Share Your Response</p>
+            </div>
+            <SubmitSection challenge={challenge} onSubmitted={handleSubmitted} />
+          </div>
         )}
       </div>
 
-      {/* Feed — always visible */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between flex-wrap gap-2">
-          <h3 className="font-black text-lg">Today's Responses</h3>
-          <div className="flex items-center gap-1">
-            <span className="text-xs text-muted-foreground mr-1">{feedTotal}</span>
+      {/* Community Responses Section */}
+      <div className="px-4 pt-2 space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-lg font-bold">Community Responses</h3>
+            <p className="text-sm text-muted-foreground">{feedTotal} response{feedTotal !== 1 ? 's' : ''}</p>
+          </div>
+          <div className="flex gap-2">
             {[
-              { key: 'recent', label: '🕐 Recent' },
-              { key: 'top_feedback', label: '💬 Top' },
-              { key: 'top_ai', label: '🤖 AI Score' },
+              { key: 'recent', label: 'Recent' },
+              { key: 'top_feedback', label: 'Top' },
+              { key: 'top_ai', label: 'AI Score' }
             ].map(s => (
               <button key={s.key} onClick={() => handleSortChange(s.key)}
-                className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all ${feedSort === s.key ? 'bg-primary text-primary-foreground' : 'bg-accent/40 text-muted-foreground hover:text-foreground'}`}>
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${feedSort === s.key ? 'bg-primary text-primary-foreground' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
                 {s.label}
               </button>
             ))}
