@@ -1,27 +1,53 @@
 services:
+  # Frontend Service
   - type: web
-    name: skill-connect-backend
-    runtime: node
-    region: oregon
-    plan: free
-    buildCommand: npm run build
-    startCommand: npm run start
-    healthCheckPath: /health
-    healthCheckInterval: 30
-    healthCheckTimeout: 10
+    name: skill-connect-frontend
+    env: static
+    buildCommand: cd frontend && npm ci && npm run build
+    staticPublishPath: frontend/dist
+    pullRequestPreviewsEnabled: true
+    headers:
+      - path: /*
+        name: X-Frame-Options
+        value: DENY
+      - path: /*
+        name: X-Content-Type-Options
+        value: nosniff
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
     envVars:
       - key: NODE_ENV
         value: production
-      - key: RENDER_EXTERNAL_URL
-        value: https://collabro.onrender.com
-      - key: REDIS_URL
-        fromService:
-          type: redis
-          name: skill-connect-redis
-          property: connectionString
 
-  - type: redis
-    name: skill-connect-redis
-    region: oregon
-    plan: free
-    ipAllowList: [] # only internal access
+  # Backend Service  
+  - type: web
+    name: skill-connect-backend
+    env: node
+    plan: starter
+    buildCommand: cd backend && npm ci
+    startCommand: cd backend && npm start
+    pullRequestPreviewsEnabled: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      # Add your other environment variables here
+      # - key: DATABASE_URL
+      #   fromDatabase:
+      #     name: skill-connect-db
+      #     property: connectionString
+
+# Optional: Database (if using Render's managed database)
+# databases:
+#   - name: skill-connect-db
+#     databaseName: skillconnect
+#     user: skillconnect_user
+#     plan: starter
+
+# Optional: Redis (if using Render's managed Redis)
+# - type: redis
+#   name: skill-connect-redis
+#   plan: starter
