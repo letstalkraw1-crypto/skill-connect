@@ -1,8 +1,56 @@
 import axios from 'axios';
 
+// Create axios instance with timeout and retry configuration
 const api = axios.create({
   baseURL: '/api', // Using /api prefix to avoid routing conflicts
+  timeout: 30000, // 30 second timeout
+  retry: 3, // Number of retries
+  retryDelay: 1000, // Initial retry delay in ms
 });
+
+// Retry logic for failed requests
+const axiosRetry = (axiosInstance) => {
+  axiosInstance.interceptors.response.use(
+    (response) => response,
+    async (error) => {
+      const config = error.config;
+      
+      // Don't retry if no config or already retried max times
+      if (!config || config.__retryCount >= (config.retry || 3)) {
+        return Promise.reject(error);
+      }
+
+      // Don't retry on 4xx errors (client errors) except 408, 429
+      if (error.response?.status >= 400 && error.response?.status < 500 && 
+          ![408, 429].includes(error.response.status)) {
+        return Promise.reject(error);
+      }
+
+      // Don't retry on successful responses or if request was cancelled
+      if (error.code === 'ECONNABORTED' && error.message.includes('timeout')) {
+        console.warn(`Request timeout, retrying... (${config.__retryCount + 1}/${config.retry})`);
+      } else if (error.response?.status >= 500) {
+        console.warn(`Server error ${error.response.status}, retrying... (${config.__retryCount + 1}/${config.retry})`);
+      } else if (!error.response) {
+        console.warn(`Network error, retrying... (${config.__retryCount + 1}/${config.retry})`);
+      } else {
+        return Promise.reject(error);
+      }
+
+      config.__retryCount = (config.__retryCount || 0) + 1;
+      
+      // Exponential backoff
+      const delay = (config.retryDelay || 1000) * Math.pow(2, config.__retryCount - 1);
+      
+      return new Promise((resolve) => {
+        setTimeout(() => resolve(axiosInstance(config)), delay);
+      });
+    }
+  );
+};
+
+// Apply retry logic
+axiosRetry(api);
 
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('token');

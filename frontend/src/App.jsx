@@ -2,10 +2,12 @@ import { Suspense, lazy, useEffect } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { SocketProvider, useSocketContext } from './context/SocketContext';
+import ToastProvider from './context/ToastContext';
 import Navbar from './components/Navbar';
 import BottomNav from './components/BottomNav';
 import { useNetworkStatus } from './hooks/useNetworkStatus';
 import InstallPrompt from './components/InstallPrompt';
+import ErrorBoundary from './components/ErrorBoundary';
 
 // Lazy load pages for performance optimization
 const Home = lazy(() => import('./pages/Home'));
@@ -59,39 +61,43 @@ const OfflineBanner = () => {
 
 const App = () => {
   return (
-    <AuthProvider>
-      <SocketProvider>
-        <OfflineBanner />
-        <div className="min-h-[100dvh] bg-background text-foreground transition-colors duration-300 pb-20 md:pb-0 overflow-x-hidden">
-          <Navbar />
-          <main className="container mx-auto px-4 py-4 md:py-8">
-            <Suspense fallback={<LoadingFallback />}>
-              <Routes>
-                <Route path="/auth" element={<Auth />} />
-                <Route path="/auth/callback" element={<OAuthCallback />} />
-                <Route path="/admin" element={<Admin />} />
-                <Route path="/" element={<PrivateRoute><Home /></PrivateRoute>} />
-                <Route path="/profile/:id" element={<PrivateRoute><ProfileByShortId /></PrivateRoute>} />
-                <Route path="/u/:shortId" element={<PrivateRoute><ProfileByShortId /></PrivateRoute>} />
-                <Route path="/chat/:id?" element={<PrivateRoute><Chat /></PrivateRoute>} />
-                <Route path="/discovery" element={<PrivateRoute><Discovery /></PrivateRoute>} />
-                <Route path="/notifications" element={<PrivateRoute><Notifications /></PrivateRoute>} />
-                <Route path="/challenges" element={<PrivateRoute><Challenges /></PrivateRoute>} />
-                <Route path="/resources" element={<PrivateRoute><Resources /></PrivateRoute>} />
-                <Route path="/qa" element={<PrivateRoute><QARooms /></PrivateRoute>} />
-                <Route path="/daily-challenge" element={<PrivateRoute><DailyChallenge /></PrivateRoute>} />
-                <Route path="/onboarding" element={<PrivateRoute><Onboarding /></PrivateRoute>} />
-                <Route path="/progress" element={<PrivateRoute><Progress /></PrivateRoute>} />
-                <Route path="/legal/:type" element={<Legal />} />
-                <Route path="*" element={<Navigate to="/" />} />
-              </Routes>
-            </Suspense>
-          </main>
-          <BottomNav />
-          <InstallPrompt />
-        </div>
-      </SocketProvider>
-    </AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider>
+        <ToastProvider>
+          <SocketProvider>
+            <OfflineBanner />
+            <div className="min-h-[100dvh] bg-background text-foreground transition-colors duration-300 pb-20 md:pb-0 overflow-x-hidden">
+              <Navbar />
+              <main className="container mx-auto px-4 py-4 md:py-8">
+                <Suspense fallback={<LoadingFallback />}>
+                  <Routes>
+                    <Route path="/auth" element={<Auth />} />
+                    <Route path="/auth/callback" element={<OAuthCallback />} />
+                    <Route path="/admin" element={<Admin />} />
+                    <Route path="/" element={<PrivateRoute><Home /></PrivateRoute>} />
+                    <Route path="/profile/:id" element={<PrivateRoute><ProfileByShortId /></PrivateRoute>} />
+                    <Route path="/u/:shortId" element={<PrivateRoute><ProfileByShortId /></PrivateRoute>} />
+                    <Route path="/chat/:id?" element={<PrivateRoute><Chat /></PrivateRoute>} />
+                    <Route path="/discovery" element={<PrivateRoute><Discovery /></PrivateRoute>} />
+                    <Route path="/notifications" element={<PrivateRoute><Notifications /></PrivateRoute>} />
+                    <Route path="/challenges" element={<PrivateRoute><Challenges /></PrivateRoute>} />
+                    <Route path="/resources" element={<PrivateRoute><Resources /></PrivateRoute>} />
+                    <Route path="/qa" element={<PrivateRoute><QARooms /></PrivateRoute>} />
+                    <Route path="/daily-challenge" element={<PrivateRoute><DailyChallenge /></PrivateRoute>} />
+                    <Route path="/onboarding" element={<PrivateRoute><Onboarding /></PrivateRoute>} />
+                    <Route path="/progress" element={<PrivateRoute><Progress /></PrivateRoute>} />
+                    <Route path="/legal/:type" element={<Legal />} />
+                    <Route path="*" element={<Navigate to="/" />} />
+                  </Routes>
+                </Suspense>
+              </main>
+              <BottomNav />
+              <InstallPrompt />
+            </div>
+          </SocketProvider>
+        </ToastProvider>
+      </AuthProvider>
+    </ErrorBoundary>
   );
 };
 

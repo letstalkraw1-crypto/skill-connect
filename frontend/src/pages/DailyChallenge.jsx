@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 import { Video, Upload, Send, ThumbsUp, ArrowRight, Loader2, X, ChevronDown, ChevronUp, Flame } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Avatar from '../components/Avatar';
@@ -90,6 +91,7 @@ const FeedbackItem = ({ feedback: f, currentUserId, isVideoOwner, onDeleted, onR
   const [replyText, setReplyText] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const pressTimer = useRef(null);
+  const { error: showError } = useToast();
 
   const canDelete = f.reviewerId === currentUserId || isVideoOwner;
   const canReply = isVideoOwner && !f.ownerReply;
@@ -103,7 +105,7 @@ const FeedbackItem = ({ feedback: f, currentUserId, isVideoOwner, onDeleted, onR
       await api.delete(`/daily-challenge/feedback/${f._id}`);
       onDeleted();
     } catch (err) {
-      alert(err?.response?.data?.error || 'Failed to delete');
+      showError(err?.response?.data?.error || 'Failed to delete feedback');
     }
   };
 
@@ -116,7 +118,7 @@ const FeedbackItem = ({ feedback: f, currentUserId, isVideoOwner, onDeleted, onR
       setReplyText('');
       setShowReplyInput(false);
     } catch (err) {
-      alert(err?.response?.data?.error || 'Failed to reply');
+      showError(err?.response?.data?.error || 'Failed to reply');
     } finally {
       setSubmitting(false);
     }
@@ -1171,12 +1173,13 @@ const SubmitSection = ({ challenge, onSubmitted }) => {
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function DailyChallenge() {
   const { user } = useAuth();
+  const { error: showError, success: showSuccess } = useToast();
   const [challenge, setChallenge] = useState(null);
   const [loading, setLoading] = useState(true);
   const [submitted, setSubmitted] = useState(false);
   const [submittedAt, setSubmittedAt] = useState(null);
   const [deletingSubmission, setDeletingSubmission] = useState(false);
-  const [showSuccess, setShowSuccess] = useState(false);
+  const [showSuccessBanner, setShowSuccessBanner] = useState(false);
   const [timeLeft, setTimeLeft] = useState('');
 
   // Live countdown to dueTime
@@ -1242,8 +1245,9 @@ export default function DailyChallenge() {
   const handleSubmitted = () => {
     setSubmitted(true);
     setSubmittedAt(new Date());
-    setShowSuccess(true);
-    setTimeout(() => setShowSuccess(false), 4000);
+    setShowSuccessBanner(true);
+    showSuccess('🎉 Submitted! Your streak is growing 🔥');
+    setTimeout(() => setShowSuccessBanner(false), 4000);
     if (challenge) loadFeed(challenge._id, 1);
   };
 
@@ -1254,9 +1258,10 @@ export default function DailyChallenge() {
       await api.delete(`/daily-challenge/${challenge._id}/submit`);
       setSubmitted(false);
       setSubmittedAt(null);
+      showSuccess('Submission deleted successfully');
       if (challenge) loadFeed(challenge._id, 1);
     } catch (err) {
-      alert(err?.response?.data?.error || 'Failed to delete submission');
+      showError(err?.response?.data?.error || 'Failed to delete submission');
     } finally {
       setDeletingSubmission(false);
     }
@@ -1285,7 +1290,7 @@ export default function DailyChallenge() {
       style={{ paddingBottom: 'calc(6rem + env(safe-area-inset-bottom, 0px))' }}>
       {/* Success banner */}
       <AnimatePresence>
-        {showSuccess && (
+        {showSuccessBanner && (
           <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}
             className="fixed top-20 left-1/2 -translate-x-1/2 z-50 px-6 py-3 bg-emerald-500 text-white rounded-2xl font-bold shadow-2xl flex items-center gap-2">
             🎉 Submitted! Your streak is growing 🔥

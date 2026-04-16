@@ -97,7 +97,7 @@ async function login(email, password) {
     match = (password === user.password);
     if (match) {
       console.log('🔄 Migrating plain-text password to hash...');
-      user.password = password;
+      user.password = await bcrypt.hash(password, SALT_ROUNDS);
       await user.save();
     }
   }

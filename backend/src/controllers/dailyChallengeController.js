@@ -2,6 +2,7 @@ const { DailyChallenge, ChallengeVideo, VideoFeedback, User, Notification } = re
 const { v4: uuidv4 } = require('uuid');
 const { uploadToCloudinary } = require('../config/cloudinary');
 const { analyzeVideo } = require('../services/aiAnalysis');
+const { checkAchievements } = require('../services/achievementService');
 
 const todayStr = () => new Date().toISOString().slice(0, 10);
 
@@ -90,6 +91,35 @@ const submitVideo = async (req, res) => {
 
     // Update user streak
     await updateStreak(req.user.userId);
+
+    // Check for achievements (async, non-blocking)
+    const challengeCreatedAt = challenge.createdAt;
+    const submissionTime = new Date();
+    checkAchievements(req.user.userId, { challengeCreatedAt, submissionTime }).then(newAchievements => {
+      if (newAchievements.length > 0) {
+        console.log(`🏆 User ${req.user.userId} unlocked ${newAchievements.length} achievements:`, 
+          newAchievements.map(a => a.name).join(', '));
+        
+        // Emit achievement notifications via socket
+        try {
+          const { emitToUser } = require('../socket/index');
+          newAchievements.forEach(achievement => {
+            emitToUser(req.user.userId, 'achievement_unlocked', {
+              achievement: {
+                name: achievement.name,
+                description: achievement.description,
+                badge: achievement.badge,
+                points: achievement.pointsAwarded
+              }
+            });
+          });
+        } catch (emitErr) {
+          console.error('Failed to emit achievement notifications:', emitErr.message);
+        }
+      }
+    }).catch(err => {
+      console.error('Error checking achievements:', err.message);
+    });
 
     // Trigger AI analysis asynchronously (non-blocking)
     analyzeVideo(video._id, result.secure_url, challenge.topic).catch(err =>

@@ -36,6 +36,8 @@ const userSchema = new mongoose.Schema({
   // Streak tracking
   streakCount: { type: Number, default: 0 },
   lastActiveDate: { type: String, default: null }, // YYYY-MM-DD
+  // Points and achievements
+  points: { type: Number, default: 0 },
   // Onboarding
   userIntent: { type: String, enum: ['interview', 'confidence', 'creator', 'communication', ''], default: '' },
   comfortLevel: { type: String, enum: ['beginner', 'intermediate', 'confident', ''], default: '' },

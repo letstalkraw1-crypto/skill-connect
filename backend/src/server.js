@@ -19,6 +19,16 @@ app.set('trust proxy', 1);
 // Security
 app.use(helmet({ contentSecurityPolicy: false, crossOriginEmbedderPolicy: false }));
 
+// OTP rate limiting — strict to prevent brute force
+const otpLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  limit: 3, // Only 3 OTP requests per 15 minutes per IP+email
+  message: { error: 'Too many OTP requests. Try again in 15 minutes.' },
+  keyGenerator: (req) => `${req.ip}:${req.body.email || req.body.phone || 'unknown'}`,
+  standardHeaders: true,
+  legacyHeaders: false
+});
+
 // Auth rate limiting — strict on login/signup/otp, relaxed on /me
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -26,6 +36,8 @@ const authLimiter = rateLimit({
   message: { error: 'Too many authentication attempts. Try again in 15 minutes.' },
   skip: (req) => req.path === '/me' // don't rate limit the /me endpoint
 });
+app.use('/api/auth/send-otp', otpLimiter);
+app.use('/api/auth/verify-otp', otpLimiter);
 app.use('/api/auth', authLimiter);
 
 // Main rate limit
@@ -106,6 +118,7 @@ app.use('/api/notifications', require('./routes/notificationRoutes'));
 app.use('/api/upload', require('./routes/upload'));
 app.use('/api/daily-challenge', require('./routes/dailyChallengeRoutes'));
 app.use('/api/user-challenges', require('./routes/userChallengeRoutes'));
+app.use('/api/achievements', require('./routes/achievementRoutes'));
 app.use('/api/follow', require('./routes/followRoutes'));
 
 // Socket.io
@@ -136,7 +149,23 @@ app.get('*', (req, res) => {
 });
 
 const PORT = process.env.PORT || 5000;
-server.listen(PORT, '0.0.0.0', () => { logger.info(`✅ Server running on port ${PORT}`); });
+server.listen(PORT, '0.0.0.0', async () => { 
+  logger.info(`✅ Server running on port ${PORT}`);
+  
+  // Initialize achievements and database indexes
+  try {
+    const { initializeAchievements } = require('./services/achievementService');
+    await initializeAchievements();
+    
+    // Create database indexes for performance (non-blocking)
+    const { createIndexes } = require('./utils/createIndexes');
+    createIndexes().catch(err => {
+      console.error('⚠️ Failed to create database indexes:', err.message);
+    });
+  } catch (err) {
+    console.error('⚠️ Failed to initialize achievements:', err.message);
+  }
+});
 
 // Prevent process crashes from unhandled errors
 process.on('uncaughtException', (err) => {

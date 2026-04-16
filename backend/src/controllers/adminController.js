@@ -180,9 +180,15 @@ const getPendingVerifications = async (req, res) => {
     const verifications = await SkillVerification.find({ status: 'pending' })
       .sort({ createdAt: -1 })
       .lean();
-    const enriched = await Promise.all(verifications.map(async (v) => {
-      const user = await User.findById(v.userId).select('name email avatarUrl shortId').lean();
-      return { ...v, user };
+    
+    // Fix N+1 query - get all user IDs first, then fetch users in one query
+    const userIds = [...new Set(verifications.map(v => v.userId))];
+    const users = await User.find({ _id: { $in: userIds } }).select('name email avatarUrl shortId').lean();
+    const userMap = Object.fromEntries(users.map(u => [u._id.toString(), u]));
+    
+    const enriched = verifications.map(v => ({
+      ...v,
+      user: userMap[v.userId] || null
     }));
     res.json(enriched);
   } catch (err) {
