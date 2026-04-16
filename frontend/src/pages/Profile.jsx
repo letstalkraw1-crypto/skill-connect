@@ -1,4 +1,4 @@
-import { Edit3, MapPin, Calendar, Link as LinkIcon, Instagram, Github, Chrome, MessageCircle, UserPlus, Check, X, Shield, Star, Camera, Loader2, PlusCircle, Copy, Flame, Mic2, Play } from 'lucide-react';
+import { Edit3, MapPin, Calendar, Link as LinkIcon, Instagram, Github, Chrome, MessageCircle, UserPlus, Check, X, Shield, Star, Camera, Loader2, PlusCircle, Copy, Flame, Mic2, Play, LogOut } from 'lucide-react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
@@ -132,7 +132,7 @@ const VideoSubmissionsTab = ({ userId, isOwnProfile, streakCount, activeDays, to
 
 const Profile = () => {
   const { id } = useParams();
-  const { user: currentUser, updateUser } = useAuth();
+  const { user: currentUser, updateUser, logout } = useAuth();
   const { on } = useSocketContext() || {};
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
@@ -479,13 +479,23 @@ const Profile = () => {
                 <Chrome size={20} />
               </a>
               {isOwnProfile && (
-                <button 
-                  onClick={() => setShowEditModal(true)}
-                  className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-primary/10 text-primary border border-primary/20 rounded-xl font-bold text-xs hover:bg-primary/20 transition-all ml-auto"
-                >
-                  <Edit3 size={14} />
-                  Edit Profile
-                </button>
+                <div className="flex gap-2 ml-auto">
+                  <button 
+                    onClick={() => setShowEditModal(true)}
+                    className="flex items-center justify-center gap-2 py-2.5 px-4 bg-primary/10 text-primary border border-primary/20 rounded-xl font-bold text-xs hover:bg-primary/20 transition-all"
+                  >
+                    <Edit3 size={14} />
+                    Edit Profile
+                  </button>
+                  <button 
+                    onClick={logout}
+                    className="flex items-center justify-center gap-2 py-2.5 px-4 bg-destructive/10 text-destructive border border-destructive/20 rounded-xl font-bold text-xs hover:bg-destructive/20 transition-all"
+                    title="Logout"
+                  >
+                    <LogOut size={14} />
+                    Logout
+                  </button>
+                </div>
               )}
             </div>
           </motion.div>

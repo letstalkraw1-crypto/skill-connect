@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Home, Search, MessageSquare, User, LogOut, X, Mic2, TrendingUp } from 'lucide-react';
+import { Search, MessageSquare, User } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { AnimatePresence, motion } from 'framer-motion';
 import Avatar from './Avatar';
@@ -21,26 +21,25 @@ const NavItem = ({ to, icon: Icon, label, active }) => (
 );
 
 const Navbar = () => {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const [showSearch, setShowSearch] = React.useState(false);
   const [searchQuery, setSearchQuery] = React.useState('');
   const [searchResults, setSearchResults] = React.useState([]);
   const [searching, setSearching] = React.useState(false);
   const searchRef = React.useRef(null);
-  const location = useLocation();
   const navigate = useNavigate();
 
-  // Debounced search
+  // Debounced search with longer delay to reduce API calls
   React.useEffect(() => {
-    if (!searchQuery.trim() || searchQuery.length < 2) { setSearchResults([]); return; }
+    if (!searchQuery.trim() || searchQuery.length < 3) { setSearchResults([]); return; } // Increased to 3 chars
     const timer = setTimeout(async () => {
       setSearching(true);
       try {
-        const { data } = await api.get(`/discover/search?q=${encodeURIComponent(searchQuery)}`);
+        const { data } = await api.get(`/discover/search?q=${encodeURIComponent(searchQuery)}&limit=5`); // Limit results
         setSearchResults(Array.isArray(data) ? data : []);
       } catch { setSearchResults([]); }
       finally { setSearching(false); }
-    }, 400);
+    }, 600); // Increased delay to 600ms
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
@@ -69,23 +68,15 @@ const Navbar = () => {
             <span className="text-xl font-bold tracking-tight hidden sm:inline">Collabro</span>
           </Link>
 
-          <div className="hidden md:flex items-center gap-2 ml-8 flex-1">
-            <NavItem to="/" icon={Home} label="Home" active={location.pathname === '/'} />
-            <NavItem to="/daily-challenge" icon={Mic2} label="Daily Challenge" active={location.pathname.startsWith('/daily-challenge')} />
-            <NavItem to="/progress" icon={TrendingUp} label="Progress" active={location.pathname.startsWith('/progress')} />
-            <NavItem to="/discovery" icon={Search} label="Discover" active={location.pathname.startsWith('/discovery')} />
-            <NavItem to="/chat" icon={MessageSquare} label="Messages" active={location.pathname.startsWith('/chat')} />
-            <NavItem to={`/profile/${user._id || user.id}`} icon={User} label="Profile" active={location.pathname.startsWith('/profile')} />
-          </div>
-
+          {/* Right side navigation - Search, Messages, Profile */}
           <div className="flex items-center gap-2">
-
             {/* Search */}
             <div className="relative" ref={searchRef}>
               <button
                 onClick={() => { setShowSearch(s => !s); setTimeout(() => document.getElementById('global-search')?.focus(), 100); }}
                 className="h-10 w-10 flex items-center justify-center rounded-full hover:bg-accent transition-colors text-muted-foreground hover:text-foreground"
                 title="Search"
+                aria-label="Search users and content"
               >
                 <Search size={20} />
               </button>
@@ -98,7 +89,11 @@ const Navbar = () => {
                       <input id="global-search" type="text" placeholder="Search users, events, communities..."
                         value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
                         className="flex-1 bg-transparent outline-none text-sm" autoComplete="off" />
-                      {searchQuery && <button onClick={() => { setSearchQuery(''); setSearchResults([]); }}><X size={14} className="text-muted-foreground" /></button>}
+                      {searchQuery && (
+                        <button onClick={() => { setSearchQuery(''); setSearchResults([]); }} aria-label="Clear search">
+                          <span className="text-muted-foreground">✕</span>
+                        </button>
+                      )}
                     </div>
                     <div className="max-h-72 overflow-y-auto">
                       {searching ? (
@@ -121,24 +116,24 @@ const Navbar = () => {
               </AnimatePresence>
             </div>
 
-            {/* Messages quick access */}
+            {/* Messages */}
             <Link to="/chat"
-              className={`h-10 w-10 flex items-center justify-center rounded-full hover:bg-accent transition-colors text-muted-foreground hover:text-foreground relative`}
-              title="Messages">
+              className="h-10 w-10 flex items-center justify-center rounded-full hover:bg-accent transition-colors text-muted-foreground hover:text-foreground"
+              title="Messages"
+              aria-label="Go to messages">
               <MessageSquare size={20} />
             </Link>
 
-            <div className="h-8 w-[1px] bg-border mx-1 hidden sm:block"></div>
-
-            <button onClick={logout}
-              className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-destructive hover:bg-destructive/10 transition-colors">
-              <LogOut size={18} />
-              <span className="hidden sm:inline">Logout</span>
-            </button>
+            {/* Profile */}
+            <Link to={`/profile/${user._id || user.id}`}
+              className="h-10 w-10 flex items-center justify-center rounded-full hover:bg-accent transition-colors text-muted-foreground hover:text-foreground"
+              title="Profile"
+              aria-label="Go to profile">
+              <User size={20} />
+            </Link>
           </div>
         </div>
       </nav>
-
     </>
   );
 };

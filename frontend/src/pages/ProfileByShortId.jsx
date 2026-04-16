@@ -20,12 +20,15 @@ const ProfileByShortId = () => {
         return;
       }
       
+      console.log('ProfileByShortId: Resolving ID:', paramId);
+      
       // Check if it looks like a MongoDB ObjectId (24 hex chars) or UUID
       const isObjectId = /^[0-9a-f]{24}$/i.test(paramId);
       const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(paramId);
       
       if (isObjectId || isUUID) {
         // It's already a userId, use it directly
+        console.log('ProfileByShortId: Direct user ID detected:', paramId);
         setUserId(paramId);
         setIsShortId(false);
         setLoading(false);
@@ -36,10 +39,13 @@ const ProfileByShortId = () => {
       try {
         setLoading(true);
         setIsShortId(true);
+        console.log('ProfileByShortId: Resolving shortId:', paramId);
         const { data } = await userService.getProfileByShortId(paramId);
-        setUserId(data._id || data.userId || data.id);
+        const resolvedUserId = data._id || data.userId || data.id;
+        console.log('ProfileByShortId: Resolved to user ID:', resolvedUserId);
+        setUserId(resolvedUserId);
       } catch (err) {
-        console.error('Profile resolution error:', err);
+        console.error('ProfileByShortId: Resolution error:', err);
         setError(err.response?.data?.error || 'User not found');
       } finally {
         setLoading(false);
