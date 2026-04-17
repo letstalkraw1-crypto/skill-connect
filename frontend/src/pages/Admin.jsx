@@ -480,6 +480,9 @@ const UserDetailModal = ({ user, editMode, onClose, onEdit, onSave, onDelete }) 
     password: '',
   });
   const [activeTab, setActiveTab] = useState('profile');
+  const [transcriptModal, setTranscriptModal] = useState(null); // { videoId, videoUrl, transcript }
+  const [transcriptLoading, setTranscriptLoading] = useState(null); // videoId being loaded
+  const [transcripts, setTranscripts] = useState({}); // { videoId: { text, status } }
 
   const handleSave = () => {
     const updates = {};
@@ -492,6 +495,40 @@ const UserDetailModal = ({ user, editMode, onClose, onEdit, onSave, onDelete }) 
 
   const videos = user.challengeVideos || [];
   const totalStorageMB = videos.reduce((sum, v) => sum + (v.bytes ? v.bytes / 1024 / 1024 : 0), 0);
+
+  const loadTranscript = async (video) => {
+    const videoId = video._id;
+    // If already have transcript, open modal directly
+    if (transcripts[videoId]?.text) {
+      setTranscriptModal({ videoId, videoUrl: video.videoUrl, transcript: transcripts[videoId].text });
+      return;
+    }
+    // If transcript already in video data
+    if (video.aiAnalysis?.transcript) {
+      setTranscripts(prev => ({ ...prev, [videoId]: { text: video.aiAnalysis.transcript, status: 'done' } }));
+      setTranscriptModal({ videoId, videoUrl: video.videoUrl, transcript: video.aiAnalysis.transcript });
+      return;
+    }
+    // Fetch from API
+    setTranscriptLoading(videoId);
+    try {
+      const token = localStorage.getItem('token');
+      const { data } = await axios.get(`${API_BASE}/daily-challenge/transcript/${videoId}/admin`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (data.transcript) {
+        setTranscripts(prev => ({ ...prev, [videoId]: { text: data.transcript, status: 'done' } }));
+        setTranscriptModal({ videoId, videoUrl: video.videoUrl, transcript: data.transcript });
+      } else {
+        setTranscripts(prev => ({ ...prev, [videoId]: { text: null, status: data.status || 'processing' } }));
+        alert(`Transcript is being generated (status: ${data.status}). Check back in a minute.`);
+      }
+    } catch (err) {
+      alert(err?.response?.data?.error || 'Failed to load transcript');
+    } finally {
+      setTranscriptLoading(null);
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
@@ -569,10 +606,25 @@ const UserDetailModal = ({ user, editMode, onClose, onEdit, onSave, onDelete }) 
                       <p className="font-bold text-sm truncate">{v.challenge?.topic || 'Unknown challenge'}</p>
                       <p className="text-xs text-muted-foreground">{v.challenge?.date || '—'}</p>
                     </div>
-                    <a href={v.videoUrl} target="_blank" rel="noopener noreferrer"
-                      className="px-3 py-1 bg-primary/10 text-primary rounded-lg text-xs font-bold hover:bg-primary/20 flex-shrink-0">
-                      ▶ View
-                    </a>
+                    <div className="flex gap-2 flex-shrink-0">
+                      <a href={v.videoUrl} target="_blank" rel="noopener noreferrer"
+                        className="px-3 py-1 bg-primary/10 text-primary rounded-lg text-xs font-bold hover:bg-primary/20">
+                        ▶ View
+                      </a>
+                      <button
+                        onClick={() => loadTranscript(v)}
+                        disabled={transcriptLoading === v._id}
+                        className="px-3 py-1 bg-violet-500/10 text-violet-400 border border-violet-500/20 rounded-lg text-xs font-bold hover:bg-violet-500/20 disabled:opacity-50 flex items-center gap-1"
+                      >
+                        {transcriptLoading === v._id ? (
+                          <><span className="animate-spin">⟳</span> Loading...</>
+                        ) : transcripts[v._id]?.text || v.aiAnalysis?.transcript ? (
+                          '📄 View Transcript'
+                        ) : (
+                          '📄 Get Transcript'
+                        )}
+                      </button>
+                    </div>
                   </div>
                   <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-muted-foreground">
                     <span><span className="font-bold text-foreground">Uploaded:</span> {new Date(v.createdAt).toLocaleString()}</span>
@@ -589,6 +641,58 @@ const UserDetailModal = ({ user, editMode, onClose, onEdit, onSave, onDelete }) 
             </div>
           )}
         </div>
+
+        {/* Admin Transcript Modal */}
+        {transcriptModal && (
+          <div className="fixed inset-0 z-[200] bg-black/95 flex flex-col">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 flex-shrink-0">
+              <div className="flex items-center gap-2">
+                <span className="text-violet-400">📄</span>
+                <h3 className="font-black text-white text-sm">Transcript — Admin View</h3>
+                <span className="px-2 py-0.5 bg-violet-500/20 text-violet-400 text-[10px] font-bold rounded-full">
+                  {transcriptModal.transcript?.split(' ').length || 0} words
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(transcriptModal.transcript || '');
+                  }}
+                  className="px-3 py-1.5 bg-white/10 hover:bg-white/20 text-white rounded-lg text-xs font-bold"
+                >
+                  Copy
+                </button>
+                <button
+                  onClick={() => {
+                    const blob = new Blob([transcriptModal.transcript || ''], { type: 'text/plain' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url; a.download = `transcript-${transcriptModal.videoId}.txt`; a.click();
+                    URL.revokeObjectURL(url);
+                  }}
+                  className="px-3 py-1.5 bg-violet-500/20 hover:bg-violet-500/30 text-violet-400 rounded-lg text-xs font-bold"
+                >
+                  Download
+                </button>
+                <button onClick={() => setTranscriptModal(null)}
+                  className="h-8 w-8 flex items-center justify-center rounded-xl bg-white/10 hover:bg-white/20 text-white">
+                  ✕
+                </button>
+              </div>
+            </div>
+            <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
+              <div className="md:w-1/2 bg-black flex items-center justify-center">
+                <video src={transcriptModal.videoUrl} controls className="w-full max-h-[40vh] md:max-h-full" playsInline />
+              </div>
+              <div className="md:w-1/2 overflow-y-auto p-5 bg-black/40">
+                <p className="text-[10px] text-white/30 uppercase tracking-widest font-bold mb-3">Full Transcript</p>
+                <p className="text-white/85 text-sm leading-8 select-text whitespace-pre-wrap">
+                  {transcriptModal.transcript}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="p-6 border-t border-border flex gap-3 flex-shrink-0">
           {editMode ? (

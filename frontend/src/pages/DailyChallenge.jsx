@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
-import { Video, Upload, Send, ThumbsUp, ArrowRight, Loader2, X, ChevronDown, ChevronUp, Flame } from 'lucide-react';
+import { Video, Upload, Send, ThumbsUp, ArrowRight, Loader2, X, ChevronDown, ChevronUp, Flame, FileText, Copy, Download, RefreshCw } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Avatar from '../components/Avatar';
 import api from '../services/api';
@@ -250,47 +250,190 @@ const RadarChart = ({ scores }) => {
   );
 };
 
-// ─── Transcript Viewer ────────────────────────────────────────────────────────
-const TranscriptViewer = ({ videoUrl, transcript, onClose }) => {
+// ─── Transcript Panel ─────────────────────────────────────────────────────────
+const TranscriptPanel = ({ videoId, videoUrl, existingTranscript, onClose }) => {
+  const [transcript, setTranscript] = useState(existingTranscript || null);
+  const [status, setStatus] = useState(existingTranscript ? 'done' : 'idle');
+  const [copied, setCopied] = useState(false);
   const videoRef = useRef(null);
   const [currentTime, setCurrentTime] = useState(0);
+  const pollRef = useRef(null);
 
-  // Split transcript into words with rough timing
+  // If no transcript yet, request it on mount
+  useEffect(() => {
+    if (existingTranscript) { setTranscript(existingTranscript); setStatus('done'); return; }
+    requestTranscript();
+    return () => { if (pollRef.current) clearInterval(pollRef.current); };
+  }, [videoId]);
+
+  const requestTranscript = async () => {
+    setStatus('processing');
+    try {
+      const { data } = await api.get(`/daily-challenge/transcript/${videoId}`);
+      if (data.transcript) {
+        setTranscript(data.transcript);
+        setStatus('done');
+      } else {
+        // Poll until done
+        pollRef.current = setInterval(async () => {
+          try {
+            const { data: poll } = await api.get(`/daily-challenge/transcript/${videoId}`);
+            if (poll.transcript) {
+              setTranscript(poll.transcript);
+              setStatus('done');
+              clearInterval(pollRef.current);
+            } else if (poll.status === 'failed') {
+              setStatus('failed');
+              clearInterval(pollRef.current);
+            }
+          } catch { clearInterval(pollRef.current); setStatus('failed'); }
+        }, 6000);
+      }
+    } catch (err) {
+      setStatus('failed');
+    }
+  };
+
+  const handleCopy = () => {
+    if (!transcript) return;
+    navigator.clipboard.writeText(transcript).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
+
+  const handleDownload = () => {
+    if (!transcript) return;
+    const blob = new Blob([transcript], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `transcript-${videoId}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  // Word-level sync with video
   const words = transcript ? transcript.split(' ') : [];
   const totalWords = words.length;
 
   return (
     <div className="fixed inset-0 z-[150] bg-black/95 flex flex-col">
+      {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 flex-shrink-0">
-        <h3 className="font-black text-white text-sm">Video + Transcript</h3>
-        <button onClick={onClose} className="h-8 w-8 flex items-center justify-center rounded-xl bg-white/10 text-white"><X size={16} /></button>
+        <div className="flex items-center gap-2">
+          <FileText size={16} className="text-violet-400" />
+          <h3 className="font-black text-white text-sm">Transcript</h3>
+          {status === 'done' && (
+            <span className="px-2 py-0.5 bg-emerald-500/20 text-emerald-400 text-[10px] font-bold rounded-full">
+              {words.length} words
+            </span>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          {status === 'done' && (
+            <>
+              <button onClick={handleCopy}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-white/10 hover:bg-white/20 text-white rounded-lg text-xs font-bold transition-colors">
+                <Copy size={12} />
+                {copied ? 'Copied!' : 'Copy'}
+              </button>
+              <button onClick={handleDownload}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-violet-500/20 hover:bg-violet-500/30 text-violet-400 rounded-lg text-xs font-bold transition-colors">
+                <Download size={12} />
+                Download
+              </button>
+            </>
+          )}
+          <button onClick={onClose}
+            className="h-8 w-8 flex items-center justify-center rounded-xl bg-white/10 hover:bg-white/20 text-white transition-colors">
+            <X size={16} />
+          </button>
+        </div>
       </div>
+
       <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
-        {/* Video */}
-        <div className="md:w-1/2 bg-black flex items-center">
-          <video ref={videoRef} src={videoUrl} controls className="w-full"
+        {/* Video pane */}
+        <div className="md:w-1/2 bg-black flex items-center justify-center flex-shrink-0">
+          <video ref={videoRef} src={videoUrl} controls className="w-full max-h-[40vh] md:max-h-full"
             onTimeUpdate={() => setCurrentTime(videoRef.current?.currentTime || 0)} playsInline />
         </div>
-        {/* Transcript */}
-        <div className="md:w-1/2 overflow-y-auto p-4 bg-black/50">
-          <p className="text-xs text-white/40 uppercase tracking-widest font-bold mb-3">Transcript</p>
-          {transcript ? (
-            <p className="text-white/80 text-sm leading-relaxed">
-              {words.map((word, i) => {
-                // Highlight words based on rough time position
-                const wordTime = (i / totalWords) * (videoRef.current?.duration || 60);
-                const isActive = Math.abs(wordTime - currentTime) < 2;
-                return (
-                  <span key={i}
-                    className={`transition-colors ${isActive ? 'text-violet-400 font-bold' : ''}`}
-                    onClick={() => { if (videoRef.current) videoRef.current.currentTime = wordTime; }}>
-                    {word}{' '}
-                  </span>
-                );
-              })}
-            </p>
-          ) : (
-            <p className="text-white/40 text-sm">No transcript available for this video.</p>
+
+        {/* Transcript pane */}
+        <div className="md:w-1/2 flex flex-col overflow-hidden bg-black/40">
+          <div className="flex-1 overflow-y-auto p-5">
+            {status === 'processing' && (
+              <div className="flex flex-col items-center justify-center h-full gap-4 py-16">
+                <div className="relative">
+                  <div className="h-14 w-14 rounded-full border-4 border-violet-500/20 border-t-violet-500 animate-spin" />
+                  <FileText size={20} className="text-violet-400 absolute inset-0 m-auto" />
+                </div>
+                <div className="text-center">
+                  <p className="text-white font-bold text-sm">Generating transcript...</p>
+                  <p className="text-white/40 text-xs mt-1">This takes 30–60 seconds. Stay on this page.</p>
+                </div>
+                <div className="flex gap-1 mt-2">
+                  {[0, 1, 2].map(i => (
+                    <div key={i} className="h-1.5 w-1.5 rounded-full bg-violet-400 animate-bounce"
+                      style={{ animationDelay: `${i * 0.15}s` }} />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {status === 'failed' && (
+              <div className="flex flex-col items-center justify-center h-full gap-4 py-16">
+                <div className="h-14 w-14 rounded-full bg-red-500/10 flex items-center justify-center">
+                  <X size={24} className="text-red-400" />
+                </div>
+                <div className="text-center">
+                  <p className="text-white font-bold text-sm">Transcription failed</p>
+                  <p className="text-white/40 text-xs mt-1">The AI service may be unavailable. Try again later.</p>
+                </div>
+                <button onClick={requestTranscript}
+                  className="flex items-center gap-2 px-4 py-2 bg-violet-500/20 text-violet-400 rounded-xl text-sm font-bold hover:bg-violet-500/30 transition-colors">
+                  <RefreshCw size={14} />
+                  Retry
+                </button>
+              </div>
+            )}
+
+            {status === 'done' && transcript && (
+              <div className="space-y-4">
+                <p className="text-[10px] text-white/30 uppercase tracking-widest font-bold">
+                  Click any word to jump to that point in the video
+                </p>
+                <p className="text-white/85 text-sm leading-8 select-text">
+                  {words.map((word, i) => {
+                    const wordTime = (i / totalWords) * (videoRef.current?.duration || 60);
+                    const isActive = videoRef.current?.duration && Math.abs(wordTime - currentTime) < 1.5;
+                    return (
+                      <span key={i}
+                        className={`cursor-pointer rounded px-0.5 transition-all ${
+                          isActive
+                            ? 'bg-violet-500 text-white font-bold'
+                            : 'hover:bg-white/10 hover:text-white'
+                        }`}
+                        onClick={() => { if (videoRef.current) videoRef.current.currentTime = wordTime; }}>
+                        {word}{' '}
+                      </span>
+                    );
+                  })}
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* Word count footer */}
+          {status === 'done' && (
+            <div className="flex-shrink-0 px-5 py-3 border-t border-white/10 flex items-center gap-4">
+              <span className="text-[10px] text-white/30 font-bold uppercase tracking-widest">
+                {words.length} words
+              </span>
+              <span className="text-[10px] text-white/30 font-bold uppercase tracking-widest">
+                ~{Math.ceil(words.length / 130)} min read
+              </span>
+            </div>
           )}
         </div>
       </div>
@@ -541,6 +684,14 @@ const VideoCard = ({ video, currentUserId, onFeedbackGiven, onOpenFeedback, alre
             ✓ Feedback Given
           </span>
         )}
+        {/* Transcript button — only for video owner */}
+        {isOwn && (
+          <button onClick={() => setShowTranscript(true)}
+            className="flex items-center gap-1.5 px-3 py-2 bg-violet-500/10 border border-violet-500/20 text-violet-400 rounded-xl text-xs font-bold hover:bg-violet-500/20 transition-all">
+            <FileText size={13} />
+            Transcript
+          </button>
+        )}
         <button onClick={toggleFeedbacks}
           className="flex items-center gap-1.5 px-3 py-2 bg-accent rounded-xl text-xs font-bold hover:bg-accent/80 transition-all ml-auto">
           {video.feedbackCount || 0} feedback{video.feedbackCount !== 1 ? 's' : ''}
@@ -578,11 +729,12 @@ const VideoCard = ({ video, currentUserId, onFeedbackGiven, onOpenFeedback, alre
 
     </motion.div>
 
-      {/* Transcript viewer */}
-      {showTranscript && aiData?.transcript && (
-        <TranscriptViewer
+      {/* Transcript panel — opens for owner on demand */}
+      {showTranscript && (
+        <TranscriptPanel
+          videoId={video._id}
           videoUrl={video.videoUrl}
-          transcript={aiData.transcript}
+          existingTranscript={aiData?.transcript || null}
           onClose={() => setShowTranscript(false)}
         />
       )}

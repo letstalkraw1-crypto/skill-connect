@@ -1,7 +1,7 @@
 const { DailyChallenge, ChallengeVideo, VideoFeedback, User, Notification } = require('../config/db');
 const { v4: uuidv4 } = require('uuid');
 const { uploadToCloudinary } = require('../config/cloudinary');
-const { analyzeVideo } = require('../services/aiAnalysis');
+const { analyzeVideo, transcribeVideo } = require('../services/aiAnalysis');
 const { checkAchievements } = require('../services/achievementService');
 
 const todayStr = () => new Date().toISOString().slice(0, 10);
@@ -413,8 +413,102 @@ const deleteFeedback = async (req, res) => {
   }
 };
 
+// GET /api/daily-challenge/transcript/:videoId — get transcript (owner or admin)
+const getTranscript = async (req, res) => {
+  try {
+    const { videoId } = req.params;
+    const video = await ChallengeVideo.findById(videoId).lean();
+    if (!video) return res.status(404).json({ error: 'Video not found' });
+
+    // Only the video owner can access transcript
+    if (video.userId !== req.user.userId) {
+      return res.status(403).json({ error: 'Only the video owner can view the transcript' });
+    }
+
+    // If transcript already exists, return it
+    if (video.aiAnalysis?.transcript) {
+      return res.json({
+        transcript: video.aiAnalysis.transcript,
+        status: 'done',
+        videoId,
+        generatedAt: video.aiAnalysis.analyzedAt,
+      });
+    }
+
+    // If AI analysis is processing, tell the client to wait
+    if (video.aiAnalysis?.status === 'processing') {
+      return res.json({ transcript: null, status: 'processing', videoId });
+    }
+
+    // No transcript yet — trigger transcription only (no full AI scoring)
+    const ASSEMBLYAI_KEY = process.env.ASSEMBLYAI_API_KEY;
+    const GROQ_KEY = process.env.GROQ_API_KEY;
+
+    if (!ASSEMBLYAI_KEY && !GROQ_KEY) {
+      return res.status(503).json({ error: 'Transcription service not configured. Please set ASSEMBLYAI_API_KEY or GROQ_API_KEY.' });
+    }
+
+    // Mark as processing and trigger full analysis (which includes transcript)
+    await ChallengeVideo.findByIdAndUpdate(videoId, { 'aiAnalysis.status': 'processing' });
+
+    const challenge = await DailyChallenge.findById(video.challengeId).lean();
+    analyzeVideo(video._id, video.videoUrl, challenge?.topic || 'Communication challenge').catch(err =>
+      console.error('[Transcript] Background analysis error:', err.message)
+    );
+
+    return res.json({ transcript: null, status: 'processing', videoId });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// GET /api/daily-challenge/transcript/:videoId/admin — admin can get any transcript
+const getTranscriptAdmin = async (req, res) => {
+  try {
+    const { videoId } = req.params;
+    const video = await ChallengeVideo.findById(videoId).lean();
+    if (!video) return res.status(404).json({ error: 'Video not found' });
+
+    const user = await User.findById(video.userId).select('name shortId avatarUrl').lean();
+    const challenge = await DailyChallenge.findById(video.challengeId).select('topic date').lean();
+
+    if (video.aiAnalysis?.transcript) {
+      return res.json({
+        transcript: video.aiAnalysis.transcript,
+        status: 'done',
+        videoId,
+        videoUrl: video.videoUrl,
+        user,
+        challenge,
+        aiScores: video.aiAnalysis.scores || null,
+        generatedAt: video.aiAnalysis.analyzedAt,
+      });
+    }
+
+    // Trigger analysis if not done
+    if (video.aiAnalysis?.status !== 'processing') {
+      await ChallengeVideo.findByIdAndUpdate(videoId, { 'aiAnalysis.status': 'processing' });
+      analyzeVideo(video._id, video.videoUrl, challenge?.topic || 'Communication challenge').catch(err =>
+        console.error('[Transcript Admin] Background analysis error:', err.message)
+      );
+    }
+
+    return res.json({
+      transcript: null,
+      status: video.aiAnalysis?.status || 'processing',
+      videoId,
+      videoUrl: video.videoUrl,
+      user,
+      challenge,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
 module.exports = {
   getTodayChallenge, createChallenge, submitVideo, getChallengeFeed,
   giveFeedback, getVideoFeedback, getMySubmissions,
   replyToFeedback, deleteFeedback, getAIAnalysis, retryAIAnalysis, deleteSubmission,
+  getTranscript, getTranscriptAdmin,
 };

@@ -4,6 +4,7 @@ const {
   getTodayChallenge, createChallenge, submitVideo, getChallengeFeed,
   giveFeedback, getVideoFeedback, getMySubmissions,
   replyToFeedback, deleteFeedback, getAIAnalysis, retryAIAnalysis, deleteSubmission,
+  getTranscript, getTranscriptAdmin,
 } = require('../controllers/dailyChallengeController');
 const { verifyToken } = require('../middleware/authMiddleware');
 
@@ -52,5 +53,7 @@ router.post('/feedback/:feedbackId/reply', verifyToken, replyToFeedback);
 router.delete('/feedback/:feedbackId', verifyToken, deleteFeedback);
 router.get('/ai/:videoId', verifyToken, getAIAnalysis);
 router.post('/ai/:videoId/retry', verifyToken, retryAIAnalysis);
+router.get('/transcript/:videoId', verifyToken, getTranscript);
+router.get('/transcript/:videoId/admin', verifyToken, getTranscriptAdmin);
 
 module.exports = router;

@@ -52,9 +52,7 @@ async function transcribeVideo(videoUrl) {
     if (poll.status === 'error') throw new Error(`Transcription error: ${poll.error}`);
   }
   throw new Error('Transcription timed out');
-}
-
-async function scoreWithGroq(transcript, challengeTopic) {
+}async function scoreWithGroq(transcript, challengeTopic) {
   if (!GROQ_KEY) { console.error('[AI] GROQ_API_KEY not set'); return null; }
 
   // Basic NLP pre-analysis
@@ -181,4 +179,4 @@ async function analyzeVideo(videoId, videoUrl, challengeTopic) {
   }
 }
 
-module.exports = { analyzeVideo };
+module.exports = { analyzeVideo, transcribeVideo };
