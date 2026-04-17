@@ -30,6 +30,7 @@ const challengeVideoSchema = new mongoose.Schema({
       avgWordsPerSentence: { type: Number, default: null },
     },
     analyzedAt: { type: Date, default: null },
+    processingStartedAt: { type: Date, default: null },
   },
   createdAt: { type: Date, default: Date.now },
 });

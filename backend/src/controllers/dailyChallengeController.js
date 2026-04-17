@@ -413,14 +413,13 @@ const deleteFeedback = async (req, res) => {
   }
 };
 
-// GET /api/daily-challenge/transcript/:videoId — get transcript (owner or admin)
+// GET /api/daily-challenge/transcript/:videoId — get transcript (owner only)
 const getTranscript = async (req, res) => {
   try {
     const { videoId } = req.params;
     const video = await ChallengeVideo.findById(videoId).lean();
     if (!video) return res.status(404).json({ error: 'Video not found' });
 
-    // Only the video owner can access transcript
     if (video.userId !== req.user.userId) {
       return res.status(403).json({ error: 'Only the video owner can view the transcript' });
     }
@@ -435,21 +434,35 @@ const getTranscript = async (req, res) => {
       });
     }
 
-    // If AI analysis is processing, tell the client to wait
+    // Detect stuck jobs: processing for more than 5 minutes → reset to pending
+    const STUCK_THRESHOLD_MS = 5 * 60 * 1000;
+    const isStuck = video.aiAnalysis?.status === 'processing' &&
+      video.aiAnalysis?.processingStartedAt &&
+      (Date.now() - new Date(video.aiAnalysis.processingStartedAt).getTime()) > STUCK_THRESHOLD_MS;
+
+    if (isStuck) {
+      console.log(`[Transcript] Resetting stuck job for video ${videoId}`);
+      await ChallengeVideo.findByIdAndUpdate(videoId, { 'aiAnalysis.status': 'pending' });
+      video.aiAnalysis.status = 'pending';
+    }
+
+    // If currently processing (and not stuck), tell client to keep polling
     if (video.aiAnalysis?.status === 'processing') {
       return res.json({ transcript: null, status: 'processing', videoId });
     }
 
-    // No transcript yet — trigger transcription only (no full AI scoring)
     const ASSEMBLYAI_KEY = process.env.ASSEMBLYAI_API_KEY;
     const GROQ_KEY = process.env.GROQ_API_KEY;
 
     if (!ASSEMBLYAI_KEY && !GROQ_KEY) {
-      return res.status(503).json({ error: 'Transcription service not configured. Please set ASSEMBLYAI_API_KEY or GROQ_API_KEY.' });
+      return res.status(503).json({ error: 'Transcription service not configured.' });
     }
 
-    // Mark as processing and trigger full analysis (which includes transcript)
-    await ChallengeVideo.findByIdAndUpdate(videoId, { 'aiAnalysis.status': 'processing' });
+    // Trigger analysis — stamp processingStartedAt so we can detect stuck jobs
+    await ChallengeVideo.findByIdAndUpdate(videoId, {
+      'aiAnalysis.status': 'processing',
+      'aiAnalysis.processingStartedAt': new Date(),
+    });
 
     const challenge = await DailyChallenge.findById(video.challengeId).lean();
     analyzeVideo(video._id, video.videoUrl, challenge?.topic || 'Communication challenge').catch(err =>

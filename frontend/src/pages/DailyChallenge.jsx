@@ -258,6 +258,8 @@ const TranscriptPanel = ({ videoId, videoUrl, existingTranscript, onClose }) => 
   const videoRef = useRef(null);
   const [currentTime, setCurrentTime] = useState(0);
   const pollRef = useRef(null);
+  const pollCountRef = useRef(0);
+  const MAX_POLLS = 30; // 30 × 6s = 3 minutes max
 
   // If no transcript yet, request it on mount
   useEffect(() => {
@@ -268,14 +270,25 @@ const TranscriptPanel = ({ videoId, videoUrl, existingTranscript, onClose }) => 
 
   const requestTranscript = async () => {
     setStatus('processing');
+    pollCountRef.current = 0;
     try {
       const { data } = await api.get(`/daily-challenge/transcript/${videoId}`);
       if (data.transcript) {
         setTranscript(data.transcript);
         setStatus('done');
+      } else if (data.status === 'failed') {
+        setStatus('failed');
       } else {
         // Poll until done
+        if (pollRef.current) clearInterval(pollRef.current);
         pollRef.current = setInterval(async () => {
+          pollCountRef.current += 1;
+          // After 3 minutes, stop and show timeout state
+          if (pollCountRef.current >= MAX_POLLS) {
+            clearInterval(pollRef.current);
+            setStatus('timeout');
+            return;
+          }
           try {
             const { data: poll } = await api.get(`/daily-challenge/transcript/${videoId}`);
             if (poll.transcript) {
@@ -394,6 +407,23 @@ const TranscriptPanel = ({ videoId, videoUrl, existingTranscript, onClose }) => 
                   className="flex items-center gap-2 px-4 py-2 bg-violet-500/20 text-violet-400 rounded-xl text-sm font-bold hover:bg-violet-500/30 transition-colors">
                   <RefreshCw size={14} />
                   Retry
+                </button>
+              </div>
+            )}
+
+            {status === 'timeout' && (
+              <div className="flex flex-col items-center justify-center h-full gap-4 py-16">
+                <div className="h-14 w-14 rounded-full bg-amber-500/10 flex items-center justify-center">
+                  <RefreshCw size={24} className="text-amber-400" />
+                </div>
+                <div className="text-center">
+                  <p className="text-white font-bold text-sm">Taking longer than expected</p>
+                  <p className="text-white/40 text-xs mt-1 max-w-xs">The server may have restarted. Click retry — it will pick up where it left off.</p>
+                </div>
+                <button onClick={requestTranscript}
+                  className="flex items-center gap-2 px-4 py-2 bg-amber-500/20 text-amber-400 rounded-xl text-sm font-bold hover:bg-amber-500/30 transition-colors">
+                  <RefreshCw size={14} />
+                  Try Again
                 </button>
               </div>
             )}
