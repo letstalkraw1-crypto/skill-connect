@@ -12,11 +12,9 @@ const router = express.Router();
 
 const videoUpload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 100 * 1024 * 1024 }, // 100MB max for video
+  limits: { fileSize: 100 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
-    if (!file.mimetype.startsWith('video/')) {
-      return cb(new Error('Only video files are allowed'));
-    }
+    if (!file.mimetype.startsWith('video/')) return cb(new Error('Only video files are allowed'));
     cb(null, true);
   },
 });
@@ -24,36 +22,35 @@ const videoUpload = multer({
 router.get('/today', verifyToken, getTodayChallenge);
 router.get('/my-submissions', verifyToken, getMySubmissions);
 
-// Debug: test a specific video's transcription status
-// GET /api/daily-challenge/debug/:videoId
+// Debug: check a specific video's AI/transcript state
 router.get('/debug/:videoId', verifyToken, async (req, res) => {
   try {
     const { ChallengeVideo } = require('../config/db');
     const video = await ChallengeVideo.findById(req.params.videoId).lean();
     if (!video) return res.status(404).json({ error: 'Video not found' });
-
-    const assemblyKey = process.env.ASSEMBLYAI_API_KEY;
-    const groqKey = process.env.GROQ_API_KEY;
-
     res.json({
       videoId: video._id,
       videoUrl: video.videoUrl,
       duration: video.duration,
       bytes: video.bytes,
       aiStatus: video.aiAnalysis?.status,
+      assemblyJobId: video.aiAnalysis?.assemblyJobId || null,
       hasTranscript: !!video.aiAnalysis?.transcript,
       transcriptLength: video.aiAnalysis?.transcript?.length || 0,
       transcriptPreview: video.aiAnalysis?.transcript?.slice(0, 200) || null,
       processingStartedAt: video.aiAnalysis?.processingStartedAt,
       analyzedAt: video.aiAnalysis?.analyzedAt,
-      assemblyKeySet: !!assemblyKey,
-      groqKeySet: !!groqKey,
+      assemblyKeySet: !!process.env.ASSEMBLYAI_API_KEY,
+      groqKeySet: !!process.env.GROQ_API_KEY,
       scores: video.aiAnalysis?.scores || null,
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
+
+// Debug: test API keys
+router.get('/ai-test', verifyToken, async (req, res) => {
   const groqKey = process.env.GROQ_API_KEY;
   const assemblyKey = process.env.ASSEMBLYAI_API_KEY;
 
@@ -64,7 +61,6 @@ router.get('/debug/:videoId', verifyToken, async (req, res) => {
     assemblyTest: null,
   };
 
-  // Test Groq
   if (groqKey) {
     try {
       const https = require('https');
@@ -89,7 +85,6 @@ router.get('/debug/:videoId', verifyToken, async (req, res) => {
     }
   }
 
-  // Test AssemblyAI (just check auth, don't submit a job)
   if (assemblyKey) {
     try {
       const https = require('https');
@@ -103,7 +98,6 @@ router.get('/debug/:videoId', verifyToken, async (req, res) => {
         });
         r.on('error', reject); r.end();
       });
-      // 200 or 400 both mean the key is valid (400 = missing params, not auth error)
       result.assemblyTest = [200, 400, 404].includes(authResult.status) ? 'OK ✅' : `HTTP ${authResult.status} — key may be invalid`;
     } catch (e) {
       result.assemblyTest = `FAILED: ${e.message}`;

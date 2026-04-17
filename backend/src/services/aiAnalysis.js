@@ -63,7 +63,7 @@ async function submitTranscriptionJob(videoId, videoUrl) {
   const submit = await httpsPost(
     'api.assemblyai.com', '/v2/transcript',
     { authorization: ASSEMBLYAI_KEY, 'content-type': 'application/json' },
-    { audio_url: videoUrl, language_detection: true, speech_threshold: 0.1 }
+    { audio_url: videoUrl, language_detection: true }
   );
 
   if (!submit.id) {
