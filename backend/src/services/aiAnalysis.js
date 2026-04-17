@@ -47,35 +47,50 @@ async function transcribeVideo(videoUrl) {
     return null;
   }
 
-  console.log('[AI] Submitting to AssemblyAI:', videoUrl.slice(0, 60) + '...');
+  console.log('[AI] Submitting to AssemblyAI:', videoUrl.slice(0, 80) + '...');
 
   const submit = await httpsPost(
     'api.assemblyai.com', '/v2/transcript',
     { authorization: ASSEMBLYAI_KEY, 'content-type': 'application/json' },
-    { audio_url: videoUrl, language_detection: true }
+    {
+      audio_url: videoUrl,
+      language_detection: true,
+      // Don't fail on short/silent audio — return empty string instead
+      speech_threshold: 0.1,
+    }
   );
 
   if (!submit.id) {
-    console.error('[AI] AssemblyAI submission failed:', JSON.stringify(submit).slice(0, 200));
+    console.error('[AI] AssemblyAI submission failed:', JSON.stringify(submit).slice(0, 300));
     throw new Error('AssemblyAI submission failed: ' + JSON.stringify(submit));
   }
 
-  console.log('[AI] AssemblyAI job ID:', submit.id);
+  console.log('[AI] AssemblyAI job ID:', submit.id, '| status:', submit.status);
 
-  // Poll up to 2 minutes (24 × 5s)
-  for (let i = 0; i < 24; i++) {
+  // Poll up to 3 minutes (36 × 5s)
+  for (let i = 0; i < 36; i++) {
     await new Promise(r => setTimeout(r, 5000));
     const poll = await httpsGet(
       'api.assemblyai.com',
       `/v2/transcript/${submit.id}`,
       { authorization: ASSEMBLYAI_KEY }
     );
-    console.log(`[AI] AssemblyAI poll ${i + 1}: status=${poll.status}`);
-    if (poll.status === 'completed') return poll.text || '';
-    if (poll.status === 'error') throw new Error(`AssemblyAI error: ${poll.error}`);
+    console.log(`[AI] AssemblyAI poll ${i + 1}/36: status=${poll.status}`);
+
+    if (poll.status === 'completed') {
+      // speech_threshold not met = no speech detected
+      if (poll.text === null || poll.text === undefined) {
+        console.log('[AI] AssemblyAI: no speech detected in audio');
+        return '';
+      }
+      return poll.text || '';
+    }
+    if (poll.status === 'error') {
+      throw new Error(`AssemblyAI error: ${poll.error}`);
+    }
   }
 
-  throw new Error('AssemblyAI transcription timed out after 2 minutes');
+  throw new Error('AssemblyAI transcription timed out after 3 minutes');
 }
 
 async function scoreWithGroq(transcript, challengeTopic) {

@@ -452,6 +452,21 @@ const TranscriptPanel = ({ videoId, videoUrl, existingTranscript, onClose }) => 
                 </p>
               </div>
             )}
+
+            {/* Empty transcript — video had no speech */}
+            {status === 'done' && !transcript && (
+              <div className="flex flex-col items-center justify-center h-full gap-4 py-16">
+                <div className="h-14 w-14 rounded-full bg-amber-500/10 flex items-center justify-center text-2xl">
+                  🎤
+                </div>
+                <div className="text-center">
+                  <p className="text-white font-bold text-sm">No speech detected</p>
+                  <p className="text-white/40 text-xs mt-1 max-w-xs">
+                    The video appears to be silent or the audio was too quiet. Record a new video and speak clearly into the microphone.
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Word count footer */}
