@@ -26,21 +26,63 @@ router.get('/my-submissions', verifyToken, getMySubmissions);
 
 // Debug endpoint — must be before /:id routes
 router.get('/ai-test', verifyToken, async (req, res) => {
-  const key = process.env.GROQ_API_KEY;
-  if (!key) return res.json({ error: 'GROQ_API_KEY not set' });
-  const https = require('https');
-  const body = JSON.stringify({
-    model: 'llama-3.3-70b-versatile',
-    messages: [{ role: 'user', content: 'Say {"message":"AI working"} and nothing else.' }],
-    max_tokens: 50,
-  });
-  const result = await new Promise((resolve, reject) => {
-    const r = https.request({ hostname: 'api.groq.com', path: '/openai/v1/chat/completions', method: 'POST', headers: { authorization: `Bearer ${key}`, 'content-type': 'application/json', 'Content-Length': Buffer.byteLength(body) } }, res2 => {
-      let raw = ''; res2.on('data', c => raw += c); res2.on('end', () => resolve(raw));
-    });
-    r.on('error', reject); r.write(body); r.end();
-  });
-  res.json({ keyPrefix: key.slice(0, 10) + '...', response: result.slice(0, 500) });
+  const groqKey = process.env.GROQ_API_KEY;
+  const assemblyKey = process.env.ASSEMBLYAI_API_KEY;
+
+  const result = {
+    groq: { configured: !!groqKey, keyPrefix: groqKey ? groqKey.slice(0, 10) + '...' : null },
+    assemblyai: { configured: !!assemblyKey, keyPrefix: assemblyKey ? assemblyKey.slice(0, 8) + '...' : null },
+    groqTest: null,
+    assemblyTest: null,
+  };
+
+  // Test Groq
+  if (groqKey) {
+    try {
+      const https = require('https');
+      const body = JSON.stringify({
+        model: 'llama-3.3-70b-versatile',
+        messages: [{ role: 'user', content: 'Reply with exactly: {"status":"ok"}' }],
+        max_tokens: 20,
+      });
+      const groqResult = await new Promise((resolve, reject) => {
+        const r = https.request({
+          hostname: 'api.groq.com', path: '/openai/v1/chat/completions', method: 'POST',
+          headers: { authorization: `Bearer ${groqKey}`, 'content-type': 'application/json', 'Content-Length': Buffer.byteLength(body) }
+        }, res2 => {
+          let raw = ''; res2.on('data', c => raw += c); res2.on('end', () => resolve(raw));
+        });
+        r.on('error', reject); r.write(body); r.end();
+      });
+      const parsed = JSON.parse(groqResult);
+      result.groqTest = parsed.error ? `ERROR: ${parsed.error.message}` : 'OK ✅';
+    } catch (e) {
+      result.groqTest = `FAILED: ${e.message}`;
+    }
+  }
+
+  // Test AssemblyAI (just check auth, don't submit a job)
+  if (assemblyKey) {
+    try {
+      const https = require('https');
+      const authResult = await new Promise((resolve, reject) => {
+        const r = https.request({
+          hostname: 'api.assemblyai.com', path: '/v2/transcript', method: 'GET',
+          headers: { authorization: assemblyKey }
+        }, res2 => {
+          let raw = ''; res2.on('data', c => raw += c);
+          res2.on('end', () => resolve({ status: res2.statusCode, body: raw.slice(0, 100) }));
+        });
+        r.on('error', reject); r.end();
+      });
+      // 200 or 400 both mean the key is valid (400 = missing params, not auth error)
+      result.assemblyTest = [200, 400, 404].includes(authResult.status) ? 'OK ✅' : `HTTP ${authResult.status} — key may be invalid`;
+    } catch (e) {
+      result.assemblyTest = `FAILED: ${e.message}`;
+    }
+  }
+
+  res.json(result);
 });
 
 router.post('/', verifyToken, createChallenge);
