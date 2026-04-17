@@ -24,8 +24,36 @@ const videoUpload = multer({
 router.get('/today', verifyToken, getTodayChallenge);
 router.get('/my-submissions', verifyToken, getMySubmissions);
 
-// Debug endpoint — must be before /:id routes
-router.get('/ai-test', verifyToken, async (req, res) => {
+// Debug: test a specific video's transcription status
+// GET /api/daily-challenge/debug/:videoId
+router.get('/debug/:videoId', verifyToken, async (req, res) => {
+  try {
+    const { ChallengeVideo } = require('../config/db');
+    const video = await ChallengeVideo.findById(req.params.videoId).lean();
+    if (!video) return res.status(404).json({ error: 'Video not found' });
+
+    const assemblyKey = process.env.ASSEMBLYAI_API_KEY;
+    const groqKey = process.env.GROQ_API_KEY;
+
+    res.json({
+      videoId: video._id,
+      videoUrl: video.videoUrl,
+      duration: video.duration,
+      bytes: video.bytes,
+      aiStatus: video.aiAnalysis?.status,
+      hasTranscript: !!video.aiAnalysis?.transcript,
+      transcriptLength: video.aiAnalysis?.transcript?.length || 0,
+      transcriptPreview: video.aiAnalysis?.transcript?.slice(0, 200) || null,
+      processingStartedAt: video.aiAnalysis?.processingStartedAt,
+      analyzedAt: video.aiAnalysis?.analyzedAt,
+      assemblyKeySet: !!assemblyKey,
+      groqKeySet: !!groqKey,
+      scores: video.aiAnalysis?.scores || null,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
   const groqKey = process.env.GROQ_API_KEY;
   const assemblyKey = process.env.ASSEMBLYAI_API_KEY;
 

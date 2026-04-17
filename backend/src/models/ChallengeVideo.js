@@ -12,6 +12,8 @@ const challengeVideoSchema = new mongoose.Schema({
   // AI Analysis
   aiAnalysis: {
     status: { type: String, enum: ['pending', 'processing', 'done', 'failed'], default: 'pending' },
+    assemblyJobId: { type: String, default: null }, // AssemblyAI job ID for direct polling
+    challengeTopic: { type: String, default: null }, // stored for Groq scoring after transcription
     transcript: { type: String, default: null },
     scores: {
       confidence: { type: Number, min: 1, max: 10 },

@@ -1,6 +1,11 @@
 /**
- * AI Analysis Service — uses Groq + AssemblyAI
- * Keys are read dynamically on each call so Render env vars always work
+ * AI Analysis Service — Groq + AssemblyAI
+ * 
+ * Two-phase design to survive Render free tier:
+ * 1. submitTranscriptionJob() — submits to AssemblyAI, saves job ID, returns immediately
+ * 2. checkAndCompleteAnalysis() — called on each poll, checks AssemblyAI status, scores with Groq when done
+ * 
+ * This means NO long-running background jobs. The server just handles short requests.
  */
 
 const https = require('https');
@@ -40,24 +45,25 @@ function httpsGet(hostname, path, headers) {
   });
 }
 
-async function transcribeVideo(videoUrl) {
+/**
+ * Phase 1: Submit video to AssemblyAI, save job ID, return immediately.
+ * Called once when user first requests transcript.
+ */
+async function submitTranscriptionJob(videoId, videoUrl) {
   const ASSEMBLYAI_KEY = process.env.ASSEMBLYAI_API_KEY;
   if (!ASSEMBLYAI_KEY) {
-    console.warn('[AI] ASSEMBLYAI_API_KEY not set — skipping transcription');
+    console.warn('[AI] ASSEMBLYAI_API_KEY not set');
     return null;
   }
 
-  console.log('[AI] Submitting to AssemblyAI:', videoUrl.slice(0, 80) + '...');
+  const { ChallengeVideo } = require('../config/db');
+
+  console.log(`[AI] Submitting AssemblyAI job for video ${videoId}`);
 
   const submit = await httpsPost(
     'api.assemblyai.com', '/v2/transcript',
     { authorization: ASSEMBLYAI_KEY, 'content-type': 'application/json' },
-    {
-      audio_url: videoUrl,
-      language_detection: true,
-      // Don't fail on short/silent audio — return empty string instead
-      speech_threshold: 0.1,
-    }
+    { audio_url: videoUrl, language_detection: true, speech_threshold: 0.1 }
   );
 
   if (!submit.id) {
@@ -65,40 +71,102 @@ async function transcribeVideo(videoUrl) {
     throw new Error('AssemblyAI submission failed: ' + JSON.stringify(submit));
   }
 
-  console.log('[AI] AssemblyAI job ID:', submit.id, '| status:', submit.status);
+  console.log(`[AI] AssemblyAI job submitted: ${submit.id}`);
 
-  // Poll up to 3 minutes (36 × 5s)
-  for (let i = 0; i < 36; i++) {
-    await new Promise(r => setTimeout(r, 5000));
-    const poll = await httpsGet(
-      'api.assemblyai.com',
-      `/v2/transcript/${submit.id}`,
-      { authorization: ASSEMBLYAI_KEY }
-    );
-    console.log(`[AI] AssemblyAI poll ${i + 1}/36: status=${poll.status}`);
+  // Save job ID so we can check it on subsequent polls
+  await ChallengeVideo.findByIdAndUpdate(videoId, {
+    'aiAnalysis.status': 'processing',
+    'aiAnalysis.assemblyJobId': submit.id,
+    'aiAnalysis.processingStartedAt': new Date(),
+  });
 
-    if (poll.status === 'completed') {
-      // speech_threshold not met = no speech detected
-      if (poll.text === null || poll.text === undefined) {
-        console.log('[AI] AssemblyAI: no speech detected in audio');
-        return '';
-      }
-      return poll.text || '';
-    }
-    if (poll.status === 'error') {
-      throw new Error(`AssemblyAI error: ${poll.error}`);
-    }
+  return submit.id;
+}
+
+/**
+ * Phase 2: Check AssemblyAI job status. If done, score with Groq and save.
+ * Called on each frontend poll — fast, no waiting.
+ */
+async function checkAndCompleteAnalysis(videoId, challengeTopic) {
+  const ASSEMBLYAI_KEY = process.env.ASSEMBLYAI_API_KEY;
+  const GROQ_KEY = process.env.GROQ_API_KEY;
+  const { ChallengeVideo } = require('../config/db');
+
+  const video = await ChallengeVideo.findById(videoId).lean();
+  if (!video) return { status: 'error', error: 'Video not found' };
+
+  const jobId = video.aiAnalysis?.assemblyJobId;
+  if (!jobId) return { status: 'pending' };
+
+  if (!ASSEMBLYAI_KEY) return { status: 'error', error: 'AssemblyAI key not set' };
+
+  // Check job status — single fast HTTP call
+  const poll = await httpsGet(
+    'api.assemblyai.com',
+    `/v2/transcript/${jobId}`,
+    { authorization: ASSEMBLYAI_KEY }
+  );
+
+  console.log(`[AI] AssemblyAI job ${jobId}: status=${poll.status}`);
+
+  if (poll.status === 'queued' || poll.status === 'processing') {
+    return { status: 'processing' };
   }
 
-  throw new Error('AssemblyAI transcription timed out after 3 minutes');
+  if (poll.status === 'error') {
+    await ChallengeVideo.findByIdAndUpdate(videoId, { 'aiAnalysis.status': 'failed' });
+    return { status: 'failed', error: poll.error };
+  }
+
+  if (poll.status === 'completed') {
+    const transcript = poll.text || '';
+    const wordCount = transcript.trim().split(/\s+/).filter(w => w.length > 1).length;
+
+    if (wordCount < 3) {
+      // Silent/blank video
+      await ChallengeVideo.findByIdAndUpdate(videoId, {
+        'aiAnalysis.status': 'done',
+        'aiAnalysis.transcript': transcript,
+        'aiAnalysis.scores': { confidence: 1, clarity: 1, structure: 1, relevance: 1, overall: 1 },
+        'aiAnalysis.feedback': 'No speech detected. Please record a video where you speak clearly.',
+        'aiAnalysis.strengths': [],
+        'aiAnalysis.improvements': ['Speak clearly into the microphone', 'Address the challenge topic'],
+        'aiAnalysis.analyzedAt': new Date(),
+      });
+      return { status: 'done', transcript };
+    }
+
+    // Score with Groq — fast single call
+    let result = null;
+    if (GROQ_KEY) {
+      try {
+        result = await scoreWithGroq(transcript, challengeTopic);
+      } catch (err) {
+        console.error('[AI] Groq scoring failed:', err.message);
+      }
+    }
+
+    await ChallengeVideo.findByIdAndUpdate(videoId, {
+      'aiAnalysis.status': 'done',
+      'aiAnalysis.transcript': transcript,
+      'aiAnalysis.scores': result?.scores || null,
+      'aiAnalysis.feedback': result?.feedback || null,
+      'aiAnalysis.strengths': result?.strengths || [],
+      'aiAnalysis.improvements': result?.improvements || [],
+      'aiAnalysis.nlp': result?.nlp || null,
+      'aiAnalysis.analyzedAt': new Date(),
+    });
+
+    console.log(`[AI] Analysis complete for ${videoId}`);
+    return { status: 'done', transcript };
+  }
+
+  return { status: 'processing' };
 }
 
 async function scoreWithGroq(transcript, challengeTopic) {
   const GROQ_KEY = process.env.GROQ_API_KEY;
-  if (!GROQ_KEY) {
-    console.error('[AI] GROQ_API_KEY not set');
-    return null;
-  }
+  if (!GROQ_KEY) return null;
 
   const words = transcript.trim().split(/\s+/);
   const wordCount = words.length;
@@ -109,124 +177,51 @@ async function scoreWithGroq(transcript, challengeTopic) {
   const sentences = transcript.split(/[.!?]+/).filter(s => s.trim().length > 0).length;
   const avgWordsPerSentence = sentences > 0 ? Math.round(wordCount / sentences) : 0;
 
-  const nlpContext = `NLP Pre-analysis:
-- Word count: ${wordCount}
-- Filler words: ${fillerCount} (${fillerWords.filter(f => transcript.toLowerCase().includes(f)).join(', ') || 'none'})
-- Vocabulary richness: ${vocabularyRichness}% unique words
-- Sentences: ${sentences}, avg ${avgWordsPerSentence} words/sentence`;
-
   const prompt = `You are an expert communication coach evaluating a short speaking video for the challenge: "${challengeTopic}".
 
 The speaker said: "${transcript}"
 
-${nlpContext}
+NLP: words=${wordCount}, fillers=${fillerCount}, vocab richness=${vocabularyRichness}%, avg words/sentence=${avgWordsPerSentence}
 
-IMPORTANT RULES:
-- If the transcript is very short (under 10 words), score everything 1-2.
-- Score honestly based ONLY on what was actually said.
-- If the speaker did not address the topic at all, relevance must be 1.
-- Factor in filler words and vocabulary richness when scoring.
+Score on 5 dimensions (1-10): confidence, clarity, structure, relevance, overall.
+Give 2-3 strengths, 2-3 improvements, 2-sentence feedback.
 
-Score on 5 dimensions (1-10 each): confidence, clarity, structure, relevance, overall.
-Give 2-3 strengths, 2-3 improvements, and a 2-sentence feedback summary.
+Respond ONLY with this JSON (no markdown):
+{"scores":{"confidence":7,"clarity":8,"structure":6,"relevance":9,"overall":7},"strengths":["s1","s2"],"improvements":["i1","i2"],"feedback":"Sentence one. Sentence two.","nlp":{"wordCount":${wordCount},"fillerCount":${fillerCount},"vocabularyRichness":${vocabularyRichness},"avgWordsPerSentence":${avgWordsPerSentence}}}`;
 
-Respond ONLY with this exact JSON (no markdown, no extra text):
-{"scores":{"confidence":7,"clarity":8,"structure":6,"relevance":9,"overall":7},"strengths":["strength1","strength2"],"improvements":["improvement1","improvement2"],"feedback":"Sentence one. Sentence two.","nlp":{"wordCount":${wordCount},"fillerCount":${fillerCount},"vocabularyRichness":${vocabularyRichness},"avgWordsPerSentence":${avgWordsPerSentence}}}`;
-
-  console.log('[AI] Calling Groq API...');
   const data = await httpsPost(
     'api.groq.com', '/openai/v1/chat/completions',
     { authorization: `Bearer ${GROQ_KEY}`, 'content-type': 'application/json' },
-    {
-      model: 'llama-3.3-70b-versatile',
-      messages: [{ role: 'user', content: prompt }],
-      temperature: 0.3,
-      max_tokens: 400,
-    }
+    { model: 'llama-3.3-70b-versatile', messages: [{ role: 'user', content: prompt }], temperature: 0.3, max_tokens: 400 }
   );
 
-  console.log('[AI] Groq response:', JSON.stringify(data).slice(0, 300));
-
-  if (data.error) throw new Error(`Groq error: ${data.error.message || JSON.stringify(data.error)}`);
-
+  if (data.error) throw new Error(`Groq error: ${data.error.message}`);
   const text = data?.choices?.[0]?.message?.content;
   if (!text) throw new Error('Groq response empty');
-
-  const clean = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-  const match = clean.match(/\{[\s\S]*\}/);
-  if (!match) throw new Error('No JSON in Groq response: ' + clean.slice(0, 200));
+  const match = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim().match(/\{[\s\S]*\}/);
+  if (!match) throw new Error('No JSON in Groq response');
   return JSON.parse(match[0]);
 }
 
+/**
+ * Legacy wrapper — used when video is submitted (triggers job submission only)
+ */
 async function analyzeVideo(videoId, videoUrl, challengeTopic) {
-  const GROQ_KEY = process.env.GROQ_API_KEY;
   const ASSEMBLYAI_KEY = process.env.ASSEMBLYAI_API_KEY;
-
-  if (!GROQ_KEY && !ASSEMBLYAI_KEY) {
-    console.warn('[AI] No API keys set — skipping analysis');
-    return;
-  }
-
-  const { ChallengeVideo } = require('../config/db');
+  const GROQ_KEY = process.env.GROQ_API_KEY;
+  if (!ASSEMBLYAI_KEY && !GROQ_KEY) return;
 
   try {
-    await ChallengeVideo.findByIdAndUpdate(videoId, { 'aiAnalysis.status': 'processing' });
-    console.log(`[AI] Starting analysis for video ${videoId}`);
-
-    let transcript = null;
-    if (ASSEMBLYAI_KEY) {
-      try {
-        transcript = await transcribeVideo(videoUrl);
-        console.log(`[AI] Transcript length: ${transcript?.length || 0} chars`);
-      } catch (err) {
-        console.error('[AI] Transcription failed:', err.message);
-      }
-    }
-
-    const wordCount = transcript ? transcript.trim().split(/\s+/).filter(w => w.length > 1).length : 0;
-    const isBlank = !transcript || wordCount < 5;
-
-    if (isBlank) {
-      console.log(`[AI] Blank/silent video (${wordCount} words) — scoring 1`);
-      await ChallengeVideo.findByIdAndUpdate(videoId, {
-        'aiAnalysis.status': 'done',
-        'aiAnalysis.transcript': transcript || '',
-        'aiAnalysis.scores': { confidence: 1, clarity: 1, structure: 1, relevance: 1, overall: 1 },
-        'aiAnalysis.feedback': 'No speech detected. Please record a video where you speak clearly.',
-        'aiAnalysis.strengths': [],
-        'aiAnalysis.improvements': [
-          'Record with clear speech',
-          'Address the challenge topic directly',
-          'Ensure your microphone is working',
-        ],
-        'aiAnalysis.analyzedAt': new Date(),
-      });
-      return;
-    }
-
-    const result = await scoreWithGroq(transcript, challengeTopic);
-
-    if (!result) {
-      await ChallengeVideo.findByIdAndUpdate(videoId, { 'aiAnalysis.status': 'failed' });
-      return;
-    }
-
-    await ChallengeVideo.findByIdAndUpdate(videoId, {
-      'aiAnalysis.status': 'done',
-      'aiAnalysis.transcript': transcript,
-      'aiAnalysis.scores': result.scores,
-      'aiAnalysis.feedback': result.feedback,
-      'aiAnalysis.strengths': result.strengths || [],
-      'aiAnalysis.improvements': result.improvements || [],
-      'aiAnalysis.nlp': result.nlp || null,
-      'aiAnalysis.analyzedAt': new Date(),
-    });
-
-    console.log(`[AI] Analysis complete for video ${videoId} — overall: ${result.scores?.overall}/10`);
+    // Just submit the job — don't wait for it
+    await submitTranscriptionJob(videoId, videoUrl);
+    // Store topic for later use when checking
+    const { ChallengeVideo } = require('../config/db');
+    await ChallengeVideo.findByIdAndUpdate(videoId, { 'aiAnalysis.challengeTopic': challengeTopic });
   } catch (err) {
-    console.error('[AI] Analysis failed:', err.message);
+    console.error('[AI] Job submission failed:', err.message);
+    const { ChallengeVideo } = require('../config/db');
     await ChallengeVideo.findByIdAndUpdate(videoId, { 'aiAnalysis.status': 'failed' }).catch(() => {});
   }
 }
 
-module.exports = { analyzeVideo, transcribeVideo };
+module.exports = { analyzeVideo, submitTranscriptionJob, checkAndCompleteAnalysis };

@@ -1,7 +1,7 @@
 const { DailyChallenge, ChallengeVideo, VideoFeedback, User, Notification } = require('../config/db');
 const { v4: uuidv4 } = require('uuid');
 const { uploadToCloudinary } = require('../config/cloudinary');
-const { analyzeVideo, transcribeVideo } = require('../services/aiAnalysis');
+const { analyzeVideo, submitTranscriptionJob, checkAndCompleteAnalysis } = require('../services/aiAnalysis');
 const { checkAchievements } = require('../services/achievementService');
 
 const todayStr = () => new Date().toISOString().slice(0, 10);
@@ -362,6 +362,23 @@ const getAIAnalysis = async (req, res) => {
     const video = await ChallengeVideo.findById(videoId).lean();
     if (!video) return res.status(404).json({ error: 'Video not found' });
     if (video.userId !== req.user.userId) return res.status(403).json({ error: 'Only the video owner can view AI analysis' });
+
+    // If processing and has a job ID, check AssemblyAI status now
+    if (video.aiAnalysis?.status === 'processing' && video.aiAnalysis?.assemblyJobId) {
+      const challenge = await DailyChallenge.findById(video.challengeId).lean();
+      const topic = video.aiAnalysis?.challengeTopic || challenge?.topic || 'Communication challenge';
+      try {
+        const result = await checkAndCompleteAnalysis(videoId, topic);
+        if (result.status === 'done') {
+          // Re-fetch updated video
+          const updated = await ChallengeVideo.findById(videoId).lean();
+          return res.json(updated.aiAnalysis || { status: 'done' });
+        }
+      } catch (err) {
+        console.error('[AI] getAIAnalysis check error:', err.message);
+      }
+    }
+
     res.json(video.aiAnalysis || { status: 'pending' });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -424,50 +441,64 @@ const getTranscript = async (req, res) => {
       return res.status(403).json({ error: 'Only the video owner can view the transcript' });
     }
 
-    // If transcript already exists, return it
-    if (video.aiAnalysis?.transcript) {
+    // Already done — return transcript immediately
+    if (video.aiAnalysis?.status === 'done') {
       return res.json({
-        transcript: video.aiAnalysis.transcript,
+        transcript: video.aiAnalysis.transcript || '',
         status: 'done',
         videoId,
         generatedAt: video.aiAnalysis.analyzedAt,
       });
     }
 
-    // Detect stuck jobs: processing for more than 5 minutes → reset to pending
-    const STUCK_THRESHOLD_MS = 5 * 60 * 1000;
-    const isStuck = video.aiAnalysis?.status === 'processing' &&
-      video.aiAnalysis?.processingStartedAt &&
-      (Date.now() - new Date(video.aiAnalysis.processingStartedAt).getTime()) > STUCK_THRESHOLD_MS;
+    // Has an AssemblyAI job ID — check its status (fast single HTTP call)
+    if (video.aiAnalysis?.assemblyJobId) {
+      const challenge = await DailyChallenge.findById(video.challengeId).lean();
+      const topic = video.aiAnalysis?.challengeTopic || challenge?.topic || 'Communication challenge';
 
-    if (isStuck) {
-      console.log(`[Transcript] Resetting stuck job for video ${videoId}`);
-      await ChallengeVideo.findByIdAndUpdate(videoId, { 'aiAnalysis.status': 'pending' });
-      video.aiAnalysis.status = 'pending';
+      // Detect stuck jobs (processing > 5 min with no job ID progress)
+      const STUCK_MS = 5 * 60 * 1000;
+      const startedAt = video.aiAnalysis?.processingStartedAt;
+      const isStuck = startedAt && (Date.now() - new Date(startedAt).getTime()) > STUCK_MS;
+
+      if (!isStuck) {
+        try {
+          const result = await checkAndCompleteAnalysis(videoId, topic);
+          if (result.status === 'done') {
+            return res.json({ transcript: result.transcript || '', status: 'done', videoId });
+          }
+          return res.json({ transcript: null, status: 'processing', videoId });
+        } catch (err) {
+          console.error('[Transcript] checkAndComplete error:', err.message);
+        }
+      } else {
+        console.log(`[Transcript] Job stuck for ${videoId}, resubmitting...`);
+        // Reset and resubmit below
+        await ChallengeVideo.findByIdAndUpdate(videoId, {
+          'aiAnalysis.status': 'pending',
+          'aiAnalysis.assemblyJobId': null,
+          'aiAnalysis.processingStartedAt': null,
+        });
+      }
     }
 
-    // If currently processing (and not stuck), tell client to keep polling
-    if (video.aiAnalysis?.status === 'processing') {
-      return res.json({ transcript: null, status: 'processing', videoId });
-    }
-
+    // No job yet (or was reset) — submit a new one
     const ASSEMBLYAI_KEY = process.env.ASSEMBLYAI_API_KEY;
     const GROQ_KEY = process.env.GROQ_API_KEY;
-
     if (!ASSEMBLYAI_KEY && !GROQ_KEY) {
       return res.status(503).json({ error: 'Transcription service not configured.' });
     }
 
-    // Trigger analysis — stamp processingStartedAt so we can detect stuck jobs
-    await ChallengeVideo.findByIdAndUpdate(videoId, {
-      'aiAnalysis.status': 'processing',
-      'aiAnalysis.processingStartedAt': new Date(),
-    });
-
     const challenge = await DailyChallenge.findById(video.challengeId).lean();
-    analyzeVideo(video._id, video.videoUrl, challenge?.topic || 'Communication challenge').catch(err =>
-      console.error('[Transcript] Background analysis error:', err.message)
-    );
+    const topic = challenge?.topic || 'Communication challenge';
+
+    try {
+      await submitTranscriptionJob(videoId, video.videoUrl);
+      await ChallengeVideo.findByIdAndUpdate(videoId, { 'aiAnalysis.challengeTopic': topic });
+    } catch (err) {
+      console.error('[Transcript] Submit failed:', err.message);
+      return res.status(500).json({ error: 'Failed to start transcription: ' + err.message });
+    }
 
     return res.json({ transcript: null, status: 'processing', videoId });
   } catch (err) {
@@ -485,9 +516,9 @@ const getTranscriptAdmin = async (req, res) => {
     const user = await User.findById(video.userId).select('name shortId avatarUrl').lean();
     const challenge = await DailyChallenge.findById(video.challengeId).select('topic date').lean();
 
-    if (video.aiAnalysis?.transcript) {
+    if (video.aiAnalysis?.status === 'done') {
       return res.json({
-        transcript: video.aiAnalysis.transcript,
+        transcript: video.aiAnalysis.transcript || '',
         status: 'done',
         videoId,
         videoUrl: video.videoUrl,
@@ -498,22 +529,30 @@ const getTranscriptAdmin = async (req, res) => {
       });
     }
 
-    // Trigger analysis if not done
-    if (video.aiAnalysis?.status !== 'processing') {
-      await ChallengeVideo.findByIdAndUpdate(videoId, { 'aiAnalysis.status': 'processing' });
-      analyzeVideo(video._id, video.videoUrl, challenge?.topic || 'Communication challenge').catch(err =>
-        console.error('[Transcript Admin] Background analysis error:', err.message)
-      );
+    // Has a job ID — check it
+    if (video.aiAnalysis?.assemblyJobId) {
+      const topic = video.aiAnalysis?.challengeTopic || challenge?.topic || 'Communication challenge';
+      try {
+        const result = await checkAndCompleteAnalysis(videoId, topic);
+        if (result.status === 'done') {
+          return res.json({ transcript: result.transcript || '', status: 'done', videoId, videoUrl: video.videoUrl, user, challenge });
+        }
+      } catch (err) {
+        console.error('[Transcript Admin] check error:', err.message);
+      }
+      return res.json({ transcript: null, status: 'processing', videoId, videoUrl: video.videoUrl, user, challenge });
     }
 
-    return res.json({
-      transcript: null,
-      status: video.aiAnalysis?.status || 'processing',
-      videoId,
-      videoUrl: video.videoUrl,
-      user,
-      challenge,
-    });
+    // Submit new job
+    const topic = challenge?.topic || 'Communication challenge';
+    try {
+      await submitTranscriptionJob(videoId, video.videoUrl);
+      await ChallengeVideo.findByIdAndUpdate(videoId, { 'aiAnalysis.challengeTopic': topic });
+    } catch (err) {
+      return res.status(500).json({ error: 'Failed to start transcription: ' + err.message });
+    }
+
+    return res.json({ transcript: null, status: 'processing', videoId, videoUrl: video.videoUrl, user, challenge });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
