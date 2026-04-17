@@ -66,7 +66,7 @@ const App = () => {
         <ToastProvider>
           <SocketProvider>
             <OfflineBanner />
-            <div className="min-h-[100dvh] bg-background text-foreground transition-colors duration-300 pb-20 md:pb-0 overflow-x-hidden">
+            <div className="min-h-[100dvh] bg-background text-foreground transition-colors duration-300 pb-20 overflow-x-hidden">
               <Navbar />
               <main className="container mx-auto px-4 py-4 md:py-8">
                 <Suspense fallback={<LoadingFallback />}>
